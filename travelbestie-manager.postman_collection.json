@@ -1,0 +1,1100 @@
+{
+  "info": {
+    "name": "TravelBestie Manager API",
+    "_postman_id": "travelbestie-manager-2026",
+    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Set `baseUrl` (default: `http://localhost:3000`)\n2. Set `rsaPublicKeyBase64` — the RSA public key in SPKI format, base64-encoded (no PEM headers). Required for all Auth requests.\n3. Optionally adjust `testUserEmail`, `testUserPassword`, `testUserName`.\n\n## Run order\nRequires **Postman v10+** (top-level `await` in pre-request scripts, Web Crypto API).\n\nFor the full happy-path flow run folders in order: Auth → Trips → Comments → Karma.\n`token` and `tripId` are saved automatically as collection variables.\n\n## Auth encryption\nLogin and Register bodies contain `encryptedPayload` (RSA-OAEP + SHA-256). Each Auth pre-request script encrypts the plaintext credentials using `rsaPublicKeyBase64` before the request fires.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "tripId", "value": "", "type": "string" },
+    { "key": "encryptedPayload", "value": "", "type": "string" },
+    { "key": "rsaPublicKeyBase64", "value": "", "type": "string" },
+    { "key": "testUserEmail", "value": "testuser@travelbestie.com", "type": "string" },
+    { "key": "testUserPassword", "value": "testpass123", "type": "string" },
+    { "key": "testUserName", "value": "Test User", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.equal('ok'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register - Success",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "const payload = { name: pm.collectionVariables.get('testUserName'), email: pm.collectionVariables.get('testUserEmail'), password: pm.collectionVariables.get('testUserPassword') };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc(payload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has token', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "pm.test('Has user name', () => pm.expect(pm.response.json().user.name).to.equal(pm.collectionVariables.get('testUserName')));",
+                  "pm.test('Has user email', () => pm.expect(pm.response.json().user.email).to.equal(pm.collectionVariables.get('testUserEmail')));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(pm.response.json().user.passwordHash).to.be.undefined);",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('token', pm.response.json().token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Email Already Taken",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "const takenEmail = 'already.taken@travelbestie.com';",
+                  "// Pre-register the email so it's definitely taken",
+                  "const firstEnc = await enc({ name: 'First User', email: takenEmail, password: 'testpass123' });",
+                  "await new Promise(resolve => pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/register', method: 'POST', header: [{ key: 'Content-Type', value: 'application/json' }], body: { mode: 'raw', raw: JSON.stringify({ encryptedPayload: firstEnc }) } }, () => resolve()));",
+                  "// Main request uses the same email — should get 400",
+                  "pm.collectionVariables.set('encryptedPayload', await enc({ name: 'Second User', email: takenEmail, password: 'otherpass123' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions email', () => pm.expect(pm.response.json().error).to.include('Email'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Password Too Short",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc({ name: 'Test', email: 'short.pass@test.com', password: '123' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions password length', () => pm.expect(pm.response.json().error).to.include('password'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Missing Name",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc({ email: 'no.name@test.com', password: 'testpass123' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions name', () => pm.expect(pm.response.json().error).to.include('name'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Missing encryptedPayload",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error is encryptedPayload required', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - Invalid encryptedPayload",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"not-a-valid-rsa-ciphertext\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error is invalid payload', () => pm.expect(pm.response.json().error).to.equal('Invalid encrypted payload'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Success",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "// Ensure user exists before login (idempotent — 400 if already registered is fine)",
+                  "const regPayload = { name: pm.collectionVariables.get('testUserName'), email: pm.collectionVariables.get('testUserEmail'), password: pm.collectionVariables.get('testUserPassword') };",
+                  "const regEnc = await enc(regPayload);",
+                  "await new Promise(resolve => pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/register', method: 'POST', header: [{ key: 'Content-Type', value: 'application/json' }], body: { mode: 'raw', raw: JSON.stringify({ encryptedPayload: regEnc }) } }, () => resolve()));",
+                  "// Now encrypt the login payload",
+                  "const loginPayload = { email: pm.collectionVariables.get('testUserEmail'), password: pm.collectionVariables.get('testUserPassword') };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc(loginPayload));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "pm.test('Has user name', () => pm.expect(pm.response.json().user.name).to.be.a('string'));",
+                  "pm.test('Has user email', () => pm.expect(pm.response.json().user.email).to.equal(pm.collectionVariables.get('testUserEmail')));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(pm.response.json().user.passwordHash).to.be.undefined);",
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('token', pm.response.json().token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc({ email: pm.collectionVariables.get('testUserEmail'), password: 'definitelywrong' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error is invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Unknown Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"encryptedPayload\": \"{{encryptedPayload}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "if (!pub) { console.warn('rsaPublicKeyBase64 not set'); return; }",
+                  "const enc = async p => { const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP', hash:'SHA-256'}, false, ['encrypt']); const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(p))); return btoa(String.fromCharCode(...new Uint8Array(e))); };",
+                  "pm.collectionVariables.set('encryptedPayload', await enc({ email: 'nobody@nonexistent.com', password: 'doesnotmatter' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error is invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Missing encryptedPayload",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error is encryptedPayload required', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🗺️ Trips",
+      "item": [
+        {
+          "name": "List Trips - Authenticated",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Trips - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Trip - Minimal",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My Europe Trip\",\n  \"stops\": [],\n  \"transits\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('Title matches', () => pm.expect(body.title).to.equal('My Europe Trip'));",
+                  "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
+                  "pm.test('Has createdAt', () => pm.expect(body.createdAt).to.be.a('string'));",
+                  "pm.test('Stops is array', () => pm.expect(body.stops).to.be.an('array'));",
+                  "pm.test('Transits is array', () => pm.expect(body.transits).to.be.an('array'));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('tripId', body.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Trip - With Stops and Transits",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Asia 2026\",\n  \"stops\": [\n    {\n      \"cityId\": \"tokyo\",\n      \"checkIn\": \"01/07/2026\",\n      \"checkOut\": \"07/07/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"tokyo_0\", \"startTime\": \"09:00\", \"date\": \"02/07/2026\" }\n      ],\n      \"lodging\": { \"name\": \"Park Hyatt Tokyo\", \"url\": \"https://example.com\" }\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"tokyo\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"01/07/2026\",\n          \"departureTime\": \"10:00\",\n          \"arrivalDate\": \"02/07/2026\",\n          \"arrivalTime\": \"08:30\",\n          \"notes\": \"LA 839 via LAX\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has 1 stop', () => pm.expect(body.stops).to.have.length(1));",
+                  "pm.test('Stop has cityId', () => pm.expect(body.stops[0].cityId).to.equal('tokyo'));",
+                  "pm.test('Stop has lodging', () => pm.expect(body.stops[0].lodging.name).to.equal('Park Hyatt Tokyo'));",
+                  "pm.test('Stop has selected attraction', () => pm.expect(body.stops[0].selectedAttractions).to.have.length(1));",
+                  "pm.test('Has 1 transit', () => pm.expect(body.transits).to.have.length(1));",
+                  "pm.test('Transit has segment', () => pm.expect(body.transits[0].segments[0].mode).to.equal('flight'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Trip - Missing Title",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stops\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions title', () => pm.expect(pm.response.json().error).to.include('title'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Trip - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Fail\",\n  \"stops\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Trip - Change Title",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My Europe Trip — Updated\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Title updated', () => pm.expect(pm.response.json().title).to.equal('My Europe Trip — Updated'));",
+                  "pm.test('Has id', () => pm.expect(pm.response.json().id).to.equal(pm.collectionVariables.get('tripId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Trip - With Stops and Transits",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Europe 2026 Final\",\n  \"stops\": [\n    {\n      \"cityId\": \"paris\",\n      \"checkIn\": \"10/06/2026\",\n      \"checkOut\": \"15/06/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"paris_0\", \"startTime\": \"10:00\" }\n      ]\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"paris\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"10/06/2026\",\n          \"departureTime\": \"08:00\",\n          \"arrivalDate\": \"11/06/2026\",\n          \"arrivalTime\": \"07:30\",\n          \"notes\": \"AF 406\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Title updated', () => pm.expect(body.title).to.equal('Europe 2026 Final'));",
+                  "pm.test('Has 1 stop', () => pm.expect(body.stops).to.have.length(1));",
+                  "pm.test('Has 1 transit with segment', () => pm.expect(body.transits[0].segments[0].notes).to.equal('AF 406'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Trip - Not Found",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Not Exist\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error is Trip not found', () => pm.expect(pm.response.json().error).to.equal('Trip not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Trip - No Token",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Fail\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Trip - Not Found",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error is Trip not found', () => pm.expect(pm.response.json().error).to.equal('Trip not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Trip - No Token",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Trip - Success",
+          "description": "Deletes the trip saved in {{tripId}}. Must be the last trip test — run after all Update tests.",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('No response body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 Comments",
+      "item": [
+        {
+          "name": "Get Comments - Empty Attraction",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/comments/unknown_attraction_000", "host": ["{{baseUrl}}"], "path": ["comments", "unknown_attraction_000"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is empty array', () => pm.expect(pm.response.json()).to.deep.equal([]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Absolutely breathtaking view!\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('attractionId matches path', () => pm.expect(body.attractionId).to.equal('paris_0'));",
+                  "pm.test('Name from JWT not body', () => pm.expect(body.name).to.equal(pm.collectionVariables.get('testUserName')));",
+                  "pm.test('Text preserved', () => pm.expect(body.text).to.equal('Absolutely breathtaking view!'));",
+                  "pm.test('Rating preserved', () => pm.expect(body.rating).to.equal(5));",
+                  "pm.test('Color preserved', () => pm.expect(body.color).to.equal('#F472B6'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Spoofed Name Ignored",
+          "description": "Sends a `name` field in the body that differs from the JWT name. The server must ignore the body name and use the JWT name.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HACKER\",\n  \"text\": \"I tried to spoof the author name.\",\n  \"rating\": 4,\n  \"color\": \"#34D399\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/rome_0", "host": ["{{baseUrl}}"], "path": ["comments", "rome_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Name is from JWT not body', () => pm.expect(pm.response.json().name).to.equal(pm.collectionVariables.get('testUserName')));",
+                  "pm.test('Spoofed name rejected', () => pm.expect(pm.response.json().name).to.not.equal('HACKER'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Second on Same Attraction",
+          "description": "A second comment on paris_0 is allowed, but does NOT grant additional karma (+1 was already awarded by the first comment).",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Even better the second time!\",\n  \"rating\": 5,\n  \"color\": \"#818CF8\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Comment saved', () => pm.expect(pm.response.json().text).to.equal('Even better the second time!'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Different Attraction",
+          "description": "Comment on a new attractionId grants another +1 karma because this is the first comment on this attraction.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Amazing place!\",\n  \"rating\": 4,\n  \"color\": \"#FB923C\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/tokyo_0", "host": ["{{baseUrl}}"], "path": ["comments", "tokyo_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('attractionId is tokyo_0', () => pm.expect(pm.response.json().attractionId).to.equal('tokyo_0'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Rating Too High (6)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Great place!\",\n  \"rating\": 6,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions rating', () => pm.expect(pm.response.json().error).to.include('rating'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Rating Too Low (0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Great place!\",\n  \"rating\": 0,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions rating', () => pm.expect(pm.response.json().error).to.include('rating'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Missing Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions text', () => pm.expect(pm.response.json().error).to.include('text'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Missing Rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Great!\",\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions rating', () => pm.expect(pm.response.json().error).to.include('rating'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Should fail.\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Comments - After Adding",
+          "description": "Run after Post Comment - Success. paris_0 should now have at least one comment.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has comments', () => pm.expect(body.length).to.be.greaterThan(0));",
+                  "pm.test('First comment has required fields', () => {",
+                  "    pm.expect(body[0].id).to.be.a('string');",
+                  "    pm.expect(body[0].name).to.be.a('string');",
+                  "    pm.expect(body[0].text).to.be.a('string');",
+                  "    pm.expect(body[0].rating).to.be.within(1, 5);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⭐ Karma",
+      "item": [
+        {
+          "name": "Get Karma - Authenticated",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/karma", "host": ["{{baseUrl}}"], "path": ["karma"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has karma field', () => pm.expect(pm.response.json().karma).to.be.a('number'));",
+                  "pm.test('Karma is integer', () => pm.expect(Number.isInteger(pm.response.json().karma)).to.be.true);",
+                  "console.log('Current karma:', pm.response.json().karma);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Karma - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/karma", "host": ["{{baseUrl}}"], "path": ["karma"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
