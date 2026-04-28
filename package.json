@@ -1,0 +1,32 @@
+{
+  "name": "underagegiant-travelbestie-manager",
+  "version": "1.0.0",
+  "description": "TravelBestie backend API — Node.js/Express deployed on Vercel Serverless Functions",
+  "main": "api/index.ts",
+  "scripts": {
+    "dev": "ts-node api/index.ts",
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/supertest": "^6.0.2",
+    "@vercel/node": "^3.0.0",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.1.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
