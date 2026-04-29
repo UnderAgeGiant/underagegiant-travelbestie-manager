@@ -10,6 +10,7 @@ build/
 .env.local
 .env.*.local
 local.env
+private.pem
 
 # Vercel
 .vercel
