@@ -78,6 +78,7 @@ export interface AuthPayload {
 declare global {
   namespace Express {
     interface Request {
+      flowId: string;
       user?: AuthPayload;
       foundUser?: User;
       trip?: Trip;

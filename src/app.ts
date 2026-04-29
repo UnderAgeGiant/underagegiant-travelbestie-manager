@@ -6,9 +6,11 @@ import { createTripsRouter } from './routes/trips.routes';
 import { createCommentsRouter } from './routes/comments.routes';
 import { createKarmaRouter } from './routes/karma.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
+import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 
 export const app = express();
 
+app.use(requestLoggerMiddleware);
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200', credentials: true }));
 app.use(express.json());
 
