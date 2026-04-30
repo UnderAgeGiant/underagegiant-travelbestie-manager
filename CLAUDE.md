@@ -29,6 +29,8 @@ Router → [validate] → [requireAuth?] → [domain middleware…] → [control
 
 **`src/lib/db.ts`** exports a single `pg.Pool` instance driven by `DATABASE_URL`. All repositories receive it via constructor injection.
 
+**`api/dotenv-setup.ts`** is imported as the very first line of `api/index.ts` and calls `dotenv.config({ path: 'local.env' })` before any other module is loaded. This is required because TypeScript `import` statements compile to top-level `require()` calls — if `src/app` (and therefore `db.ts`) were imported before dotenv ran, `DATABASE_URL` would be `undefined` when the Pool is constructed, causing an `AggregateError` on the first query.
+
 **`respond(status)`** from `src/middleware/respond.middleware.ts` is the terminal step in every route chain — it sends `req.result` as JSON (or 204 with no body).
 
 ## Database
@@ -99,12 +101,21 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 |---|---|---|---|
 | `DATABASE_URL` | Yes | *(none)* | PostgreSQL connection string, e.g. `postgresql://user:pass@host/db` |
 | `JWT_SECRET` | Production | `dev-secret-change-in-production` | Signs/verifies JWTs |
-| `RSA_PRIVATE_KEY` | Production | *(none)* | PEM string with `\n` as literal `\n`; decrypts login/register payloads |
+| `RSA_PRIVATE_KEY` | Production | *(none)* | PKCS#8 PEM string with literal `\n`; decrypts login/register payloads. Generate with `node scripts/generate-keys.js`. |
 | `FRONTEND_ORIGIN` | Optional | `http://localhost:4200` | CORS allowed origin |
 
-Local overrides go in `local.env` (git-ignored). The dev server loads it automatically via `dotenv`; Vercel uses its own environment dashboard in production.
+Local overrides go in `local.env` (git-ignored). `api/dotenv-setup.ts` loads it before the app boots; Vercel uses its own environment dashboard in production.
 
 `RSA_PRIVATE_KEY` is only needed for real frontend calls. Integration tests mock `decrypt-payload.middleware` so no key is required locally.
+
+The key **must be PKCS#8 PEM** (the format produced by `generateKeyPairSync`). OpenSSH keys (e.g. from `ssh-keygen`) are not supported by Node's `privateDecrypt` and will cause a `DECODER routines::unsupported` error even after `createPrivateKey()` normalisation.
+
+To generate a compatible key pair:
+```bash
+node scripts/generate-keys.js
+# → prints RSA_PRIVATE_KEY=... line for local.env
+# → prints rsaPublicKeyBase64 for the Postman collection variable
+```
 
 ## Tests
 

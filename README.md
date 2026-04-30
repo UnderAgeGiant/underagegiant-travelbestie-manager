@@ -22,15 +22,23 @@ npm install
 ```env
 DATABASE_URL=postgresql://user:pass@host/dbname
 JWT_SECRET=any-local-secret
+RSA_PRIVATE_KEY=<output from step 3>
 FRONTEND_ORIGIN=http://localhost:4200
 ```
 
-**3. Apply the schema** to your PostgreSQL database
+**3. Generate an RSA key pair** for Postman / frontend encryption
+```bash
+node scripts/generate-keys.js
+# Copy the RSA_PRIVATE_KEY=... line into local.env
+# Copy the rsaPublicKeyBase64 value into the Postman collection variable
+```
+
+**4. Apply the schema** to your PostgreSQL database
 ```bash
 psql $DATABASE_URL -f ../docs/superpowers/plans/travelbestie-schema.sql
 ```
 
-**4. Start the dev server**
+**5. Start the dev server**
 ```bash
 npm run dev   # → http://localhost:3000
 ```
@@ -66,7 +74,7 @@ Karma is managed entirely by PostgreSQL triggers — no application-level side e
 |---|---|---|---|
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `JWT_SECRET` | Production | `dev-secret-change-in-production` | Signs/verifies JWTs |
-| `RSA_PRIVATE_KEY` | Production | — | PEM string; decrypts register/login payloads from the frontend |
+| `RSA_PRIVATE_KEY` | Production | — | PKCS#8 PEM string (use `node scripts/generate-keys.js`); decrypts register/login payloads |
 | `FRONTEND_ORIGIN` | Optional | `http://localhost:4200` | CORS allowed origin |
 
 In production, set these in the Vercel project environment settings. Locally, put them in `local.env`.
@@ -81,7 +89,7 @@ Router → [validate] → [requireAuth?] → [domain middleware…] → [control
 
 - **Controllers** (`src/controllers/`) call exactly one repository method and attach the result to `req`. Zero business logic.
 - **Repositories** (`src/repositories/pg/`) are the only layer that touches PostgreSQL. Injected via `src/container.ts`.
-- **`src/lib/db.ts`** exports a single `pg.Pool` driven by `DATABASE_URL`.
+- **`src/lib/db.ts`** exports a single `pg.Pool` driven by `DATABASE_URL`. Loaded after `api/dotenv-setup.ts` runs so the connection string is always populated before the Pool is constructed.
 - **Karma** is handled by DB triggers (`trg_trip_karma`, `trg_attraction_comment_karma`) — no middleware needed.
 
 ## Deployment
