@@ -7,7 +7,11 @@ export class CommentController {
   add = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const { name, text, rating, color, date } = req.body as { name: string; text: string; rating: number; color: string; date: string };
-      req.result = await this.comments.add({ attractionId: req.params.attractionId, name, text, rating, color, date });
+      req.result = await this.comments.add({
+        attractionId: req.params.attractionId,
+        name, text, rating, color, date,
+        userId: req.user!.userId,
+      });
       next();
     } catch (err) { next(err); }
   };

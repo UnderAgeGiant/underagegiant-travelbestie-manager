@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { userController, tripController, commentController, karmaController, karmaRepo, commentRepo } from './container';
+import { userController, tripController, commentController, karmaController } from './container';
 import { createAuthRouter } from './routes/auth.routes';
 import { createTripsRouter } from './routes/trips.routes';
 import { createCommentsRouter } from './routes/comments.routes';
@@ -17,8 +17,8 @@ app.use(express.json());
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth',     createAuthRouter(userController));
-app.use('/trips',    createTripsRouter(tripController, karmaRepo));
-app.use('/comments', createCommentsRouter(commentController, karmaRepo, commentRepo));
+app.use('/trips',    createTripsRouter(tripController));
+app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController));
 
 app.use(notFound);

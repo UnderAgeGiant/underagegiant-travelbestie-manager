@@ -1,3 +1,4 @@
+import './dotenv-setup';
 import { app } from '../src/app';
 
 if (process.env.NODE_ENV !== 'production' && require.main === module) {
