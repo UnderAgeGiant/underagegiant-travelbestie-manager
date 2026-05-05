@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bienvenido a TravelingBestie ✈️</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<template id="__bundler_thumbnail" data-bg-color="#f5f0eb">
+  <svg viewBox="0 0 600 800" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="600" height="800" fill="#f5f0eb"/>
+    <!-- Email card -->
+    <rect x="60" y="40" width="480" height="720" rx="20" fill="#ffffff"/>
+    <!-- Hero gradient banner -->
+    <rect x="60" y="40" width="480" height="180" rx="20" fill="url(#hg)"/>
+    <rect x="60" y="160" width="480" height="60" fill="url(#hg)"/>
+    <defs>
+      <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7C3AED"/>
+        <stop offset="100%" stop-color="#EA580C"/>
+      </linearGradient>
+      <linearGradient id="ibg2" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#ede9fe"/>
+        <stop offset="100%" stop-color="#fde8d8"/>
+      </linearGradient>
+    </defs>
+    <!-- TB logo circle -->
+    <circle cx="300" cy="100" r="36" fill="url(#ibg2)"/>
+    <text x="282" y="118" font-family="Georgia,serif" font-size="38" font-weight="bold" font-style="italic" fill="#7C3AED">T</text>
+    <text x="304" y="118" font-family="Georgia,serif" font-size="38" font-weight="bold" font-style="italic" fill="#EA580C">B</text>
+    <!-- Content lines -->
+    <rect x="100" y="240" width="400" height="12" rx="6" fill="#ede9fe"/>
+    <rect x="140" y="264" width="320" height="8" rx="4" fill="#e5e0f0"/>
+    <!-- Karma card -->
+    <rect x="80" y="300" width="440" height="120" rx="14" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1.5"/>
+    <rect x="100" y="320" width="120" height="80" rx="10" fill="#fff" stroke="#e9d5ff" stroke-width="1"/>
+    <rect x="240" y="320" width="120" height="80" rx="10" fill="#fff" stroke="#bbf7d0" stroke-width="1"/>
+    <rect x="380" y="320" width="120" height="80" rx="10" fill="#fff" stroke="#fed7aa" stroke-width="1"/>
+    <!-- Feature rows -->
+    <rect x="100" y="450" width="40" height="40" rx="10" fill="#ede9fe"/>
+    <rect x="156" y="456" width="280" height="10" rx="5" fill="#1e1a2e" opacity="0.7"/>
+    <rect x="156" y="474" width="220" height="8" rx="4" fill="#9c95b0"/>
+    <rect x="100" y="510" width="40" height="40" rx="10" fill="#fde8d8"/>
+    <rect x="156" y="516" width="260" height="10" rx="5" fill="#1e1a2e" opacity="0.7"/>
+    <rect x="156" y="534" width="200" height="8" rx="4" fill="#9c95b0"/>
+    <rect x="100" y="570" width="40" height="40" rx="10" fill="#d1fae5"/>
+    <rect x="156" y="576" width="270" height="10" rx="5" fill="#1e1a2e" opacity="0.7"/>
+    <rect x="156" y="594" width="210" height="8" rx="4" fill="#9c95b0"/>
+    <!-- CTA button -->
+    <rect x="160" y="640" width="280" height="44" rx="22" fill="url(#hg)"/>
+    <rect x="100" y="706" width="400" height="6" rx="3" fill="#e5e0f0"/>
+    <rect x="160" y="722" width="280" height="6" rx="3" fill="#e5e0f0"/>
+  </svg>
+</template>
+</head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:'DM Sans',Arial,sans-serif;color:#1e1a2e;">
+
+<!-- EMAIL WRAPPER -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f0eb;padding:40px 16px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+        <!-- ── HEADER LOGO ── -->
+        <tr>
+          <td align="center" style="padding-bottom:24px;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:12px;vertical-align:middle;">
+                  <!-- TB Icon SVG inline -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="48" height="48">
+                    <defs>
+                      <linearGradient id="ibg" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#ede9fe"/>
+                        <stop offset="100%" stop-color="#fde8d8"/>
+                      </linearGradient>
+                    </defs>
+                    <circle cx="80" cy="80" r="76" fill="url(#ibg)"/>
+                    <circle cx="80" cy="80" r="74" fill="none" stroke="#7C3AED" stroke-width="2" opacity="0.3"/>
+                    <text x="32" y="104" font-family="Georgia,serif" font-size="82" font-weight="bold" font-style="italic" fill="#7C3AED" letter-spacing="-2">T</text>
+                    <text x="74" y="104" font-family="Georgia,serif" font-size="82" font-weight="bold" font-style="italic" fill="#EA580C" letter-spacing="-2">B</text>
+                  </svg>
+                </td>
+                <td style="vertical-align:middle;">
+                  <span style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:500;color:#7C3AED;letter-spacing:-0.5px;">Traveling<em style="font-style:italic;color:#EA580C;">Bestie</em></span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ── HERO CARD ── -->
+        <tr>
+          <td>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#7C3AED 0%,#a855f7 45%,#EA580C 100%);border-radius:24px 24px 0 0;overflow:hidden;">
+              <tr>
+                <td style="padding:52px 48px 44px;text-align:center;">
+                  <!-- Decorative circles -->
+                  <div style="position:relative;display:inline-block;">
+                    <div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:40px;line-height:80px;margin-bottom:24px;">✈️</div>
+                  </div>
+                  <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:42px;font-weight:400;color:#ffffff;line-height:1.1;letter-spacing:-1.5px;margin-bottom:12px;text-wrap:pretty;">
+                    Bienvenido a bordo,<br/><em style="font-style:italic;">explorador</em> 🌍
+                  </div>
+                  <div style="font-size:16px;color:rgba(255,255,255,0.82);font-weight:300;line-height:1.6;max-width:380px;margin:0 auto;">
+                    Tu cuenta está lista. Empieza a planificar viajes, acumular Karma y compartir aventuras con tus besties.
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ── WHITE BODY ── -->
+        <tr>
+          <td style="background:#ffffff;border-radius:0 0 24px 24px;overflow:hidden;">
+
+            <!-- INTRO TEXT -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:40px 48px 0;">
+                  <p style="font-size:15px;color:#3d3650;line-height:1.7;margin:0;">
+                    ¡Hola {user_name}! 👋 Estamos muy emocionados de tenerte en <strong>TravelingBestie</strong>. Ahora puedes crear viajes a varios destinos, descubrir atracciones locales y compartir cada aventura con tus amigos. Esto es todo lo que puedes hacer desde el primer día:
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- ── KARMA HERO BLOCK ── -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:32px 48px 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#fdf4ff,#fff7ed);border:2px solid #e9d5ff;border-radius:20px;overflow:hidden;">
+                    <tr>
+                      <td style="padding:28px 32px;">
+                        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                          <tr>
+                            <td style="padding-right:12px;vertical-align:middle;">
+                              <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#7C3AED,#a855f7);display:inline-flex;align-items:center;justify-content:center;font-size:24px;line-height:48px;text-align:center;">⚡</div>
+                            </td>
+                            <td style="vertical-align:middle;">
+                              <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:500;color:#7C3AED;letter-spacing:-0.5px;line-height:1.1;">Conoce el <em>Karma</em></div>
+                              <div style="font-size:12px;color:#9c84c0;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">Tu moneda de viaje</div>
+                            </td>
+                          </tr>
+                        </table>
+                        <p style="font-size:14px;color:#4a3f6b;line-height:1.7;margin:0 0 20px;">
+                          Karma es tu moneda en TravelingBestie. Empiezas con <strong style="color:#7C3AED;">3 Karma gratis</strong> — úsalos para guardar y compartir viajes. Comenta en los viajes de tus amigos para ganar más, sin límite. ✨
+                        </p>
+                        <!-- Karma earn ways -->
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td width="33%" style="padding-right:8px;vertical-align:top;">
+                              <div style="background:#fff;border:1.5px solid #e9d5ff;border-radius:14px;padding:16px;text-align:center;">
+                                <div style="font-size:26px;margin-bottom:8px;">💾</div>
+                                <div style="font-size:13px;font-weight:600;color:#7C3AED;margin-bottom:4px;">Guardar un viaje</div>
+                                <div style="font-size:11px;color:#9c84c0;line-height:1.4;">Gasta <strong style="color:#EA580C;">−1 ⚡</strong> de tu saldo de Karma</div>
+                              </div>
+                            </td>
+                            <td width="33%" style="padding:0 4px;vertical-align:top;">
+                              <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:14px;padding:16px;text-align:center;">
+                                <div style="font-size:26px;margin-bottom:8px;">💬</div>
+                                <div style="font-size:13px;font-weight:600;color:#059669;margin-bottom:4px;">Comentar</div>
+                                <div style="font-size:11px;color:#60a07a;line-height:1.4;">Ganas <strong style="color:#059669;">+1 ⚡</strong> por cada comentario en el viaje de un amigo</div>
+                              </div>
+                            </td>
+                            <td width="33%" style="padding-left:8px;vertical-align:top;">
+                              <div style="background:#fff;border:1.5px solid #fed7aa;border-radius:14px;padding:16px;text-align:center;">
+                                <div style="font-size:26px;margin-bottom:8px;">🔗</div>
+                                <div style="font-size:13px;font-weight:600;color:#EA580C;margin-bottom:4px;">Compartir un viaje</div>
+                                <div style="font-size:11px;color:#c08060;line-height:1.4;">Gasta <strong style="color:#EA580C;">−1 ⚡</strong> de tu saldo de Karma</div>
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                        <!-- Unlimited note -->
+                        <div style="margin-top:14px;background:linear-gradient(135deg,#7C3AED18,#EA580C12);border-radius:10px;padding:10px 14px;font-size:12px;color:#4a3f6b;text-align:center;">
+                          🎁 Empiezas con <strong style="color:#7C3AED;">3 Karma gratis</strong> &nbsp;·&nbsp; Sin límite — gana todo lo que quieras &nbsp;·&nbsp; <strong style="color:#059669;">Comenta para recargar ⚡</strong>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- ── 3 FEATURE ROWS ── -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:32px 48px 0;">
+                  <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:400;color:#1e1a2e;letter-spacing:-0.5px;margin-bottom:20px;">
+                    Qué puedes hacer
+                  </div>
+
+                  <!-- Feature 1 -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                    <tr>
+                      <td width="56" style="vertical-align:top;padding-right:16px;">
+                        <div style="width:48px;height:48px;border-radius:14px;background:#ede9fe;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:48px;text-align:center;">🗺️</div>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <div style="font-size:15px;font-weight:600;color:#1e1a2e;margin-bottom:4px;">Crea viajes a múltiples destinos</div>
+                        <div style="font-size:13px;color:#6b6480;line-height:1.6;">Busca entre más de 120 ciudades del mundo, define tus fechas de viaje y organiza todas tus paradas en un itinerario claro.</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Divider -->
+                  <div style="height:1px;background:#f0eaf8;margin-bottom:14px;"></div>
+
+                  <!-- Feature 2 -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                    <tr>
+                      <td width="56" style="vertical-align:top;padding-right:16px;">
+                        <div style="width:48px;height:48px;border-radius:14px;background:#fde8d8;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:48px;text-align:center;">💌</div>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <div style="font-size:15px;font-weight:600;color:#1e1a2e;margin-bottom:4px;">Comenta en las atracciones de tus amigos</div>
+                        <div style="font-size:13px;color:#6b6480;line-height:1.6;">Deja consejos, reseñas y recuerdos en cada atracción que visiten tus amigos — gana <strong>+1 Karma</strong> por cada comentario. ¡Cuanto más compartes, más recibes!</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Divider -->
+                  <div style="height:1px;background:#f0eaf8;margin-bottom:14px;"></div>
+
+                  <!-- Feature 3 -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                    <tr>
+                      <td width="56" style="vertical-align:top;padding-right:16px;">
+                        <div style="width:48px;height:48px;border-radius:14px;background:#d1fae5;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:48px;text-align:center;">🔗</div>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <div style="font-size:15px;font-weight:600;color:#1e1a2e;margin-bottom:4px;">Comparte tu viaje con todos</div>
+                        <div style="font-size:13px;color:#6b6480;line-height:1.6;">Genera un enlace compartible de tu viaje completo por solo <strong>1 Karma</strong>. Invita al mundo — tu saldo es ilimitado, así que sigue comentando para seguir compartiendo.</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Divider -->
+                  <div style="height:1px;background:#f0eaf8;margin-bottom:14px;"></div>
+
+                  <!-- Feature 4 -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td width="56" style="vertical-align:top;padding-right:16px;">
+                        <div style="width:48px;height:48px;border-radius:14px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:48px;text-align:center;">💾</div>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <div style="font-size:15px;font-weight:600;color:#1e1a2e;margin-bottom:4px;">Guarda viajes y acumula Karma</div>
+                        <div style="font-size:13px;color:#6b6480;line-height:1.6;">Cada viaje que guardes se almacena en tu perfil por solo <strong>1 Karma</strong>. Vuelve cuando quieras, compártelo e inspira a toda la comunidad.</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- ── CTA BUTTON ── -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:36px 48px;" align="center">
+                  <a href="#" style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#EA580C);color:#fff;font-family:'DM Sans',Arial,sans-serif;font-size:16px;font-weight:600;text-decoration:none;padding:16px 40px;border-radius:99px;letter-spacing:0.2px;box-shadow:0 6px 24px rgba(124,58,237,0.28);">
+                    Empieza a Planificar tu Viaje ✈️
+                  </a>
+                  <div style="margin-top:12px;font-size:12px;color:#9c95b0;">Empieza con 3 Karma gratis · Sin tarjeta de crédito · Potencial ilimitado</div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- ── KARMA PROGRESS TEASER ── -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 48px 36px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:16px;padding:0;overflow:hidden;">
+                    <tr>
+                      <td style="padding:20px 24px;">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td>
+                              <div style="font-size:13px;font-weight:600;color:#7C3AED;margin-bottom:6px;">⚡ Tu Karma — primeros pasos</div>
+                              <div style="font-size:12px;color:#9c84c0;margin-bottom:10px;">Empiezas con <strong style="color:#7C3AED;">3 ⚡ gratis</strong> — comenta para ganar más, sin límites</div>
+                              <!-- Progress bar -->
+                              <div style="background:#e9d5ff;border-radius:99px;height:8px;overflow:hidden;margin-bottom:14px;">
+                                <div style="background:linear-gradient(90deg,#7C3AED,#EA580C);height:100%;width:8%;border-radius:99px;"></div>
+                              </div>
+                              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                  <td style="font-size:12px;color:#6b6480;padding:3px 0;">☐ &nbsp; Guarda tu primer viaje <span style="color:#EA580C;font-weight:600;">−1 ⚡</span></td>
+                                </tr>
+                                <tr>
+                                  <td style="font-size:12px;color:#059669;padding:3px 0;">☐ &nbsp; Comenta en la atracción de un amigo <span style="color:#059669;font-weight:600;">+1 ⚡</span></td>
+                                </tr>
+                                <tr>
+                                  <td style="font-size:12px;color:#6b6480;padding:3px 0;">☐ &nbsp; Comparte tu viaje con todos <span style="color:#EA580C;font-weight:600;">−1 ⚡</span></td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <!-- ── FOOTER ── -->
+        <tr>
+          <td style="padding:28px 48px 16px;text-align:center;">
+            <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;font-weight:500;color:#7C3AED;margin-bottom:8px;">
+              Traveling<em style="font-style:italic;color:#EA580C;">Bestie</em>
+            </div>
+            <div style="font-size:11px;color:#b0a8c4;line-height:1.7;">
+              Recibes este mensaje porque acabas de crear una cuenta.<br/>
+              <a href="#" style="color:#9c84c0;text-decoration:underline;">Cancelar suscripción</a> &nbsp;·&nbsp;
+              <a href="#" style="color:#9c84c0;text-decoration:underline;">Política de privacidad</a> &nbsp;·&nbsp;
+              <a href="#" style="color:#9c84c0;text-decoration:underline;">Centro de ayuda</a>
+            </div>
+            <div style="font-size:11px;color:#c8c0d8;margin-top:10px;">© 2026 TravelingBestie. Hecho con 💜 para aventureros.</div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
