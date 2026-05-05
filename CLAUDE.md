@@ -103,6 +103,12 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | `JWT_SECRET` | Production | `dev-secret-change-in-production` | Signs/verifies JWTs |
 | `RSA_PRIVATE_KEY` | Production | *(none)* | PKCS#8 PEM string with literal `\n`; decrypts login/register payloads. Generate with `node scripts/generate-keys.js`. |
 | `FRONTEND_ORIGIN` | Optional | `http://localhost:4200` | CORS allowed origin |
+| `EMAIL_HOST` | Production | *(none)* | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| `EMAIL_PORT` | Optional | `587` | SMTP port |
+| `EMAIL_SECURE` | Optional | `false` | Set to `true` for port 465 (TLS) |
+| `EMAIL_USER` | Production | *(none)* | SMTP auth username |
+| `EMAIL_PASS` | Production | *(none)* | SMTP auth password |
+| `EMAIL_FROM` | Optional | same as `EMAIL_USER` | "From" address shown to recipients |
 
 Local overrides go in `local.env` (git-ignored). `api/dotenv-setup.ts` loads it before the app boots; Vercel uses its own environment dashboard in production.
 
