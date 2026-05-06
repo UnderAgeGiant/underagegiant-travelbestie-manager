@@ -12,4 +12,25 @@ export class PgKarmaRepository implements IKarmaRepository {
     );
     return { email, score: (row?.karma as number) ?? 0 };
   }
+
+  async spend(userId: string, refId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE users SET karma = karma - 1, updated_at = now() WHERE user_id = $1`,
+        [userId],
+      );
+      await client.query(
+        `INSERT INTO karma_events (user_id, delta, reason, ref_id) VALUES ($1, -1, 'itinerary_exported', $2)`,
+        [userId, refId],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }

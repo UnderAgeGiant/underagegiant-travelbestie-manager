@@ -11,4 +11,11 @@ export class KarmaController {
       next();
     } catch (err) { next(err); }
   };
+
+  spend = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spend(req.user!.userId, req.trip!.id);
+      next();
+    } catch (err) { next(err); }
+  };
 }
