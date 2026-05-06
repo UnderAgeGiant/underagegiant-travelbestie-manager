@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { TripController } from '../controllers/trip.controller';
+import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
@@ -7,7 +8,7 @@ import { buildTripResponse } from '../middleware/trips/build-trip-response.middl
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { respond } from '../middleware/respond.middleware';
 
-export function createTripsRouter(trip: TripController): Router {
+export function createTripsRouter(trip: TripController, karma: KarmaController): Router {
   const router = Router();
 
   router.use(requireAuth);
@@ -27,6 +28,7 @@ export function createTripsRouter(trip: TripController): Router {
   router.post('/:id/itinerary',
     trip.findById,
     checkTripOwnership,
+    karma.spend,
     generateItinerary,
   );
 

@@ -2,4 +2,5 @@ import { Karma } from '../../types';
 
 export interface IKarmaRepository {
   get(email: string): Promise<Karma>;
+  spend(userId: string, refId: string): Promise<void>;
 }
