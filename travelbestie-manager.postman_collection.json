@@ -737,6 +737,138 @@
           ]
         },
         {
+          "name": "Generate Itinerary - With Enriched Names",
+          "description": "Requires {{tripId}} to have stops and transits — run 'Update Trip - With Stops and Transits' first. Downloads an .xlsx itinerary file with resolved city and attraction display names.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityNames\": {\n    \"santiago\": \"Santiago\",\n    \"paris\": \"París\"\n  },\n  \"attractionNames\": {\n    \"paris_0\": \"Torre Eiffel\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": ["{{baseUrl}}"],
+              "path": ["trips", "{{tripId}}", "itinerary"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is xlsx', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('spreadsheetml'));",
+                  "pm.test('Content-Disposition is attachment', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'));",
+                  "pm.test('Filename ends in .xlsx', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('.xlsx'));",
+                  "pm.test('Response body is non-empty binary', () => pm.expect(pm.response.responseSize).to.be.above(1000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Itinerary - No Enrichment (fallback names)",
+          "description": "Calls the endpoint with an empty body. City and attraction names fall back to the built-in map and ID formatting. Should still return a valid .xlsx file.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": ["{{baseUrl}}"],
+              "path": ["trips", "{{tripId}}", "itinerary"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is xlsx', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('spreadsheetml'));",
+                  "pm.test('Content-Disposition is attachment', () => pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment'));",
+                  "pm.test('Response body is non-empty binary', () => pm.expect(pm.response.responseSize).to.be.above(1000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Itinerary - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": ["{{baseUrl}}"],
+              "path": ["trips", "{{tripId}}", "itinerary"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Itinerary - Wrong Trip ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/itinerary",
+              "host": ["{{baseUrl}}"],
+              "path": ["trips", "00000000-0000-0000-0000-000000000000", "itinerary"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error is Trip not found', () => pm.expect(pm.response.json().error).to.equal('Trip not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete Trip - Not Found",
           "request": {
             "method": "DELETE",

@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
+import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { respond } from '../middleware/respond.middleware';
 
 export function createTripsRouter(trip: TripController): Router {
@@ -21,6 +22,12 @@ export function createTripsRouter(trip: TripController): Router {
     trip.create,
     buildTripResponse,
     respond(201),
+  );
+
+  router.post('/:id/itinerary',
+    trip.findById,
+    checkTripOwnership,
+    generateItinerary,
   );
 
   router.put('/:id',
