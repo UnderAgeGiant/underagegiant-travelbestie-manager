@@ -13,7 +13,9 @@
     { "key": "rsaPublicKeyBase64", "value": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAwxCHm1S3jDTwFYfHMRmo2ML4izOeP0Jj0k5qgfTYMR0+AKdbJnYt6ajdNy8tRY+NGvYDnYGY0Ec0o54esnsgM0hPG11NMrJs/o5UIxE14VL1KdiMQmBdgiZGK4Fd4mSdOyUZEABiso2ClP2z05N/KoRYsM9VErSH6XDc5s09qoRMv60B3dXyZTsFYGV3O8rpAg8AR9vQcTi5HlQaD5G/vZgI4tR6OFnyiHY+6z3nig/6VPaeOLkECY0zeXGTHtfZ0g9dL+D+CwdM5l0y5wk1Nny1wFHi3MrrkMVGRDjjDSae6CeVYWe0o2LJkmei0AM7RA22iX/i10fyZsGgXq4N3TrZmZmGP/z+NdBRCzYVujlnoa+CMhWXu9It7+1BggueFDZo3BC7vI+DdQ1ujU0/YeRg41xEX4ECDQrZPwiKYcuJgrTknqjhO7U1cSZdExTzRwTpxm2Ngh1D6Lgrpfc0J7Vu4dy3POnaC4SN00KT4UXU7LQhiYLG6DpiRKyVDxgZBzkXEcXDl7T5VmMoZjvnrN8pOT/OXgIT2XW9B379beoVBEJD8/5UgA+rEOPokZjAXmOUNDSO+TYHkNYqIlQkXoXswxzDd8FV7b9WKxLOYQNppmmF0uUY998KOM39l86lxGCpseli+imwwPdzZI23+wdgSsRq5JiomfX3qbAsDDsCAwEAAQ==", "type": "string" },
     { "key": "testUserEmail", "value": "testuser@travelbestie.com", "type": "string" },
     { "key": "testUserPassword", "value": "testpass123", "type": "string" },
-    { "key": "testUserName", "value": "Test User", "type": "string" }
+    { "key": "testUserName", "value": "Test User", "type": "string" },
+    { "key": "suggestedOption", "value": "{}", "type": "string" },
+    { "key": "planBody", "value": "{}", "type": "string" }
   ],
   "item": [
     {
@@ -1270,6 +1272,263 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/karma", "host": ["{{baseUrl}}"], "path": ["karma"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🤖 AI",
+      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth and deduct karma (suggest −9, plan −1). Run Suggest - Success first to populate {{suggestedOption}} for the Plan requests.",
+      "item": [
+        {
+          "name": "Suggest Trips - Success (full params)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": \"beaches, local food, and cultural landmarks\",\n  \"duration\": 10,\n  \"budget\": \"medium\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has options array', () => pm.expect(body.options).to.be.an('array'));",
+                  "pm.test('Has exactly 2 options', () => pm.expect(body.options).to.have.length(2));",
+                  "pm.test('Option 0 has title', () => pm.expect(body.options[0].title).to.be.a('string').and.not.empty);",
+                  "pm.test('Option 0 has summary', () => pm.expect(body.options[0].summary).to.be.a('string').and.not.empty);",
+                  "pm.test('Option 0 has highlights array', () => pm.expect(body.options[0].highlights).to.be.an('array').and.have.length.above(0));",
+                  "pm.test('Option 1 has title', () => pm.expect(body.options[1].title).to.be.a('string').and.not.empty);",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('suggestedOption', JSON.stringify(body.options[0]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest Trips - Minimal (preferences only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": \"mountains, hiking and adventure\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has 2 options', () => pm.expect(body.options).to.be.an('array').and.have.length(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest Trips - Missing preferences",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"duration\": 7\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions preferences', () => pm.expect(pm.response.json().error).to.include('preferences'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest Trips - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": \"beaches\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan Trip - Success (uses suggestedOption)",
+          "description": "Requires {{suggestedOption}} to be set — run 'Suggest Trips - Success' first.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{planBody}}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const selectedOption = JSON.parse(pm.collectionVariables.get('suggestedOption') || '{}');",
+                  "pm.collectionVariables.set('planBody', JSON.stringify({",
+                  "    selectedOption,",
+                  "    preferences: 'beaches, local food, and cultural landmarks',",
+                  "    duration: 10,",
+                  "    budget: 'medium',",
+                  "    startDate: '01/07/2026'",
+                  "}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has title', () => pm.expect(body.title).to.be.a('string').and.not.empty);",
+                  "pm.test('Has stops array', () => pm.expect(body.stops).to.be.an('array'));",
+                  "pm.test('Has transits array', () => pm.expect(body.transits).to.be.an('array'));",
+                  "if (body.stops.length > 0) {",
+                  "    pm.test('Stop has cityId', () => pm.expect(body.stops[0].cityId).to.be.a('string'));",
+                  "    pm.test('Stop has checkIn', () => pm.expect(body.stops[0].checkIn).to.be.a('string'));",
+                  "    pm.test('Stop has checkOut', () => pm.expect(body.stops[0].checkOut).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan Trip - Missing selectedOption",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": \"beaches and culture\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions selectedOption', () => pm.expect(pm.response.json().error).to.include('selectedOption'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan Trip - Missing preferences",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedOption\": { \"id\": 1, \"title\": \"Test\", \"summary\": \"Test\", \"highlights\": [\"a\"] }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions preferences', () => pm.expect(pm.response.json().error).to.include('preferences'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan Trip - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedOption\": { \"id\": 1, \"title\": \"Test\", \"summary\": \"Test\", \"highlights\": [\"a\"] },\n  \"preferences\": \"beaches\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
           },
           "event": [
             {
