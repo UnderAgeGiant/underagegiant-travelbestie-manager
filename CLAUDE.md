@@ -109,6 +109,7 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | `EMAIL_USER` | Production | *(none)* | SMTP auth username |
 | `EMAIL_PASS` | Production | *(none)* | SMTP auth password |
 | `EMAIL_FROM` | Optional | same as `EMAIL_USER` | "From" address shown to recipients |
+| `DEEPSEEK_API_KEY` | Production | *(none)* | DeepSeek API key for AI trip suggestions/planning |
 
 Local overrides go in `local.env` (git-ignored). `api/dotenv-setup.ts` loads it before the app boots; Vercel uses its own environment dashboard in production.
 

@@ -18,4 +18,21 @@ export class KarmaController {
       next();
     } catch (err) { next(err); }
   };
+
+  spendForAiSuggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spendAmount(req.user!.userId, 9, 'ai_suggest', req.flowId);
+      next();
+    } catch (err) {
+      console.error('Failed to spend karma for AI suggest', err);
+      next(err); 
+    }
+  };
+
+  spendForAiPlan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spendAmount(req.user!.userId, 1, 'ai_plan', req.flowId);
+      next();
+    } catch (err) { next(err); }
+  };
 }
