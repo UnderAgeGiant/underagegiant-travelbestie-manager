@@ -23,10 +23,7 @@ export class KarmaController {
     try {
       await this.karma.spendAmount(req.user!.userId, 9, 'ai_suggest', req.flowId);
       next();
-    } catch (err) {
-      console.error('Failed to spend karma for AI suggest', err);
-      next(err); 
-    }
+    } catch (err) { next(err); }
   };
 
   spendForAiPlan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
