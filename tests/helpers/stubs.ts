@@ -3,7 +3,7 @@ import { IUserRepository } from '../../src/repositories/interfaces/user.reposito
 import { ITripRepository } from '../../src/repositories/interfaces/trip.repository';
 import { ICommentRepository } from '../../src/repositories/interfaces/comment.repository';
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload } from '../../src/types';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -48,6 +48,20 @@ export class StubTripRepository implements ITripRepository {
     const updated = { ...trip, ...data };
     this.trips.set(id, updated);
     return updated;
+  }
+
+  async setShareId(id: string, shareId: string): Promise<Trip | null> {
+    const trip = this.trips.get(id);
+    if (!trip) return null;
+    const updated = { ...trip, shareId };
+    this.trips.set(id, updated);
+    return updated;
+  }
+
+  async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
+    const trip = [...this.trips.values()].find(t => t.shareId === shareId);
+    if (!trip) return null;
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits };
   }
 
   async delete(id: string): Promise<boolean> {

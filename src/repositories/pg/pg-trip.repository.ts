@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload } from '../../types';
 
 // dd/mm/yyyy → yyyy-mm-dd
 function toISO(dmy: string): string {
@@ -54,7 +54,7 @@ export class PgTripRepository implements ITripRepository {
 
   async findByOwner(ownerId: string): Promise<Trip[]> {
     const { rows } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
+      `SELECT trip_id, title, owner_id, created_at, share_id FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
       [ownerId],
     );
     return Promise.all(rows.map(r => hydrateTrip(this.pool, r)));
@@ -62,10 +62,41 @@ export class PgTripRepository implements ITripRepository {
 
   async findById(id: string): Promise<Trip | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at FROM trips WHERE trip_id = $1`,
+      `SELECT trip_id, title, owner_id, created_at, share_id FROM trips WHERE trip_id = $1`,
       [id],
     );
     return row ? hydrateTrip(this.pool, row) : null;
+  }
+
+  async setShareId(id: string, shareId: string): Promise<Trip | null> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE trips SET share_id = $1, updated_at = now() WHERE trip_id = $2`,
+      [shareId, id],
+    );
+    if ((rowCount ?? 0) === 0) return null;
+    return this.findById(id);
+  }
+
+  async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
+    const { rows: [row] } = await this.pool.query(
+      `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
+              u.email AS owner_email, u.name AS owner_name
+       FROM trips t
+       JOIN users u ON t.owner_id = u.user_id
+       WHERE t.share_id = $1`,
+      [shareId],
+    );
+    if (!row) return null;
+    const trip = await hydrateTrip(this.pool, row);
+    return {
+      id:         shareId,
+      tripName:   trip.title,
+      ownerEmail: row.owner_email as string,
+      ownerName:  row.owner_name as string,
+      createdAt:  trip.createdAt,
+      stops:      trip.stops,
+      transits:   trip.transits,
+    };
   }
 
   async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {
@@ -242,5 +273,6 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
     transits,
     ownerId: row.owner_id as string,
     createdAt: (row.created_at as Date).toISOString(),
+    ...(row.share_id ? { shareId: row.share_id as string } : {}),
   };
 }

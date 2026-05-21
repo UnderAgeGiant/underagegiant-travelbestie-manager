@@ -6,7 +6,7 @@ import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.mid
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { respond } from '../middleware/respond.middleware';
 
-export function createTripsRouter(trip: TripController): Router {
+export function createTripsRouter(trip: TripController, _karma?: unknown): Router {
   const router = Router();
 
   router.use(requireAuth);
@@ -36,6 +36,14 @@ export function createTripsRouter(trip: TripController): Router {
     checkTripOwnership,
     trip.delete,
     respond(204),
+  );
+
+  router.post('/:id/share',
+    trip.findById,
+    checkTripOwnership,
+    trip.shareIfAlreadyShared,
+    trip.createShare,
+    respond(200),
   );
 
   return router;
