@@ -20,6 +20,7 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
 
   router.post('/',
     validate({ title: { required: true, minLength: 1 }, stops: { required: true } }),
+    karma.requireForTrip,
     trip.create,
     buildTripResponse,
     respond(201),
