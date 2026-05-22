@@ -80,6 +80,26 @@ export interface Karma {
   score: number;
 }
 
+export interface TripSuggestion {
+  id: number;
+  title: string;
+  summary: string;
+  highlights: string[];
+}
+
+export interface SuggestTripsResponse {
+  options: [TripSuggestion, TripSuggestion];
+}
+
+export interface CatalogEntry { id: string; name: string; }
+export type CityCatalog = Record<string, CatalogEntry[]>;
+
+export interface PlanTripResponse {
+  title: string;
+  stops: TripStop[];
+  transits: TransitLeg[];
+}
+
 export interface AuthPayload {
   userId: string;
   email: string;

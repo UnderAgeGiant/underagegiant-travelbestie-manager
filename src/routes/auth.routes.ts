@@ -6,6 +6,7 @@ import { checkEmailAvailable } from '../middleware/auth/check-email-available.mi
 import { hashPasswordMiddleware } from '../middleware/auth/hash-password.middleware';
 import { verifyPasswordMiddleware } from '../middleware/auth/verify-password.middleware';
 import { signTokenMiddleware } from '../middleware/auth/sign-token.middleware';
+import { sendWelcomeEmailMiddleware } from '../middleware/auth/send-welcome-email.middleware';
 import { respond } from '../middleware/respond.middleware';
 
 export function createAuthRouter(user: UserController): Router {
@@ -18,6 +19,7 @@ export function createAuthRouter(user: UserController): Router {
     checkEmailAvailable,
     hashPasswordMiddleware,
     user.create,
+    sendWelcomeEmailMiddleware,
     signTokenMiddleware,
     respond(201)
   );

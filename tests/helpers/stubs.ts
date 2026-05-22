@@ -89,4 +89,7 @@ export class StubKarmaRepository implements IKarmaRepository {
   async get(email: string): Promise<Karma> {
     return { email, score: 0 };
   }
+
+  async spend(_userId: string, _refId: string): Promise<void> {}
+  async spendAmount(_userId: string, _amount: number, _reason: string, _refId: string): Promise<void> {}
 }

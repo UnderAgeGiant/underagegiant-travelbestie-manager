@@ -8,7 +8,8 @@ export function decryptPayloadMiddleware(req: Request, res: Response, next: Next
   try {
     Object.assign(req.body, decryptPayload(encryptedPayload));
     next();
-  } catch {
+  } catch (e) {
+    console.error('Failed to decrypt payload', e);
     res.status(400).json({ error: 'Invalid encrypted payload' });
   }
 }
