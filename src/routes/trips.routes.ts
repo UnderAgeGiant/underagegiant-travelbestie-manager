@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import { TripController } from '../controllers/trip.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
@@ -7,6 +7,11 @@ import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.mid
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { respond } from '../middleware/respond.middleware';
+
+// Wraps a middleware so it is skipped when the trip has already been exported.
+function skipIfExported(fn: RequestHandler): RequestHandler {
+  return (req, res, next) => req.trip?.itineraryExportedAt ? next() : fn(req, res, next);
+}
 
 export function createTripsRouter(trip: TripController, karma: KarmaController): Router {
   const router = Router();
@@ -30,7 +35,9 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
   router.post('/:id/itinerary',
     trip.findById,
     checkTripOwnership,
-    karma.spend,
+    skipIfExported(karma.requireForTrip),
+    skipIfExported(karma.spend),
+    skipIfExported(trip.recordExport),
     generateItinerary,
   );
 
@@ -47,6 +54,14 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     checkTripOwnership,
     trip.delete,
     respond(204),
+  );
+
+  router.post('/:id/share',
+    trip.findById,
+    checkTripOwnership,
+    trip.shareIfAlreadyShared,
+    trip.createShare,
+    respond(200),
   );
 
   return router;
