@@ -6,6 +6,7 @@ export interface ITripRepository {
   findById(id: string): Promise<Trip | null>;
   update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null>;
   setShareId(id: string, shareId: string): Promise<Trip | null>;
+  setExportedAt(id: string): Promise<void>;
   findByShareId(shareId: string): Promise<SharedTripPayload | null>;
   delete(id: string): Promise<boolean>;
 }

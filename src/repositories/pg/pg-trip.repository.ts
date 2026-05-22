@@ -54,7 +54,7 @@ export class PgTripRepository implements ITripRepository {
 
   async findByOwner(ownerId: string): Promise<Trip[]> {
     const { rows } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at, share_id FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
+      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
       [ownerId],
     );
     return Promise.all(rows.map(r => hydrateTrip(this.pool, r)));
@@ -62,10 +62,17 @@ export class PgTripRepository implements ITripRepository {
 
   async findById(id: string): Promise<Trip | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at, share_id FROM trips WHERE trip_id = $1`,
+      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at FROM trips WHERE trip_id = $1`,
       [id],
     );
     return row ? hydrateTrip(this.pool, row) : null;
+  }
+
+  async setExportedAt(id: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE trips SET itinerary_exported_at = now(), updated_at = now() WHERE trip_id = $1`,
+      [id],
+    );
   }
 
   async setShareId(id: string, shareId: string): Promise<Trip | null> {
@@ -274,5 +281,6 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
     ownerId: row.owner_id as string,
     createdAt: (row.created_at as Date).toISOString(),
     ...(row.share_id ? { shareId: row.share_id as string } : {}),
+    ...(row.itinerary_exported_at ? { itineraryExportedAt: (row.itinerary_exported_at as Date).toISOString() } : {}),
   };
 }
