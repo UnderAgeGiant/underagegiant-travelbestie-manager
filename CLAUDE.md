@@ -49,7 +49,8 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | `PgUserRepository` | `users` |
 | `PgTripRepository` | `trips`, `trip_stops`, `stop_lodgings`, `planned_attractions`, `transit_legs`, `transit_segments` |
 | `PgCommentRepository` | `attraction_comments` (JOINs `users` for `name` on reads) |
-| `PgKarmaRepository` | `users.karma` (read-only; mutations are trigger-managed) |
+| `PgKarmaRepository` | `users.karma` (read: `get`); application-layer writes: `spend(userId, refId)` deducts −1 for itinerary export; `spendAmount(userId, amount, reason)` deducts variable amounts for AI calls. Both methods use a `PoolClient` transaction with `FOR UPDATE` lock. |
+| `PgKarmaPurchaseRepository` | `karma_purchases` + `users.karma` + `karma_events` (atomic in a single transaction via `completePurchase`). Interface: `IKarmaPurchaseRepository`. |
 
 **Date handling:** domain types use `dd/mm/yyyy`; PostgreSQL `DATE` columns use `yyyy-mm-dd`. `pg-trip.repository.ts` converts bidirectionally via `toISO()` / `toDMY()`. PostgreSQL `TIME` columns return `HH:mm:ss`; the `toHM()` helper strips seconds.
 
@@ -66,8 +67,33 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | `auth/verify-password.middleware.ts` | Compares `req.body.password` against `req.foundUser.passwordHash`; 401 if missing or wrong |
 | `trips/check-trip-ownership.middleware.ts` | 404 if `req.trip` is absent or `ownerId !== req.user.userId` |
 | `comments/inject-comment-author.middleware.ts` | Sets `req.body.name = req.user.name` (prevents name spoofing) |
+| `trips/generate-itinerary.middleware.ts` | Reads `req.trip` + `req.body.{cityNames,attractionNames}`; calls `buildItinerary()`; streams buffer as `.xlsx` attachment (bypasses `respond()`) |
+| `karma/validate-karma-package.middleware.ts` | Validates `req.body.packageId` against `KARMA_PACKAGES`; 400 if unknown |
+| `karma/verify-purchase-ownership.middleware.ts` | Loads purchase by `orderID`, checks `userId` ownership and `status === 'pending'`; attaches `req.karmaPurchase` |
+| `karma/send-karma-confirmation-email.middleware.ts` | Fires branded HTML confirmation email via `waitUntil()` after a successful capture; reads `newKarmaTotal` from `req.result` for the balance block |
 
 > Karma side-effect middleware was removed — both `apply-karma-on-trip` and `apply-karma-on-comment` are now handled by PostgreSQL triggers.
+
+> **Itinerary export deduplication:** `skipIfExported` (defined inline in `trips.routes.ts`) wraps `karma.requireForTrip`, `karma.spend`, and `trip.recordExport` — all three are bypassed when `req.trip.itineraryExportedAt` is already set. `generateItinerary` always runs regardless.
+
+## Payment (Karma Purchase)
+
+Provider-neutral architecture — DB schema and TypeScript types use generic field names; PayPal-specific code is isolated in `src/lib/paypal.ts`.
+
+**Flow:** `POST /karma/purchase/create-order` → PayPal creates order → frontend renders PayPal button → user pays → `POST /karma/purchase/capture-order` → backend captures payment, credits karma, sends confirmation email.
+
+**Key files:**
+
+| File | Purpose |
+|---|---|
+| `src/lib/karma-packages.ts` | Static package catalog (`KARMA_PACKAGES`, `findPackage(id)`) |
+| `src/lib/paypal.ts` | PayPal-specific: `createPayPalOrder(price, packageId)`, `capturePayPalOrder(orderId)` — calls PayPal REST v2; reads `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE` |
+| `src/repositories/interfaces/karma-purchase.repository.ts` | `IKarmaPurchaseRepository` interface |
+| `src/repositories/pg/pg-karma-purchase.repository.ts` | PostgreSQL implementation; `completePurchase` atomically updates purchase row, credits `users.karma`, inserts `karma_events` |
+| `src/controllers/karma-purchase.controller.ts` | `createOrder` (hardcodes provider `'paypal'`), `captureOrder` |
+| `src/templates/Karma-Confirmation-Email.html` | Branded HTML template with placeholders: `{user_name}`, `{karma_amount}`, `{package_label}`, `{amount}`, `{currency}`, `{capture_id}`, `{purchase_date}`, `{new_balance}` |
+
+**Adding a new provider** (e.g. MercadoPago): create `src/lib/mercadopago.ts`, add a new controller that passes `'mercadopago'` as the provider string to `createPurchaseIntent` — no schema or repository changes needed.
 
 ## Logger
 
@@ -94,6 +120,12 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | GET | `/comments/:attractionId` | — | Get comments for an attraction |
 | POST | `/comments/:attractionId` | Bearer | Add comment (karma +1 on first comment, fired by DB trigger) |
 | GET | `/karma` | Bearer | Get authenticated user's karma score |
+| GET | `/karma/packages` | — | List purchasable karma packages |
+| POST | `/karma/purchase/create-order` | Bearer | Create a PayPal order for a karma package; returns `{ orderID }` |
+| POST | `/karma/purchase/capture-order` | Bearer | Capture an approved PayPal order; credits karma and sends confirmation email |
+| POST | `/trips/:id/itinerary` | Bearer | Stream branded `.xlsx`; −1 karma **first export only** (free on repeats — `itinerary_exported_at` guards deduplication) |
+| POST | `/ai/suggest` | Bearer | DeepSeek AI trip suggestions (−9 karma) |
+| POST | `/ai/plan` | Bearer | DeepSeek AI full itinerary plan (−1 karma) |
 
 ## Environment Variables
 
@@ -110,6 +142,9 @@ PostgreSQL is the only persistence layer. Schema lives in `docs/superpowers/plan
 | `EMAIL_PASS` | Production | *(none)* | SMTP auth password |
 | `EMAIL_FROM` | Optional | same as `EMAIL_USER` | "From" address shown to recipients |
 | `DEEPSEEK_API_KEY` | Production | *(none)* | DeepSeek API key for AI trip suggestions/planning |
+| `PAYPAL_CLIENT_ID` | Production | *(none)* | PayPal REST API client ID (from PayPal Developer dashboard) |
+| `PAYPAL_CLIENT_SECRET` | Production | *(none)* | PayPal REST API client secret |
+| `PAYPAL_MODE` | Optional | `sandbox` | Set to `live` for production payments |
 
 Local overrides go in `local.env` (git-ignored). `api/dotenv-setup.ts` loads it before the app boots; Vercel uses its own environment dashboard in production.
 
@@ -136,7 +171,11 @@ jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
 }));
 ```
 
+`tests/karma-purchase.test.ts` covers 11 scenarios for the purchase flow. It mocks `src/lib/paypal.ts` (`createPayPalOrder` → `'pp-order-abc123'`, `capturePayPalOrder` → `{ captureId: 'pp-capture-xyz789' }`) so no PayPal credentials are needed locally.
+
 Karma side-effect assertions were removed from the test suite — karma mutations happen inside PostgreSQL triggers and cannot be verified without a real database connection.
+
+> **Known pre-existing failures:** `tests/trips.test.ts` has 3 failing tests (create, update, delete) that existed before the karma purchase feature and are unrelated to it.
 
 ## Vercel Deployment
 
