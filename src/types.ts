@@ -95,6 +95,34 @@ export interface AuthPayload {
   name: string;
 }
 
+export interface KarmaPackage {
+  id: string;
+  karma: number;
+  price: string;    // string to preserve exact decimal, e.g. "3.99"
+  currency: string; // ISO 4217 code, e.g. "USD", "CLP"
+  label: string;
+}
+
+export interface KarmaPurchase {
+  purchaseId: string;
+  userId: string;
+  provider: string;             // 'paypal', 'mercadopago', etc.
+  providerOrderId: string;      // provider's order ID
+  providerCaptureId: string | null; // provider's capture ID; null until captured
+  packageId: string;
+  karmaAmount: number;
+  amount: string;               // price as string to preserve decimal
+  currency: string;             // ISO 4217 code
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface CompleteKarmaPurchaseResult {
+  purchase: KarmaPurchase;
+  newKarmaTotal: number;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -102,6 +130,7 @@ declare global {
       user?: AuthPayload;
       foundUser?: User;
       trip?: Trip;
+      karmaPurchase?: KarmaPurchase;
       result?: unknown;
     }
   }
