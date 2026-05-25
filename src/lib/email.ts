@@ -32,6 +32,7 @@ function loadKarmaTemplate(
   currency: string,
   captureId: string,
   purchaseDate: string,
+  newBalance: number,
 ): string {
   const html = fs.readFileSync(KARMA_CONFIRMATION_TEMPLATE_PATH, 'utf-8');
   return html
@@ -41,7 +42,8 @@ function loadKarmaTemplate(
     .replace(/\{amount\}/g,        amount)
     .replace(/\{currency\}/g,      currency)
     .replace(/\{capture_id\}/g,    captureId)
-    .replace(/\{purchase_date\}/g, purchaseDate);
+    .replace(/\{purchase_date\}/g, purchaseDate)
+    .replace(/\{new_balance\}/g,   String(newBalance));
 }
 
 export async function sendKarmaConfirmationEmail(
@@ -52,10 +54,11 @@ export async function sendKarmaConfirmationEmail(
   amount: string,
   currency: string,
   captureId: string,
+  newBalance: number,
 ): Promise<void> {
   const transporter = createTransport();
   const purchaseDate = new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' });
-  const html = loadKarmaTemplate(userName, karmaAmount, packageLabel, amount, currency, captureId, purchaseDate);
+  const html = loadKarmaTemplate(userName, karmaAmount, packageLabel, amount, currency, captureId, purchaseDate, newBalance);
 
   await transporter.sendMail({
     from:    process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
