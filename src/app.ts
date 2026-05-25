@@ -1,11 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import { userController, tripController, commentController, karmaController, aiController } from './container';
-import { createAuthRouter } from './routes/auth.routes';
-import { createTripsRouter } from './routes/trips.routes';
+import {
+  userController, tripController, commentController,
+  karmaController, karmaPurchaseController, karmaPurchaseRepo,
+  aiController,
+} from './container';
+import { createAuthRouter }     from './routes/auth.routes';
+import { createTripsRouter }    from './routes/trips.routes';
 import { createCommentsRouter } from './routes/comments.routes';
-import { createKarmaRouter } from './routes/karma.routes';
-import { createAiRouter } from './routes/ai.routes';
+import { createKarmaRouter }    from './routes/karma.routes';
+import { createAiRouter }       from './routes/ai.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 
@@ -20,7 +24,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/auth',     createAuthRouter(userController));
 app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
-app.use('/karma',    createKarmaRouter(karmaController));
+app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));
 
 app.use(notFound);
