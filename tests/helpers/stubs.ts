@@ -3,7 +3,8 @@ import { IUserRepository } from '../../src/repositories/interfaces/user.reposito
 import { ITripRepository } from '../../src/repositories/interfaces/trip.repository';
 import { ICommentRepository } from '../../src/repositories/interfaces/comment.repository';
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload } from '../../src/types';
+import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult } from '../../src/types';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -97,4 +98,41 @@ export class StubKarmaRepository implements IKarmaRepository {
 
   async spend(_userId: string, _refId: string): Promise<void> {}
   async spendAmount(_userId: string, _amount: number, _reason: string, _refId: string): Promise<void> {}
+}
+
+export class StubKarmaPurchaseRepository implements IKarmaPurchaseRepository {
+  private store = new Map<string, KarmaPurchase>();
+
+  async createPurchaseIntent(
+    userId: string, provider: string, providerOrderId: string, packageId: string,
+    karmaAmount: number, amount: string, currency: string,
+  ): Promise<KarmaPurchase> {
+    const p: KarmaPurchase = {
+      purchaseId: randomUUID(), userId, provider, providerOrderId, providerCaptureId: null,
+      packageId, karmaAmount, amount, currency, status: 'pending',
+      createdAt: new Date().toISOString(), completedAt: null,
+    };
+    this.store.set(providerOrderId, p);
+    return p;
+  }
+
+  async findByOrderId(providerOrderId: string): Promise<KarmaPurchase | null> {
+    return this.store.get(providerOrderId) ?? null;
+  }
+
+  async completePurchase(providerOrderId: string, captureId: string): Promise<CompleteKarmaPurchaseResult> {
+    const p = this.store.get(providerOrderId);
+    if (!p) throw Object.assign(new Error('Not found'), { status: 404 });
+    const completed: KarmaPurchase = {
+      ...p, providerCaptureId: captureId,
+      status: 'completed', completedAt: new Date().toISOString(),
+    };
+    this.store.set(providerOrderId, completed);
+    return { purchase: completed, newKarmaTotal: p.karmaAmount };
+  }
+
+  async failPurchase(providerOrderId: string): Promise<void> {
+    const p = this.store.get(providerOrderId);
+    if (p) this.store.set(providerOrderId, { ...p, status: 'failed' });
+  }
 }
