@@ -12,6 +12,7 @@ import { createKarmaRouter }    from './routes/karma.routes';
 import { createAiRouter }       from './routes/ai.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
+import { respond } from './middleware/respond.middleware';
 
 export const app = express();
 
@@ -20,6 +21,8 @@ app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200', c
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+app.get('/shared/:shareId', tripController.findByShareId, respond(200));
 
 app.use('/auth',     createAuthRouter(userController));
 app.use('/trips',    createTripsRouter(tripController, karmaController));
