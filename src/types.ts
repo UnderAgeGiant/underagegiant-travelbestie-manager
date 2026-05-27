@@ -51,6 +51,18 @@ export interface Trip {
   transits: TransitLeg[];
   ownerId: string;
   createdAt: string;
+  shareId?: string;
+  itineraryExportedAt?: string;
+}
+
+export interface SharedTripPayload {
+  id:         string;   // shareId (not trip_id)
+  tripName:   string;
+  ownerEmail: string;
+  ownerName:  string;
+  createdAt:  string;
+  stops:      TripStop[];
+  transits:   TransitLeg[];
 }
 
 export interface Comment {
@@ -164,6 +176,7 @@ declare global {
       user?: AuthPayload;
       foundUser?: User;
       trip?: Trip;
+      karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
     }

@@ -1,15 +1,53 @@
 import { Router } from 'express';
 import { KarmaController } from '../controllers/karma.controller';
+import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
+import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { validateKarmaPackage } from '../middleware/karma/validate-karma-package.middleware';
+import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
+import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
 import { respond } from '../middleware/respond.middleware';
 
-export function createKarmaRouter(karma: KarmaController): Router {
+export function createKarmaRouter(
+  karma: KarmaController,
+  karmaPurchase: KarmaPurchaseController,
+  purchaseRepo: IKarmaPurchaseRepository,
+): Router {
   const router = Router();
+  const verifyOwnership = createVerifyPurchaseOwnership(purchaseRepo);
 
+  // GET /karma — authenticated user's karma score
   router.get('/',
     requireAuth,
     karma.get,
-    respond(200)
+    respond(200),
+  );
+
+  // GET /karma/packages — list available karma packs (requires login so we can gate UI)
+  router.get('/packages',
+    requireAuth,
+    karmaPurchase.getPackages,
+    respond(200),
+  );
+
+  // POST /karma/purchase/create-order — create a provider order for a package
+  router.post('/purchase/create-order',
+    requireAuth,
+    validate({ packageId: { required: true, type: 'string' } }),
+    validateKarmaPackage,
+    karmaPurchase.createOrder,
+    respond(201),
+  );
+
+  // POST /karma/purchase/capture-order — capture approved payment and credit karma
+  router.post('/purchase/capture-order',
+    requireAuth,
+    validate({ orderID: { required: true, type: 'string' } }),
+    verifyOwnership,
+    karmaPurchase.captureOrder,
+    sendKarmaConfirmationEmailMiddleware,
+    respond(200),
   );
 
   return router;
