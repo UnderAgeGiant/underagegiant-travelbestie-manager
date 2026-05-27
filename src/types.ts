@@ -51,6 +51,18 @@ export interface Trip {
   transits: TransitLeg[];
   ownerId: string;
   createdAt: string;
+  shareId?: string;
+  itineraryExportedAt?: string;
+}
+
+export interface SharedTripPayload {
+  id:         string;   // shareId (not trip_id)
+  tripName:   string;
+  ownerEmail: string;
+  ownerName:  string;
+  createdAt:  string;
+  stops:      TripStop[];
+  transits:   TransitLeg[];
 }
 
 export interface Comment {
@@ -95,6 +107,68 @@ export interface AuthPayload {
   name: string;
 }
 
+export interface KarmaPackage {
+  id: string;
+  karma: number;
+  price: string;    // string to preserve exact decimal, e.g. "3.99"
+  currency: string; // ISO 4217 code, e.g. "USD", "CLP"
+  label: string;
+}
+
+export interface KarmaPurchase {
+  purchaseId: string;
+  userId: string;
+  provider: string;             // 'paypal', 'mercadopago', etc.
+  providerOrderId: string;      // provider's order ID
+  providerCaptureId: string | null; // provider's capture ID; null until captured
+  packageId: string;
+  karmaAmount: number;
+  amount: string;               // price as string to preserve decimal
+  currency: string;             // ISO 4217 code
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface CompleteKarmaPurchaseResult {
+  purchase: KarmaPurchase;
+  newKarmaTotal: number;
+}
+
+// ── AI Plan Change Management ──────────────────────────────────────────────
+
+export interface PlanSessionOptions {
+  selectedOptionTitle:      string;
+  selectedOptionSummary:    string;
+  selectedOptionHighlights: string[];
+  preferences:              string;
+  duration:                 number;  // 0 when not specified
+  budget:                   string;  // '' when not specified
+  startDate:                string;  // '' when not specified
+}
+
+export interface PlanChangeInfo {
+  type:                 'new_session' | 'free_change' | 'charged_change';
+  freeChangesUsed:      number;   // count AFTER this call
+  freeChangesRemaining: number;   // 0 when charged or limit reached
+  reason?:              'major_change' | 'limit_reached'; // only on charged_change
+}
+
+export type PlanChangeResult =
+  | { type: 'new_session' }
+  | {
+      type:                 'free_change';
+      freeChangesUsed:      number;   // count BEFORE this change
+      freeChangesRemaining: number;   // remaining AFTER this change = 2 - freeChangesUsed
+      originalOptions:      PlanSessionOptions;
+    }
+  | {
+      type:            'charged_change';
+      reason:          'major_change' | 'limit_reached';
+      freeChangesUsed: number;
+      originalOptions: PlanSessionOptions;
+    };
+
 declare global {
   namespace Express {
     interface Request {
@@ -102,7 +176,9 @@ declare global {
       user?: AuthPayload;
       foundUser?: User;
       trip?: Trip;
+      karmaPurchase?: KarmaPurchase;
       result?: unknown;
+      planChangeResult?: PlanChangeResult;   // ← plan change management
     }
   }
 }
