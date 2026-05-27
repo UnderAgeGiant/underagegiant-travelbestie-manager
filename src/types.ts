@@ -135,6 +135,40 @@ export interface CompleteKarmaPurchaseResult {
   newKarmaTotal: number;
 }
 
+// ── AI Plan Change Management ──────────────────────────────────────────────
+
+export interface PlanSessionOptions {
+  selectedOptionTitle:      string;
+  selectedOptionSummary:    string;
+  selectedOptionHighlights: string[];
+  preferences:              string;
+  duration:                 number;  // 0 when not specified
+  budget:                   string;  // '' when not specified
+  startDate:                string;  // '' when not specified
+}
+
+export interface PlanChangeInfo {
+  type:                 'new_session' | 'free_change' | 'charged_change';
+  freeChangesUsed:      number;   // count AFTER this call
+  freeChangesRemaining: number;   // 0 when charged or limit reached
+  reason?:              'major_change' | 'limit_reached'; // only on charged_change
+}
+
+export type PlanChangeResult =
+  | { type: 'new_session' }
+  | {
+      type:                 'free_change';
+      freeChangesUsed:      number;   // count BEFORE this change
+      freeChangesRemaining: number;   // remaining AFTER this change = 2 - freeChangesUsed
+      originalOptions:      PlanSessionOptions;
+    }
+  | {
+      type:            'charged_change';
+      reason:          'major_change' | 'limit_reached';
+      freeChangesUsed: number;
+      originalOptions: PlanSessionOptions;
+    };
+
 declare global {
   namespace Express {
     interface Request {
@@ -144,6 +178,7 @@ declare global {
       trip?: Trip;
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
+      planChangeResult?: PlanChangeResult;   // ← plan change management
     }
   }
 }
