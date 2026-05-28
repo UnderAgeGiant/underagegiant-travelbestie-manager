@@ -33,7 +33,6 @@ export const checkPlanChange = async (
   try {
     const key    = planSessionKey(req.user!.userId, planSessionId);
     const raw    = await redis.get(key);
-
     if (!raw) {
       // First plan call in this session
       req.planChangeResult = { type: 'new_session' };
