@@ -38,3 +38,6 @@ CLAUDE.md
 
 # Jest
 coverage/
+
+# Local Claude instructions (keep machine-specific, never overwrite from remote)
+CLAUDE.md
