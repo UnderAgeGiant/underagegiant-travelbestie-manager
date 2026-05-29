@@ -8,15 +8,34 @@ import { verifyPasswordMiddleware } from '../middleware/auth/verify-password.mid
 import { signTokenMiddleware } from '../middleware/auth/sign-token.middleware';
 import { sendWelcomeEmailMiddleware } from '../middleware/auth/send-welcome-email.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { rateLimitMiddleware }   from '../middleware/rate-limit.middleware';
+import { generateOtpMiddleware } from '../middleware/auth/generate-otp.middleware';
+import { verifyOtpMiddleware }   from '../middleware/auth/verify-otp.middleware';
 
 export function createAuthRouter(user: UserController): Router {
   const router = Router();
 
-  router.post('/register',
-    decryptPayloadMiddleware,
-    validate({ name: { required: true, minLength: 1 }, email: { required: true, minLength: 3 }, password: { required: true, minLength: 6 } }),
+  router.post('/request-otp',
+    rateLimitMiddleware({ keyPrefix: 'rl:req-otp', windowSeconds: 900, maxRequests: 5 }),
+    validate({ email: { required: true, minLength: 3 } }),
     user.findByEmail,
     checkEmailAvailable,
+    generateOtpMiddleware,
+    respond(200)
+  );
+
+  router.post('/register',
+    rateLimitMiddleware({ keyPrefix: 'rl:register', windowSeconds: 900, maxRequests: 10 }),
+    decryptPayloadMiddleware,
+    validate({
+      name:     { required: true, minLength: 1 },
+      email:    { required: true, minLength: 3 },
+      password: { required: true, minLength: 6 },
+      otp:      { required: true, minLength: 6 },
+    }),
+    user.findByEmail,
+    checkEmailAvailable,
+    verifyOtpMiddleware,
     hashPasswordMiddleware,
     user.create,
     sendWelcomeEmailMiddleware,
