@@ -7,8 +7,8 @@ export class PgUserRepository implements IUserRepository {
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
     const { rows: [row] } = await this.pool.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, LOWER($2), $3)
+      `INSERT INTO users (name, email, password_hash, karma)
+       VALUES ($1, LOWER($2), $3, 3)
        RETURNING user_id, name, email, password_hash, created_at`,
       [data.name, data.email, data.passwordHash],
     );
