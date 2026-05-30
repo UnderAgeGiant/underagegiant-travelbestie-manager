@@ -52,7 +52,7 @@ describe('POST /auth/request-otp', () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toBeDefined();
     expect(mockRedis.set).toHaveBeenCalledWith(
-      'otp:reg:nuevo@test.com',
+      'REGISTER_OTP_nuevo@test.com',
       expect.stringContaining('"code"'),
       'EX',
       300,
@@ -69,7 +69,7 @@ describe('POST /auth/request-otp', () => {
       .send({ email: 'UPPER@Test.COM' });
 
     expect(mockRedis.set).toHaveBeenCalledWith(
-      'otp:reg:upper@test.com',
+      'REGISTER_OTP_upper@test.com',
       expect.any(String),
       'EX',
       300,
@@ -112,7 +112,7 @@ describe('POST /auth/register (with OTP)', () => {
     expect(res.body.user.name).toBe('María');
     expect(res.body.user.passwordHash).toBeUndefined();
     // OTP must be consumed after successful verification
-    expect(mockRedis.del).toHaveBeenCalledWith('otp:reg:maria@test.com');
+    expect(mockRedis.del).toHaveBeenCalledWith('REGISTER_OTP_maria@test.com');
   });
 
   it('returns 400 when OTP key does not exist in Redis (expired or never requested)', async () => {
@@ -136,7 +136,7 @@ describe('POST /auth/register (with OTP)', () => {
     expect(res.status).toBe(400);
     // New OTP stored
     expect(mockRedis.set).toHaveBeenCalledWith(
-      'otp:reg:x@test.com',
+      'REGISTER_OTP_x@test.com',
       expect.stringContaining('"code"'),
       'EX',
       300,
