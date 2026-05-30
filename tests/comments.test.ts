@@ -11,6 +11,14 @@ jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+jest.mock('../src/middleware/auth/verify-otp.middleware', () => ({
+  verifyOtpMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
+jest.mock('../src/middleware/rate-limit.middleware', () => ({
+  rateLimitMiddleware: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -21,7 +29,7 @@ function buildApp() {
 }
 
 async function getToken(app: express.Express, email = 'ana@test.com'): Promise<string> {
-  const res = await request(app).post('/auth/register').send({ name: 'Ana', email, password: 'secret123' });
+  const res = await request(app).post('/auth/register').send({ name: 'Ana', email, password: 'secret123', otp: '123456' });
   return res.body.token as string;
 }
 

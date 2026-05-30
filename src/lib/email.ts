@@ -24,6 +24,13 @@ function createTransport() {
 
 const KARMA_CONFIRMATION_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'Karma-Confirmation-Email.html');
 
+const OTP_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'OTP-Email.html');
+
+function loadOtpTemplate(otpCode: string): string {
+  const html = fs.readFileSync(OTP_TEMPLATE_PATH, 'utf-8');
+  return html.replace(/\{otp_code\}/g, otpCode);
+}
+
 function loadKarmaTemplate(
   userName: string,
   karmaAmount: number,
@@ -68,6 +75,18 @@ export async function sendKarmaConfirmationEmail(
   });
 
   logger.info({ msg: 'karma confirmation email sent', email: toEmail, karmaAmount });
+}
+
+export async function sendOtpEmail(toEmail: string, otpCode: string): Promise<void> {
+  const transporter = createTransport();
+  const html = loadOtpTemplate(otpCode);
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
+    to:   toEmail,
+    subject: '🔑 Tu código de verificación — TravelingBestie',
+    html,
+  });
+  logger.info({ msg: 'OTP email sent', email: toEmail });
 }
 
 export async function sendWelcomeEmail(toEmail: string, userName: string): Promise<void> {

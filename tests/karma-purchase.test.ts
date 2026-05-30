@@ -12,6 +12,14 @@ jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+jest.mock('../src/middleware/auth/verify-otp.middleware', () => ({
+  verifyOtpMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
+jest.mock('../src/middleware/rate-limit.middleware', () => ({
+  rateLimitMiddleware: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 // Mock PayPal lib — the controller calls these; stub returns fake provider IDs
 jest.mock('../src/lib/paypal', () => ({
   createPayPalOrder:  jest.fn().mockResolvedValue('pp-order-abc123'),
@@ -38,7 +46,7 @@ function buildApp() {
 }
 
 async function getToken(app: express.Express): Promise<string> {
-  const res = await request(app).post('/auth/register').send({ name: 'Tester', email: 'test@karma.com', password: 'secret123' });
+  const res = await request(app).post('/auth/register').send({ name: 'Tester', email: 'test@karma.com', password: 'secret123', otp: '123456' });
   return res.body.token as string;
 }
 

@@ -2,15 +2,17 @@ import { Pool } from 'pg';
 import { IUserRepository } from '../interfaces/user.repository';
 import { User } from '../../types';
 
+const INITIAL_KARMA = 3;
+
 export class PgUserRepository implements IUserRepository {
   constructor(private readonly pool: Pool) {}
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
     const { rows: [row] } = await this.pool.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, LOWER($2), $3)
+      `INSERT INTO users (name, email, password_hash, karma)
+       VALUES ($1, LOWER($2), $3, $4)
        RETURNING user_id, name, email, password_hash, created_at`,
-      [data.name, data.email, data.passwordHash],
+      [data.name, data.email, data.passwordHash, INITIAL_KARMA],
     );
     return mapUser(row);
   }
