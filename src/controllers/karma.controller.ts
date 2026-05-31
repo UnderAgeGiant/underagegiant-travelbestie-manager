@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
 function insufficientKarmaError(have: number, need: number): Error & { status: number } {
@@ -18,13 +18,15 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
-  requireForTrip = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  requireKarma = (amount: number): RequestHandler => async (req, _res, next): Promise<void> => {
     try {
       const record = await this.karma.get(req.user!.email);
-      if (record.score < 1) throw insufficientKarmaError(record.score, 1);
+      if (record.score < amount) throw insufficientKarmaError(record.score, amount);
       next();
     } catch (err) { next(err); }
   };
+
+  requireForTrip = this.requireKarma(1);
 
   spend = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
