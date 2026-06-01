@@ -67,7 +67,16 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id };
+  }
+
+  async searchShared(query: string): Promise<SharedTripPayload[]> {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return [...this.trips.values()]
+      .filter(t => t.shareId && t.title.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id }));
   }
 
   async delete(id: string): Promise<boolean> {
@@ -92,8 +101,10 @@ export class StubCommentRepository implements ICommentRepository {
 }
 
 export class StubKarmaRepository implements IKarmaRepository {
+  constructor(private readonly initialScore = 100) {}
+
   async get(email: string): Promise<Karma> {
-    return { email, score: 0 };
+    return { email, score: this.initialScore };
   }
 
   async spend(_userId: string, _refId: string): Promise<void> {}

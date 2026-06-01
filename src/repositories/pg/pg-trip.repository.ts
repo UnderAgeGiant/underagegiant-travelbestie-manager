@@ -103,7 +103,37 @@ export class PgTripRepository implements ITripRepository {
       createdAt:  trip.createdAt,
       stops:      trip.stops,
       transits:   trip.transits,
+      planId:     trip.id,
     };
+  }
+
+  async searchShared(query: string): Promise<SharedTripPayload[]> {
+    const q = query.trim();
+    if (!q) return [];
+    const { rows } = await this.pool.query(
+      `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
+              u.email AS owner_email, u.name AS owner_name
+       FROM trips t
+       JOIN users u ON t.owner_id = u.user_id
+       WHERE t.share_id IS NOT NULL
+         AND (t.title ILIKE $1 OR u.name ILIKE $1)
+       ORDER BY t.created_at DESC
+       LIMIT 5`,
+      [`%${q}%`],
+    );
+    return Promise.all(rows.map(async row => {
+      const trip = await hydrateTrip(this.pool, row);
+      return {
+        id:         row.share_id as string,
+        tripName:   trip.title,
+        ownerEmail: row.owner_email as string,
+        ownerName:  row.owner_name as string,
+        createdAt:  trip.createdAt,
+        stops:      trip.stops,
+        transits:   trip.transits,
+        planId:     trip.id,
+      };
+    }));
   }
 
   async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {

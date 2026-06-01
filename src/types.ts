@@ -63,6 +63,7 @@ export interface SharedTripPayload {
   createdAt:  string;
   stops:      TripStop[];
   transits:   TransitLeg[];
+  planId:     string;   // trips.trip_id — used by the frontend to reference the source plan
 }
 
 export interface Comment {
