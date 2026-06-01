@@ -23,3 +23,11 @@ export function planSessionKey(userId: string, planSessionId: string): string {
   const hash = createHash('sha256').update(planSessionId).digest('hex');
   return `plan:${userId}:${hash}`;
 }
+
+export function commentCooldownKey(userId: string): string {
+  return `USER_COMMENT_COOLDOWN:${userId}`;
+}
+
+export function commentLastTextKey(userId: string): string {
+  return `USER_COMMENT_LAST:${userId}`;
+}
