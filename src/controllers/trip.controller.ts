@@ -67,6 +67,15 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
+  searchShared = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      let q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+      if (q.length > 100) q = q.slice(0, 100);
+      req.result = await this.trips.searchShared(q);
+      next();
+    } catch (err) { next(err); }
+  };
+
   findByShareId = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const data = await this.trips.findByShareId(req.params.shareId);
