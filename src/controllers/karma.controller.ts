@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
+const KARMA_COST_TRIP       = 1;
+const KARMA_COST_SHARE      = 1;
+const KARMA_COST_AI_PLAN    = 1;
+const KARMA_COST_AI_SUGGEST = 9;
+
 function insufficientKarmaError(have: number, need: number): Error & { status: number } {
   const err = new Error(`Insufficient karma: need ${need}, have ${have}`) as Error & { status: number };
   err.status = 402;
@@ -26,7 +31,7 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
-  requireForTrip = this.requireKarma(1);
+  requireForTrip = this.requireKarma(KARMA_COST_TRIP);
 
   spend = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -37,21 +42,21 @@ export class KarmaController {
 
   spendForAiSuggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.karma.spendAmount(req.user!.userId, 9, 'ai_suggest', req.flowId);
+      await this.karma.spendAmount(req.user!.userId, KARMA_COST_AI_SUGGEST, 'ai_suggest', req.flowId);
       next();
     } catch (err) { next(err); }
   };
 
   spendForAiPlan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.karma.spendAmount(req.user!.userId, 1, 'ai_plan', req.flowId);
+      await this.karma.spendAmount(req.user!.userId, KARMA_COST_AI_PLAN, 'ai_plan', req.flowId);
       next();
     } catch (err) { next(err); }
   };
 
   spendForShare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.karma.spendAmount(req.user!.userId, 1, 'trip_shared', req.trip!.shareId!);
+      await this.karma.spendAmount(req.user!.userId, KARMA_COST_SHARE, 'trip_shared', req.trip!.shareId!);
       next();
     } catch (err) { next(err); }
   };
