@@ -48,4 +48,11 @@ export class KarmaController {
       next();
     } catch (err) { next(err); }
   };
+
+  spendForShare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spendAmount(req.user!.userId, 1, 'trip_shared', req.trip!.shareId!);
+      next();
+    } catch (err) { next(err); }
+  };
 }

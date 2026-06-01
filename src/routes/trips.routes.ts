@@ -60,7 +60,9 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     trip.findById,
     checkTripOwnership,
     trip.shareIfAlreadyShared,
+    karma.requireForTrip,
     trip.createShare,
+    karma.spendForShare,
     respond(200),
   );
 
