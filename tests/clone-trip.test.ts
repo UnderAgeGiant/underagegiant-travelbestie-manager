@@ -74,7 +74,7 @@ describe('POST /shared/:shareId/clone', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(201);
-    expect(res.body.title).toBe('Copy of Roma en 5 días');
+    expect(res.body.title).toBe('Copia de Roma en 5 días');
     expect(res.body.stops).toHaveLength(1);
     expect(res.body.transits).toHaveLength(1);
     expect(res.body.id).toBeDefined();
@@ -128,7 +128,7 @@ describe('POST /trips/:id/clone', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(201);
-    expect(res.body.title).toBe('Copy of Tokio 2026');
+    expect(res.body.title).toBe('Copia de Tokio 2026');
     expect(res.body.id).toBeDefined();
     expect(res.body.id).not.toBe(created.body.id);
   });

@@ -4,7 +4,7 @@ import { SharedTripPayload } from '../../types';
 export function prepareSharedClone(req: Request, _res: Response, next: NextFunction): void {
   const source = req.result as SharedTripPayload;
   req.body = {
-    title:    `Copy of ${source.tripName}`,
+    title:    `Copia de ${source.tripName}`,
     stops:    source.stops,
     transits: source.transits,
   };
