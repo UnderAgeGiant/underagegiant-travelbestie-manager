@@ -24,7 +24,7 @@ app.use(express.json());
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth',     createAuthRouter(userController));
-app.use('/shared',   createSharedRouter(tripController));
+app.use('/shared',   createSharedRouter(tripController, karmaController));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo),
 );

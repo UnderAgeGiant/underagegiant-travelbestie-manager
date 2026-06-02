@@ -6,6 +6,7 @@ import { validate } from '../middleware/validate.middleware';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
+import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { respond } from '../middleware/respond.middleware';
 
 // Wraps a middleware so it is skipped when the trip has already been exported.
@@ -64,6 +65,17 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     trip.createShare,
     karma.spendForShare,
     respond(200),
+  );
+
+  router.post('/:id/clone',
+    trip.findById,
+    checkTripOwnership,
+    prepareOwnedClone,
+    karma.requireForTrip,
+    trip.create,
+    karma.spend,
+    buildTripResponse,
+    respond(201),
   );
 
   return router;
