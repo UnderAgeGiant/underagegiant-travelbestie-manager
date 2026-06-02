@@ -103,11 +103,14 @@ export class StubCommentRepository implements ICommentRepository {
 
 export class StubKarmaRepository implements IKarmaRepository {
   awarded: { userId: string; amount: number; reason: string; refId: string }[] = [];
+  private score: number;
 
-  constructor(private readonly initialScore = 100) {}
+  constructor(initialScore = 100) { this.score = initialScore; }
+
+  setScore(score: number): void { this.score = score; }
 
   async get(email: string): Promise<Karma> {
-    return { email, score: this.initialScore };
+    return { email, score: this.score };
   }
 
   async spend(_userId: string, _refId: string): Promise<void> {}
