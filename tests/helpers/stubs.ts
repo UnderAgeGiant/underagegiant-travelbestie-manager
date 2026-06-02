@@ -4,7 +4,8 @@ import { ITripRepository } from '../../src/repositories/interfaces/trip.reposito
 import { ICommentRepository } from '../../src/repositories/interfaces/comment.repository';
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult } from '../../src/types';
+import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap } from '../../src/types';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -101,6 +102,8 @@ export class StubCommentRepository implements ICommentRepository {
 }
 
 export class StubKarmaRepository implements IKarmaRepository {
+  awarded: { userId: string; amount: number; reason: string; refId: string }[] = [];
+
   constructor(private readonly initialScore = 100) {}
 
   async get(email: string): Promise<Karma> {
@@ -109,6 +112,40 @@ export class StubKarmaRepository implements IKarmaRepository {
 
   async spend(_userId: string, _refId: string): Promise<void> {}
   async spendAmount(_userId: string, _amount: number, _reason: string, _refId: string): Promise<void> {}
+  async award(userId: string, amount: number, reason: string, refId: string): Promise<void> {
+    this.awarded.push({ userId, amount, reason, refId });
+  }
+}
+
+export class StubStepCommentRepository implements IStepCommentRepository {
+  private comments: StepComment[] = [];
+  private karmaSlots = new Set<string>();
+
+  async getAllForTrip(tripId: string): Promise<StepCommentsMap> {
+    const map: StepCommentsMap = {};
+    for (const c of this.comments.filter(c => c.stepKey.startsWith(''))) {
+      if (!map[c.stepKey]) map[c.stepKey] = [];
+      map[c.stepKey].push(c);
+    }
+    return map;
+  }
+
+  async add(data: { tripId: string; stepKey: string; userId: string; authorName: string; text: string }): Promise<StepComment> {
+    const comment: StepComment = {
+      id: randomUUID(), stepKey: data.stepKey,
+      authorName: data.authorName, text: data.text,
+      createdAt: new Date().toISOString(),
+    };
+    this.comments.push(comment);
+    return comment;
+  }
+
+  async isFirstCommentOnStep(userId: string, tripId: string, stepKey: string): Promise<boolean> {
+    const key = `${userId}:${tripId}:${stepKey}`;
+    if (this.karmaSlots.has(key)) return false;
+    this.karmaSlots.add(key);
+    return true;
+  }
 }
 
 export class StubKarmaPurchaseRepository implements IKarmaPurchaseRepository {

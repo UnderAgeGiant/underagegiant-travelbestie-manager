@@ -3,14 +3,15 @@ import cors from 'cors';
 import {
   userController, tripController, commentController,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
-  aiController,
+  aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
 } from './container';
-import { createAuthRouter }     from './routes/auth.routes';
-import { createTripsRouter }    from './routes/trips.routes';
-import { createSharedRouter }   from './routes/shared.routes';
-import { createCommentsRouter } from './routes/comments.routes';
-import { createKarmaRouter }    from './routes/karma.routes';
-import { createAiRouter }       from './routes/ai.routes';
+import { createAuthRouter }            from './routes/auth.routes';
+import { createTripsRouter }           from './routes/trips.routes';
+import { createSharedRouter }          from './routes/shared.routes';
+import { createSharedCommentsRouter }  from './routes/shared-comments.routes';
+import { createCommentsRouter }        from './routes/comments.routes';
+import { createKarmaRouter }           from './routes/karma.routes';
+import { createAiRouter }              from './routes/ai.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 
@@ -24,6 +25,9 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth',     createAuthRouter(userController));
 app.use('/shared',   createSharedRouter(tripController));
+app.use('/shared/:shareId/comments',
+  createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo),
+);
 app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo));

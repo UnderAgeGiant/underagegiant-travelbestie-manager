@@ -49,4 +49,25 @@ export class PgKarmaRepository implements IKarmaRepository {
       client.release();
     }
   }
+
+  async award(userId: string, amount: number, reason: string, refId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE users SET karma = karma + $1 WHERE user_id = $2`,
+        [amount, userId],
+      );
+      await client.query(
+        `INSERT INTO karma_events (user_id, delta, reason, ref_id) VALUES ($1, $2, $3, $4)`,
+        [userId, amount, reason, refId],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
