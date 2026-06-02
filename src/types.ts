@@ -170,6 +170,21 @@ export type PlanChangeResult =
       originalOptions: PlanSessionOptions;
     };
 
+export interface StepComment {
+  id:         string;
+  stepKey:    string;
+  authorName: string;
+  text:       string;
+  createdAt:  string;
+}
+
+export type StepCommentsMap = Record<string, StepComment[]>;
+
+export interface StepCommentAddResult {
+  comment:      StepComment;
+  karmaAwarded: boolean;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -180,6 +195,7 @@ declare global {
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
+      sharedTripMeta?: { tripId: string; ownerId: string };
     }
   }
 }
