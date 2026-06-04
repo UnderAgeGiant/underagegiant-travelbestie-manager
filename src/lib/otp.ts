@@ -24,3 +24,21 @@ export async function getStoredOtpCode(email: string): Promise<string | null> {
 export async function deleteOtp(email: string): Promise<void> {
   await redis.del(otpKey(email));
 }
+
+export function profileOtpKey(email: string): string {
+  return `otp:profile:${email.toLowerCase()}`;
+}
+
+export async function storeProfileOtp(email: string, code: string): Promise<void> {
+  await redis.set(profileOtpKey(email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
+}
+
+export async function getStoredProfileOtpCode(email: string): Promise<string | null> {
+  const raw = await redis.get(profileOtpKey(email));
+  if (!raw) return null;
+  return (JSON.parse(raw) as { code: string }).code;
+}
+
+export async function deleteProfileOtp(email: string): Promise<void> {
+  await redis.del(profileOtpKey(email));
+}
