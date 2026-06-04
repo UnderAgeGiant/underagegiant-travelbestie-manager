@@ -21,6 +21,18 @@ app.use(requestLoggerMiddleware);
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200', credentials: true }));
 app.use(express.json());
 
+// Strip __proto__, constructor, prototype keys to prevent prototype pollution via JSON body
+app.use((req, _res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const body = req.body as any;
+    delete body.__proto__;
+    delete body.constructor;
+    delete body.prototype;
+  }
+  next();
+});
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/auth',     createAuthRouter(userController));
