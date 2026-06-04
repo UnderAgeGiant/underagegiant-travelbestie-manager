@@ -71,6 +71,15 @@ export class StubTripRepository implements ITripRepository {
     return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id };
   }
 
+  async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
+    const results: SharedTripPayload[] = [];
+    for (const id of shareIds) {
+      const found = await this.findByShareId(id);
+      if (found) results.push(found);
+    }
+    return results;
+  }
+
   async searchShared(query: string): Promise<SharedTripPayload[]> {
     const q = query.trim().toLowerCase();
     if (!q) return [];

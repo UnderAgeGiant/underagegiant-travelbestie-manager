@@ -8,6 +8,7 @@ export interface ITripRepository {
   setShareId(id: string, shareId: string): Promise<Trip | null>;
   setExportedAt(id: string): Promise<void>;
   findByShareId(shareId: string): Promise<SharedTripPayload | null>;
+  findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]>;
   searchShared(query: string): Promise<SharedTripPayload[]>;
   delete(id: string): Promise<boolean>;
 }

@@ -107,6 +107,16 @@ export class PgTripRepository implements ITripRepository {
     };
   }
 
+  async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
+    if (shareIds.length === 0) return [];
+    const results: SharedTripPayload[] = [];
+    for (const id of shareIds) {
+      const found = await this.findByShareId(id);
+      if (found) results.push(found);
+    }
+    return results;
+  }
+
   async searchShared(query: string): Promise<SharedTripPayload[]> {
     const q = query.trim();
     if (!q) return [];

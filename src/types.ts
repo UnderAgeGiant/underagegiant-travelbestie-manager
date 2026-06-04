@@ -66,6 +66,12 @@ export interface SharedTripPayload {
   planId:     string;   // trips.trip_id — used by the frontend to reference the source plan
 }
 
+export interface AppStats {
+  cities: number;
+  users:  number;
+  plans:  number;
+}
+
 export interface Comment {
   id: string;
   attractionId: string;
