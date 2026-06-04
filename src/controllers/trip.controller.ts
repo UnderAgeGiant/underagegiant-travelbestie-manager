@@ -88,4 +88,34 @@ export class TripController {
       next();
     } catch (err) { next(err); }
   };
+
+  findManyFeatured = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ids = (process.env.FEATURED_TRIP_IDS ?? '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const { redis } = await import('../lib/redis');
+      const CACHE_KEY = 'FEATURE_VIDEOS';
+      const CACHE_TTL = 86400; // 24 hours
+
+      try {
+        const cached = await redis.get(CACHE_KEY);
+        if (cached) {
+          req.result = JSON.parse(cached);
+          return next();
+        }
+      } catch { /* non-fatal — fall through to DB */ }
+
+      const trips = await this.trips.findManyByShareIds(ids);
+
+      try {
+        await redis.set(CACHE_KEY, JSON.stringify(trips), 'EX', CACHE_TTL);
+      } catch { /* non-fatal */ }
+
+      req.result = trips;
+      next();
+    } catch (err) { next(err); }
+  };
 }
