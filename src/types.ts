@@ -191,6 +191,8 @@ declare global {
       flowId: string;
       user?: AuthPayload;
       foundUser?: User;
+      newEmailUser?: User;
+      newPasswordHash?: string;
       trip?: Trip;
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
