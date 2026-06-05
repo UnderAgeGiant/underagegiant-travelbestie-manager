@@ -4,6 +4,7 @@ import {
   userController, tripController, commentController,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
+  statsController,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -12,6 +13,7 @@ import { createSharedCommentsRouter }  from './routes/shared-comments.routes';
 import { createCommentsRouter }        from './routes/comments.routes';
 import { createKarmaRouter }           from './routes/karma.routes';
 import { createAiRouter }              from './routes/ai.routes';
+import { createLandingRouter }         from './routes/landing.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 
@@ -44,6 +46,7 @@ app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));
+app.use(createLandingRouter(tripController, statsController));
 
 app.use(notFound);
 app.use(errorHandler);
