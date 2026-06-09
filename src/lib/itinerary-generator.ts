@@ -162,7 +162,7 @@ function buildActivityMap(
     for (const att of stop.selectedAttractions) {
       const attDay = att.date ?? stop.checkIn;
       const idx = dayIndex.get(attDay);
-      if (idx === undefined) continue;
+      if (idx === undefined || !att.startTime) continue;
       const hour = parseHour(att.startTime);
       const name = resolveAttractionName(att.attractionId, cityName, attractionNames);
       push(idx, hour, {

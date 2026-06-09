@@ -206,9 +206,9 @@ async function insertStops(client: PoolClient, tripId: string, stops: TripStop[]
     for (let j = 0; j < s.selectedAttractions.length; j++) {
       const a = s.selectedAttractions[j];
       await client.query(
-        `INSERT INTO planned_attractions (stop_id, attraction_id, start_time, date, sort_order)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [row.stop_id, a.attractionId, a.startTime, a.date ? toISO(a.date) : null, j],
+        `INSERT INTO planned_attractions (stop_id, attraction_id, start_time, end_time, date, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [row.stop_id, a.attractionId, a.startTime ?? null, a.endTime ?? null, a.date ? toISO(a.date) : null, j],
       );
     }
   }
@@ -255,7 +255,7 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
     for (const l of lodgingRows) lodgingMap.set(l.stop_id as string, { name: l.name as string, url: l.url as string });
 
     const { rows: attrRows } = await pool.query(
-      `SELECT stop_id, attraction_id, start_time, date FROM planned_attractions
+      `SELECT stop_id, attraction_id, start_time, end_time, date FROM planned_attractions
        WHERE stop_id = ANY($1) ORDER BY stop_id, sort_order`,
       [stopIds],
     );
@@ -263,7 +263,8 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
       const list = attrMap.get(a.stop_id as string) ?? [];
       list.push({
         attractionId: a.attraction_id as string,
-        startTime: toHM(a.start_time as string),
+        startTime: a.start_time ? toHM(a.start_time as string) : null,
+        endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
         ...(a.date ? { date: toDMY(a.date as string) } : {}),
       });
       attrMap.set(a.stop_id as string, list);
