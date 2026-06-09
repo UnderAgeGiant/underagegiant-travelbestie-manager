@@ -8,8 +8,9 @@ export interface User {
 
 export interface PlannedAttraction {
   attractionId: string;
-  startTime: string;    // HH:mm
-  date?: string;        // dd/mm/yyyy — which day within the stop
+  startTime: string | null;   // HH:mm — null when not set
+  endTime:   string | null;   // HH:mm — null when not set
+  date?: string;              // dd/mm/yyyy — which day within the stop
 }
 
 export interface Lodging {
