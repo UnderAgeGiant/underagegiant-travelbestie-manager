@@ -8,6 +8,7 @@ import { checkCommentCooldown } from '../middleware/comments/check-comment-coold
 import { checkCommentSimilarity } from '../middleware/comments/check-comment-similarity.middleware';
 import { storeCommentRedis } from '../middleware/comments/store-comment-redis.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
+import { readCommentsBatchCache, writeCommentsBatchCache } from '../middleware/comments/comments-batch-cache.middleware';
 import { respond } from '../middleware/respond.middleware';
 
 export function createCommentsRouter(comment: CommentController): Router {
@@ -15,7 +16,9 @@ export function createCommentsRouter(comment: CommentController): Router {
 
   router.get('/',
     rateLimitMiddleware({ keyPrefix: 'rl:comments_batch', windowSeconds: 60, maxRequests: 60 }),
+    readCommentsBatchCache,
     comment.findByAttractions,
+    writeCommentsBatchCache,
     respond(200),
   );
 
