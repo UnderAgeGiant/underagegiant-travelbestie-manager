@@ -12,6 +12,11 @@ import { respond } from '../middleware/respond.middleware';
 export function createCommentsRouter(comment: CommentController): Router {
   const router = Router();
 
+  router.get('/',
+    comment.findByAttractions,
+    respond(200),
+  );
+
   router.get('/:attractionId',
     comment.findByAttraction,
     respond(200),

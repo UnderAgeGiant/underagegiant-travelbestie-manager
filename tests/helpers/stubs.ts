@@ -129,6 +129,14 @@ export class StubCommentRepository implements ICommentRepository {
   async findByAttraction(attractionId: string): Promise<Comment[]> {
     return this.comments.get(attractionId) ?? [];
   }
+
+  async findByAttractions(ids: string[]): Promise<Record<string, Comment[]>> {
+    const result: Record<string, Comment[]> = {};
+    for (const id of ids) {
+      result[id] = this.comments.get(id) ?? [];
+    }
+    return result;
+  }
 }
 
 export class StubKarmaRepository implements IKarmaRepository {
