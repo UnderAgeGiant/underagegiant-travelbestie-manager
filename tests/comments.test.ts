@@ -76,3 +76,57 @@ describe('POST /comments/:attractionId', () => {
     expect((await request(app).get('/comments/rome_0')).body[0].name).toBe('Ana');
   });
 });
+
+describe('GET /comments?ids=...', () => {
+  it('returns empty arrays for attractions with no comments', async () => {
+    const res = await request(buildApp()).get('/comments?ids=paris_0,paris_1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ paris_0: [], paris_1: [] });
+  });
+
+  it('returns comments after they are posted', async () => {
+    const app = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/comments/paris_0')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Nice!', rating: 5, color: '#F472B6', date: 'Jun 10' });
+
+    const res = await request(app).get('/comments?ids=paris_0,paris_1');
+    expect(res.status).toBe(200);
+    expect(res.body.paris_0).toHaveLength(1);
+    expect(res.body.paris_0[0].text).toBe('Nice!');
+    expect(res.body.paris_1).toEqual([]);
+  });
+
+  it('deduplicates repeated ids', async () => {
+    const res = await request(buildApp()).get('/comments?ids=paris_0,paris_0,paris_0');
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body)).toEqual(['paris_0']);
+  });
+
+  it('returns 400 when ids param is absent', async () => {
+    const res = await request(buildApp()).get('/comments');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('ids query param required');
+  });
+
+  it('returns 400 when ids param is empty string', async () => {
+    const res = await request(buildApp()).get('/comments?ids=');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('ids query param required');
+  });
+
+  it('returns 400 when more than 50 ids are sent', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => `att_${i}`).join(',');
+    const res = await request(buildApp()).get(`/comments?ids=${ids}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('too many ids');
+  });
+
+  it('returns 200 with exactly 50 ids (boundary)', async () => {
+    const ids = Array.from({ length: 50 }, (_, i) => `att_${i}`).join(',');
+    const res = await request(buildApp()).get(`/comments?ids=${ids}`);
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body)).toHaveLength(50);
+  });
+});

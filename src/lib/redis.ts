@@ -31,3 +31,9 @@ export function commentCooldownKey(userId: string): string {
 export function commentLastTextKey(userId: string): string {
   return `USER_COMMENT_LAST:${userId}`;
 }
+
+export function commentCacheKey(attractionId: string): string {
+  return `comments:att:${attractionId}`;
+}
+
+export const COMMENT_CACHE_TTL = 60;
