@@ -7,12 +7,14 @@ import { injectCommentAuthor } from '../middleware/comments/inject-comment-autho
 import { checkCommentCooldown } from '../middleware/comments/check-comment-cooldown.middleware';
 import { checkCommentSimilarity } from '../middleware/comments/check-comment-similarity.middleware';
 import { storeCommentRedis } from '../middleware/comments/store-comment-redis.middleware';
+import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 
 export function createCommentsRouter(comment: CommentController): Router {
   const router = Router();
 
   router.get('/',
+    rateLimitMiddleware({ keyPrefix: 'rl:comments_batch', windowSeconds: 60, maxRequests: 60 }),
     comment.findByAttractions,
     respond(200),
   );
