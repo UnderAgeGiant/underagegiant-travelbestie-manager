@@ -15,7 +15,7 @@ export function createCommentsRouter(comment: CommentController): Router {
   const router = Router();
 
   router.get('/',
-    rateLimitMiddleware({ keyPrefix: 'rl:comments_batch', windowSeconds: 60, maxRequests: 60 }),
+    rateLimitMiddleware({ keyPrefix: 'rl:comments:batch', windowSeconds: 60, maxRequests: 60 }),
     readCommentsBatchCache,
     comment.findByAttractions,
     writeCommentsBatchCache,
