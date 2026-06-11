@@ -221,7 +221,7 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   const activityMap = buildActivityMap(days, stops, transits, cityNames, attractionNames);
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'TravelBestie';
+  workbook.creator = 'Tripilove';
   const sheet = workbook.addWorksheet('Itinerario');
 
   sheet.getColumn(1).width = 10;
@@ -247,7 +247,7 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   // --- Row 2: Branding subtitle ---
   sheet.getRow(2).height = 20;
   const subtitleCell = sheet.getCell(2, 1);
-  subtitleCell.value = 'TravelBestie · Tu viaje ideal ✈';
+  subtitleCell.value = 'Tripilove · Tu viaje ideal ✈';
   subtitleCell.font = { italic: true, size: 10, color: { argb: C.lavD }, name: 'Calibri' };
   subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.lav } };
   subtitleCell.alignment = { vertical: 'middle', horizontal: 'center' };

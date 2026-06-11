@@ -28,7 +28,7 @@ export async function createPayPalOrder(price: string, packageId: string): Promi
       purchase_units: [{
         reference_id: packageId,
         amount:       { currency_code: 'USD', value: price },
-        description:  `TravelingBestie Karma — ${packageId}`,
+        description:  `Tripilove Karma — ${packageId}`,
       }],
     }),
   });

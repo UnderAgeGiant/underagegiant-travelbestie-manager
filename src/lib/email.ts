@@ -70,7 +70,7 @@ export async function sendKarmaConfirmationEmail(
   await transporter.sendMail({
     from:    process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
     to:      toEmail,
-    subject: `✨ ¡Compraste ${karmaAmount} Karma en TravelingBestie!`,
+    subject: `✨ ¡Compraste ${karmaAmount} Karma en Tripilove!`,
     html,
   });
 
@@ -83,7 +83,7 @@ export async function sendOtpEmail(toEmail: string, otpCode: string): Promise<vo
   await transporter.sendMail({
     from: process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
     to:   toEmail,
-    subject: '🔑 Tu código de verificación — TravelingBestie',
+    subject: '🔑 Tu código de verificación — Tripilove',
     html,
   });
   logger.info({ msg: 'OTP email sent', email: toEmail });
@@ -96,7 +96,7 @@ export async function sendWelcomeEmail(toEmail: string, userName: string): Promi
   await transporter.sendMail({
     from: process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
     to: toEmail,
-    subject: '¡Bienvenido a TravelingBestie! ✈️',
+    subject: '¡Bienvenido a Tripilove! ✈️',
     html,
   });
 
