@@ -11,13 +11,13 @@ export function createSharedRouter(trip: TripController, karma: KarmaController)
   const router = Router();
 
   router.get('/',
-    rateLimitMiddleware({ keyPrefix: 'rl:shared_search', windowSeconds: 60, maxRequests: 30 }),
+    rateLimitMiddleware({ keyPrefix: 'rl:shared:search', windowSeconds: 60, maxRequests: 30 }),
     trip.searchShared,
     respond(200),
   );
 
   router.get('/:shareId',
-    rateLimitMiddleware({ keyPrefix: 'rl:shared_get', windowSeconds: 60, maxRequests: 60 }),
+    rateLimitMiddleware({ keyPrefix: 'rl:shared:get', windowSeconds: 60, maxRequests: 60 }),
     trip.findByShareId,
     respond(200),
   );
