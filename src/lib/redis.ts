@@ -25,11 +25,11 @@ export function planSessionKey(userId: string, planSessionId: string): string {
 }
 
 export function commentCooldownKey(userId: string): string {
-  return `USER_COMMENT_COOLDOWN:${userId}`;
+  return `comment:cooldown:${userId}`;
 }
 
 export function commentLastTextKey(userId: string): string {
-  return `USER_COMMENT_LAST:${userId}`;
+  return `comment:last:${userId}`;
 }
 
 export function commentCacheKey(attractionId: string): string {

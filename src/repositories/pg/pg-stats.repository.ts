@@ -3,7 +3,7 @@ import { redis } from '../../lib/redis';
 import { IStatsRepository } from '../interfaces/stats.repository';
 import { AppStats } from '../../types';
 
-const CACHE_KEY = 'GLOBAL_STATS';
+const CACHE_KEY = 'stats:global';
 const CACHE_TTL = 3600; // 1 hour
 
 export class PgStatsRepository implements IStatsRepository {

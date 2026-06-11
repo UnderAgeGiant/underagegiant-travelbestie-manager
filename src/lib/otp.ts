@@ -1,10 +1,8 @@
 import { redis } from './redis';
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
-const OTP_KEY_PREFIX = 'REGISTER_OTP_';
-
 export function otpKey(email: string): string {
-  return `${OTP_KEY_PREFIX}${email.toLowerCase()}`;
+  return `otp:register:${email.toLowerCase()}`;
 }
 
 export function generateOtpCode(): string {

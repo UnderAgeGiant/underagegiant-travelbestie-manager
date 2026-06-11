@@ -97,7 +97,7 @@ export class TripController {
         .filter(Boolean);
 
       const { redis } = await import('../lib/redis');
-      const CACHE_KEY = 'FEATURE_VIDEOS';
+      const CACHE_KEY = 'feature:videos';
       const CACHE_TTL = 86400; // 24 hours
 
       try {
