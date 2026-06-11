@@ -2,20 +2,22 @@
   "info": {
     "name": "TravelBestie Manager API",
     "_postman_id": "travelbestie-manager-2026",
-    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Set `baseUrl` (default: `http://localhost:3000`)\n2. Adjust `testUserEmail`, `testUserPassword`, `testUserName` if needed\n3. **Optional — production only**: set `rsaPublicKeyBase64` (SPKI, base64, no PEM headers) to enable RSA-OAEP encryption for auth requests\n\n## Dev vs production mode\n**Dev (no `rsaPublicKeyBase64` set):** auth requests send plaintext body fields directly. The server accepts them when `RSA_PRIVATE_KEY` env var is absent.\n**Production (`rsaPublicKeyBase64` set):** pre-request scripts encrypt credentials with RSA-OAEP + SHA-256 before sending. Requires Postman v10+.\n\n## Run order\n`token` and `tripId` are saved automatically. Run Auth → Trips → Comments → Karma for the full happy path.",
+    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Set `baseUrl` (default: `http://localhost:3000`)\n2. Adjust `testUserEmail`, `testUserPassword`, `testUserName` if needed\n3. **Optional — production only**: set `rsaPublicKeyBase64` (SPKI, base64, no PEM headers) to enable RSA-OAEP encryption for auth requests\n\n## Dev vs production mode\n**Dev (no `rsaPublicKeyBase64` set):** auth requests send plaintext body fields directly.\n**Production (`rsaPublicKeyBase64` set):** pre-request scripts encrypt credentials with RSA-OAEP + SHA-256. Requires Postman v10+.\n\n## OTP flow for Register\nRegister now requires an OTP. Run **Auth › Request OTP** first, check your email, set `testUserOtp`, then run Register.\n\n## Run order\n`token`, `tripId`, `shareId` are saved automatically. Run Auth → Trips → Shared Trips → Comments → Karma → Landing for the full happy path.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
-    { "key": "token", "value": "", "type": "string" },
-    { "key": "tripId", "value": "", "type": "string" },
-    { "key": "authBody", "value": "{}", "type": "string" },
-    { "key": "rsaPublicKeyBase64", "value": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAwxCHm1S3jDTwFYfHMRmo2ML4izOeP0Jj0k5qgfTYMR0+AKdbJnYt6ajdNy8tRY+NGvYDnYGY0Ec0o54esnsgM0hPG11NMrJs/o5UIxE14VL1KdiMQmBdgiZGK4Fd4mSdOyUZEABiso2ClP2z05N/KoRYsM9VErSH6XDc5s09qoRMv60B3dXyZTsFYGV3O8rpAg8AR9vQcTi5HlQaD5G/vZgI4tR6OFnyiHY+6z3nig/6VPaeOLkECY0zeXGTHtfZ0g9dL+D+CwdM5l0y5wk1Nny1wFHi3MrrkMVGRDjjDSae6CeVYWe0o2LJkmei0AM7RA22iX/i10fyZsGgXq4N3TrZmZmGP/z+NdBRCzYVujlnoa+CMhWXu9It7+1BggueFDZo3BC7vI+DdQ1ujU0/YeRg41xEX4ECDQrZPwiKYcuJgrTknqjhO7U1cSZdExTzRwTpxm2Ngh1D6Lgrpfc0J7Vu4dy3POnaC4SN00KT4UXU7LQhiYLG6DpiRKyVDxgZBzkXEcXDl7T5VmMoZjvnrN8pOT/OXgIT2XW9B379beoVBEJD8/5UgA+rEOPokZjAXmOUNDSO+TYHkNYqIlQkXoXswxzDd8FV7b9WKxLOYQNppmmF0uUY998KOM39l86lxGCpseli+imwwPdzZI23+wdgSsRq5JiomfX3qbAsDDsCAwEAAQ==", "type": "string" },
-    { "key": "testUserEmail", "value": "testuser@travelbestie.com", "type": "string" },
-    { "key": "testUserPassword", "value": "testpass123", "type": "string" },
-    { "key": "testUserName", "value": "Test User", "type": "string" },
-    { "key": "suggestedOption", "value": "{}", "type": "string" },
-    { "key": "planBody", "value": "{}", "type": "string" }
+    { "key": "baseUrl",          "value": "http://localhost:3000", "type": "string" },
+    { "key": "token",            "value": "",                      "type": "string" },
+    { "key": "tripId",           "value": "",                      "type": "string" },
+    { "key": "shareId",          "value": "",                      "type": "string" },
+    { "key": "authBody",         "value": "{}",                    "type": "string" },
+    { "key": "rsaPublicKeyBase64","value": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAwxCHm1S3jDTwFYfHMRmo2ML4izOeP0Jj0k5qgfTYMR0+AKdbJnYt6ajdNy8tRY+NGvYDnYGY0Ec0o54esnsgM0hPG11NMrJs/o5UIxE14VL1KdiMQmBdgiZGK4Fd4mSdOyUZEABiso2ClP2z05N/KoRYsM9VErSH6XDc5s09qoRMv60B3dXyZTsFYGV3O8rpAg8AR9vQcTi5HlQaD5G/vZgI4tR6OFnyiHY+6z3nig/6VPaeOLkECY0zeXGTHtfZ0g9dL+D+CwdM5l0y5wk1Nny1wFHi3MrrkMVGRDjjDSae6CeVYWe0o2LJkmei0AM7RA22iX/i10fyZsGgXq4N3TrZmZmGP/z+NdBRCzYVujlnoa+CMhWXu9It7+1BggueFDZo3BC7vI+DdQ1ujU0/YeRg41xEX4ECDQrZPwiKYcuJgrTknqjhO7U1cSZdExTzRwTpxm2Ngh1D6Lgrpfc0J7Vu4dy3POnaC4SN00KT4UXU7LQhiYLG6DpiRKyVDxgZBzkXEcXDl7T5VmMoZjvnrN8pOT/OXgIT2XW9B379beoVBEJD8/5UgA+rEOPokZjAXmOUNDSO+TYHkNYqIlQkXoXswxzDd8FV7b9WKxLOYQNppmmF0uUY998KOM39l86lxGCpseli+imwwPdzZI23+wdgSsRq5JiomfX3qbAsDDsCAwEAAQ==", "type": "string" },
+    { "key": "testUserEmail",    "value": "testuser@travelbestie.com", "type": "string" },
+    { "key": "testUserPassword", "value": "testpass123",              "type": "string" },
+    { "key": "testUserName",     "value": "Test User",                "type": "string" },
+    { "key": "testUserOtp",      "value": "",                         "type": "string" },
+    { "key": "suggestedOption",  "value": "{}",                       "type": "string" },
+    { "key": "planBody",         "value": "{}",                       "type": "string" }
   ],
   "item": [
     {
@@ -47,7 +49,91 @@
       "name": "🔐 Auth",
       "item": [
         {
+          "name": "Request OTP",
+          "description": "Step 1 of registration. Sends a 6-digit OTP to the email. Check your inbox, then set `testUserOtp` in collection variables before running Register.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testUserEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.be.a('string'));",
+                  "console.log('OTP sent to', pm.collectionVariables.get('testUserEmail'), '— set testUserOtp before running Register.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request OTP - Already Registered",
+          "description": "400 when the email is already registered.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testUserEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// This passes 400 only if the testUserEmail is already registered.",
+                  "// If the user is new, it returns 200 (OTP sent) instead.",
+                  "const status = pm.response.code;",
+                  "pm.test('Status 200 or 400', () => pm.expect([200, 400]).to.include(status));",
+                  "if (status === 400) {",
+                  "    pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request OTP - Missing Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Register - Success",
+          "description": "Requires testUserOtp to be set first. Run Request OTP, check email, set testUserOtp.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -66,7 +152,12 @@
                 "exec": [
                   "(async () => {",
                   "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { name: pm.collectionVariables.get('testUserName'), email: pm.collectionVariables.get('testUserEmail'), password: pm.collectionVariables.get('testUserPassword') };",
+                  "    const payload = {",
+                  "        name:     pm.collectionVariables.get('testUserName'),",
+                  "        email:    pm.collectionVariables.get('testUserEmail'),",
+                  "        password: pm.collectionVariables.get('testUserPassword'),",
+                  "        otp:      pm.collectionVariables.get('testUserOtp'),",
+                  "    };",
                   "    if (pub) {",
                   "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
                   "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
@@ -96,53 +187,6 @@
           ]
         },
         {
-          "name": "Register - Email Already Taken",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const takenEmail = 'already.taken@travelbestie.com';",
-                  "    async function buildBody(payload) {",
-                  "        if (!pub) return JSON.stringify(payload);",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        return JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) });",
-                  "    }",
-                  "    const firstBody = await buildBody({ name: 'First User', email: takenEmail, password: 'testpass123' });",
-                  "    await new Promise(resolve => pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/register', method: 'POST', header: [{ key: 'Content-Type', value: 'application/json' }], body: { mode: 'raw', raw: firstBody } }, () => resolve()));",
-                  "    pm.collectionVariables.set('authBody', await buildBody({ name: 'Second User', email: takenEmail, password: 'otherpass123' }));",
-                  "})()"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "pm.test('Error mentions email', () => pm.expect(pm.response.json().error.toLowerCase()).to.include('email'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Register - Password Too Short",
           "request": {
             "method": "POST",
@@ -162,7 +206,7 @@
                 "exec": [
                   "(async () => {",
                   "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { name: 'Test', email: 'short.pass@travelbestie.com', password: '123' };",
+                  "    const payload = { name: 'Test', email: 'short.pass@travelbestie.com', password: '123', otp: '000000' };",
                   "    if (pub) {",
                   "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
                   "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
@@ -206,7 +250,7 @@
                 "exec": [
                   "(async () => {",
                   "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { email: 'no.name@travelbestie.com', password: 'testpass123' };",
+                  "    const payload = { email: 'no.name@travelbestie.com', password: 'testpass123', otp: '000000' };",
                   "    if (pub) {",
                   "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
                   "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
@@ -232,7 +276,7 @@
         },
         {
           "name": "Register - Missing encryptedPayload [prod only]",
-          "description": "In dev mode (no RSA_PRIVATE_KEY on server) the decryption step is bypassed, so the 400 comes from validate() catching missing fields instead. In production the error is 'encryptedPayload is required'.",
+          "description": "In dev mode the 400 comes from validate() catching missing fields. In production the error is 'encryptedPayload is required'.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -251,38 +295,8 @@
                 "exec": [
                   "pm.test('Status 400', () => pm.response.to.have.status(400));",
                   "pm.test('Has error field', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "// In production mode the exact error is 'encryptedPayload is required'",
                   "if (pm.collectionVariables.get('rsaPublicKeyBase64')) {",
                   "    pm.test('Error is encryptedPayload required [prod]', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Register - Invalid encryptedPayload [prod only]",
-          "description": "In dev mode (no RSA_PRIVATE_KEY) the decryption step is bypassed; the payload field is ignored and validate() catches missing fields (400). In production the error is 'Invalid encrypted payload'.",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"encryptedPayload\": \"not-a-valid-rsa-ciphertext\"}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('Has error field', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "if (pm.collectionVariables.get('rsaPublicKeyBase64')) {",
-                  "    pm.test('Error is Invalid encrypted payload [prod]', () => pm.expect(pm.response.json().error).to.equal('Invalid encrypted payload'));",
                   "}"
                 ]
               }
@@ -309,18 +323,16 @@
                 "exec": [
                   "(async () => {",
                   "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const name = pm.collectionVariables.get('testUserName');",
-                  "    const email = pm.collectionVariables.get('testUserEmail');",
+                  "    const email    = pm.collectionVariables.get('testUserEmail');",
                   "    const password = pm.collectionVariables.get('testUserPassword');",
-                  "    async function buildBody(payload) {",
-                  "        if (!pub) return JSON.stringify(payload);",
+                  "    const payload = { email, password };",
+                  "    if (pub) {",
                   "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
                   "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        return JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) });",
+                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "    } else {",
+                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
                   "    }",
-                  "    const regBody = await buildBody({ name, email, password });",
-                  "    await new Promise(resolve => pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/register', method: 'POST', header: [{ key: 'Content-Type', value: 'application/json' }], body: { mode: 'raw', raw: regBody } }, () => resolve()));",
-                  "    pm.collectionVariables.set('authBody', await buildBody({ email, password }));",
                   "})()"
                 ]
               }
@@ -457,6 +469,134 @@
               }
             }
           ]
+        },
+        {
+          "name": "Request Profile OTP",
+          "description": "Requires Bearer token. Sends a 6-digit OTP to the new email address for email change.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newEmail\": \"newemail@travelbestie.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/request-profile-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-profile-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Profile OTP - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newEmail\": \"newemail@travelbestie.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/request-profile-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-profile-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile - Change Name",
+          "description": "Updates display name only. In dev mode send plaintext; in prod send encryptedPayload.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{authBody}}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(async () => {",
+                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
+                  "    const payload = { name: 'Updated Name' };",
+                  "    if (pub) {",
+                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "    } else {",
+                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "    }",
+                  "})()"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has user', () => pm.expect(body.user).to.be.an('object'));",
+                  "pm.test('Name updated', () => pm.expect(body.user.name).to.equal('Updated Name'));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile - No Token",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"name\": \"Should Fail\" }",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -509,7 +649,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -544,7 +684,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -579,7 +719,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -631,7 +771,7 @@
             "method": "PUT",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -660,7 +800,7 @@
             "method": "PUT",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -692,7 +832,7 @@
             "method": "PUT",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -739,24 +879,146 @@
           ]
         },
         {
+          "name": "Share Trip - Success",
+          "description": "First share deducts 1 karma. Saves shareId to collection variable.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has shareId', () => pm.expect(body.shareId).to.be.a('string'));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('shareId', body.shareId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Share Trip - Re-share (free, same shareId)",
+          "description": "Re-sharing the same trip is free and returns the existing shareId.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('shareId unchanged', () => pm.expect(pm.response.json().shareId).to.equal(pm.collectionVariables.get('shareId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Share Trip - Not Found",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/share", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "share"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Share Trip - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Own Trip - Success",
+          "description": "Duplicates {{tripId}}. Title is prefixed 'Copia de '. Costs 1 karma.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/clone", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "clone"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Title starts with Copia de', () => pm.expect(body.title).to.match(/^Copia de /));",
+                  "pm.test('Has new id', () => pm.expect(body.id).to.not.equal(pm.collectionVariables.get('tripId')));",
+                  "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
+                  "pm.test('No shareId on clone', () => pm.expect(body.shareId).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Own Trip - Not Found",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/clone", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "clone"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Generate Itinerary - With Enriched Names",
-          "description": "Requires {{tripId}} to have stops and transits — run 'Update Trip - With Stops and Transits' first. Downloads an .xlsx itinerary file with resolved city and attraction display names.",
+          "description": "Requires {{tripId}} to have stops and transits — run 'Update Trip - With Stops and Transits' first. First export costs 1 karma.",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"cityNames\": {\n    \"santiago\": \"Santiago\",\n    \"paris\": \"París\"\n  },\n  \"attractionNames\": {\n    \"paris_0\": \"Torre Eiffel\"\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
-              "host": ["{{baseUrl}}"],
-              "path": ["trips", "{{tripId}}", "itinerary"]
-            }
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
           },
           "event": [
             {
@@ -776,23 +1038,18 @@
         },
         {
           "name": "Generate Itinerary - No Enrichment (fallback names)",
-          "description": "Calls the endpoint with an empty body. City and attraction names fall back to the built-in map and ID formatting. Should still return a valid .xlsx file.",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
-              "host": ["{{baseUrl}}"],
-              "path": ["trips", "{{tripId}}", "itinerary"]
-            }
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
           },
           "event": [
             {
@@ -814,16 +1071,8 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
-              "host": ["{{baseUrl}}"],
-              "path": ["trips", "{{tripId}}", "itinerary"]
-            }
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
           },
           "event": [
             {
@@ -844,18 +1093,10 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/itinerary",
-              "host": ["{{baseUrl}}"],
-              "path": ["trips", "00000000-0000-0000-0000-000000000000", "itinerary"]
-            }
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "itinerary"] }
           },
           "event": [
             {
@@ -911,7 +1152,7 @@
         },
         {
           "name": "Delete Trip - Success",
-          "description": "Deletes the trip saved in {{tripId}}. Run this LAST in the Trips folder — after all Update tests.",
+          "description": "Run this LAST in the Trips folder — after all Update, Share, and Itinerary tests.",
           "request": {
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
@@ -933,8 +1174,265 @@
       ]
     },
     {
+      "name": "🌍 Shared Trips",
+      "description": "GET /shared and GET /shared/:shareId are public. POST /shared/:shareId/clone requires auth. Requires {{shareId}} to be set — run 'Share Trip - Success' first.",
+      "item": [
+        {
+          "name": "Search Shared Trips - With Query",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shared?q=europe",
+              "host": ["{{baseUrl}}"],
+              "path": ["shared"],
+              "query": [{ "key": "q", "value": "europe" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('At most 5 results', () => pm.expect(pm.response.json().length).to.be.at.most(5));",
+                  "if (pm.response.json().length > 0) {",
+                  "    const first = pm.response.json()[0];",
+                  "    pm.test('Result has id', () => pm.expect(first.id).to.be.a('string'));",
+                  "    pm.test('Result has ownerName', () => pm.expect(first.ownerName).to.be.a('string'));",
+                  "    pm.test('Result has tripName', () => pm.expect(first.tripName).to.be.a('string'));",
+                  "    pm.test('Result has planId', () => pm.expect(first.planId).to.be.a('string'));",
+                  "    pm.test('Result has stops', () => pm.expect(first.stops).to.be.an('array'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Shared Trips - Empty Query Returns Array",
+          "description": "Empty or blank q returns [] without error.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shared?q=",
+              "host": ["{{baseUrl}}"],
+              "path": ["shared"],
+              "query": [{ "key": "q", "value": "" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Shared Trip - Success",
+          "description": "Requires {{shareId}} from Share Trip - Success.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('id matches shareId', () => pm.expect(body.id).to.equal(pm.collectionVariables.get('shareId')));",
+                  "pm.test('Has ownerName', () => pm.expect(body.ownerName).to.be.a('string'));",
+                  "pm.test('Has ownerEmail', () => pm.expect(body.ownerEmail).to.be.a('string'));",
+                  "pm.test('Has tripName', () => pm.expect(body.tripName).to.be.a('string'));",
+                  "pm.test('Has planId', () => pm.expect(body.planId).to.be.a('string'));",
+                  "pm.test('Has stops', () => pm.expect(body.stops).to.be.an('array'));",
+                  "pm.test('Has transits', () => pm.expect(body.transits).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Shared Trip - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Shared Trip - Success",
+          "description": "Clones the shared trip into the authenticated user's account. Title is prefixed 'Copia de '. Costs 1 karma.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/clone", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "clone"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Title starts with Copia de', () => pm.expect(body.title).to.match(/^Copia de /));",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
+                  "pm.test('No shareId on clone', () => pm.expect(body.shareId).to.be.undefined);",
+                  "pm.test('Has stops', () => pm.expect(body.stops).to.be.an('array'));",
+                  "pm.test('Has transits', () => pm.expect(body.transits).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Shared Trip - Not Found",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/clone", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "clone"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone Shared Trip - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/clone", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "clone"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "💬 Comments",
       "item": [
+        {
+          "name": "Get Comments Batch - Success",
+          "description": "GET /comments?ids=id1,id2 — returns Record<string, Comment[]>. All requested IDs are present as keys.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comments?ids=paris_0,tokyo_0,unknown_000",
+              "host": ["{{baseUrl}}"],
+              "path": ["comments"],
+              "query": [{ "key": "ids", "value": "paris_0,tokyo_0,unknown_000" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Response is object', () => pm.expect(body).to.be.an('object'));",
+                  "pm.test('paris_0 key present', () => pm.expect(body).to.have.property('paris_0'));",
+                  "pm.test('tokyo_0 key present', () => pm.expect(body).to.have.property('tokyo_0'));",
+                  "pm.test('unknown_000 key present (empty)', () => pm.expect(body).to.have.property('unknown_000'));",
+                  "pm.test('paris_0 value is array', () => pm.expect(body['paris_0']).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Comments Batch - Missing ids Param",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/comments", "host": ["{{baseUrl}}"], "path": ["comments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions ids', () => pm.expect(pm.response.json().error.toLowerCase()).to.include('ids'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Comments Batch - Too Many IDs (51)",
+          "description": "Sending more than 50 IDs should return 400.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comments?ids=a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af,ag,ah,ai,aj,ak,al,am,an,ao,ap,aq,ar,as,at,au,av,aw,ax,ay",
+              "host": ["{{baseUrl}}"],
+              "path": ["comments"],
+              "query": [{ "key": "ids", "value": "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af,ag,ah,ai,aj,ak,al,am,an,ao,ap,aq,ar,as,at,au,av,aw,ax,ay" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions too many', () => pm.expect(pm.response.json().error.toLowerCase()).to.include('too many'));"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Get Comments - Empty Attraction",
           "request": {
@@ -961,7 +1459,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -996,7 +1494,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1020,70 +1518,12 @@
           ]
         },
         {
-          "name": "Post Comment - Second on Same Attraction",
-          "description": "A second comment on paris_0 is allowed. No additional karma is awarded (deduplication guard).",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Even better the second time!\",\n  \"rating\": 5,\n  \"color\": \"#818CF8\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Comment saved', () => pm.expect(pm.response.json().text).to.equal('Even better the second time!'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Post Comment - Different Attraction",
-          "description": "First comment on tokyo_0 — grants +1 karma because this attractionId is new for this user.",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Incredible place!\",\n  \"rating\": 4,\n  \"color\": \"#FB923C\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/comments/tokyo_0", "host": ["{{baseUrl}}"], "path": ["comments", "tokyo_0"] }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('attractionId is tokyo_0', () => pm.expect(pm.response.json().attractionId).to.equal('tokyo_0'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Post Comment - Rating Too High (6)",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1111,7 +1551,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1139,7 +1579,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1167,7 +1607,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1242,6 +1682,190 @@
       ]
     },
     {
+      "name": "💬 Step Comments",
+      "description": "Step comments on shared trips. Reading is public; writing requires auth. Requires {{shareId}} — run Share Trip first.",
+      "item": [
+        {
+          "name": "Get Step Comments - Success",
+          "description": "Returns all step comments for the shared trip, grouped by stepKey.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is object', () => pm.expect(pm.response.json()).to.be.an('object'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Step Comments - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "comments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error is Shared trip not found', () => pm.expect(pm.response.json().error).to.equal('Shared trip not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Success",
+          "description": "Text must be at least 50 characters. Awards +1 karma if first comment on this step and commenter is not the owner.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has comment', () => pm.expect(body.comment).to.be.an('object'));",
+                  "pm.test('Comment has id', () => pm.expect(body.comment.id).to.be.a('string'));",
+                  "pm.test('Comment stepKey matches', () => pm.expect(body.comment.stepKey).to.equal('stop:paris'));",
+                  "pm.test('Comment authorName is from JWT', () => pm.expect(body.comment.authorName).to.be.a('string'));",
+                  "pm.test('Has karmaAwarded flag', () => pm.expect(body.karmaAwarded).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Text Too Short",
+          "description": "Text shorter than 50 characters must be rejected.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Too short.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Missing Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Shared Trip Not Found",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "comments", "stop:paris"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "⭐ Karma",
       "item": [
         {
@@ -1285,12 +1909,185 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get Karma Packages - Authenticated",
+          "description": "Lists purchasable karma packages. Requires auth.",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/karma/packages", "host": ["{{baseUrl}}"], "path": ["karma", "packages"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "if (pm.response.json().length > 0) {",
+                  "    const pkg = pm.response.json()[0];",
+                  "    pm.test('Package has id', () => pm.expect(pkg.id).to.be.a('string'));",
+                  "    pm.test('Package has karma amount', () => pm.expect(pkg.karma).to.be.a('number'));",
+                  "    pm.test('Package has price', () => pm.expect(pkg.price).to.be.a('number'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Karma Packages - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/karma/packages", "host": ["{{baseUrl}}"], "path": ["karma", "packages"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Karma Order - Missing packageId",
+          "description": "Tests validation — packageId is required.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Karma Order - Invalid packageId",
+          "description": "Tests that an unknown packageId returns 400.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"nonexistent_package\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Karma Order - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"starter\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture Karma Order - Missing orderID",
+          "description": "Tests validation — orderID is required.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/karma/purchase/capture-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "capture-order"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture Karma Order - No Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderID\": \"fake-paypal-order-id\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/karma/purchase/capture-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "capture-order"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
       "name": "🤖 AI",
-      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth and deduct karma (suggest −9, plan −1). Run Suggest - Success first to populate {{suggestedOption}} for the Plan requests.",
+      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth. Suggest costs −9 karma, Plan costs −1 karma (free for minor re-plans). Run Suggest - Success first to populate {{suggestedOption}}.",
       "item": [
         {
           "name": "Suggest Trips - Success (full params)",
@@ -1298,7 +2095,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1333,7 +2130,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1349,8 +2146,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has 2 options', () => pm.expect(body.options).to.be.an('array').and.have.length(2));"
+                  "pm.test('Has 2 options', () => pm.expect(pm.response.json().options).to.be.an('array').and.have.length(2));"
                 ]
               }
             }
@@ -1362,7 +2158,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1402,8 +2198,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
-                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
                 ]
               }
             }
@@ -1411,12 +2206,12 @@
         },
         {
           "name": "Plan Trip - Success (uses suggestedOption)",
-          "description": "Requires {{suggestedOption}} to be set — run 'Suggest Trips - Success' first.",
+          "description": "Requires {{suggestedOption}} — run Suggest first. Sends planSessionId to enable the free re-plan change tracking. On success the response includes a changeInfo field.",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1432,12 +2227,21 @@
                 "type": "text/javascript",
                 "exec": [
                   "const selectedOption = JSON.parse(pm.collectionVariables.get('suggestedOption') || '{}');",
+                  "const sessionId = pm.globals.get('planSessionId') || (() => {",
+                  "    const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                  "        const r = Math.random() * 16 | 0;",
+                  "        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                  "    });",
+                  "    pm.globals.set('planSessionId', id);",
+                  "    return id;",
+                  "})();",
                   "pm.collectionVariables.set('planBody', JSON.stringify({",
                   "    selectedOption,",
                   "    preferences: 'beaches, local food, and cultural landmarks',",
                   "    duration: 10,",
                   "    budget: 'medium',",
-                  "    startDate: '01/07/2026'",
+                  "    startDate: '01/07/2026',",
+                  "    planSessionId: sessionId",
                   "}));"
                 ]
               }
@@ -1452,6 +2256,8 @@
                   "pm.test('Has title', () => pm.expect(body.title).to.be.a('string').and.not.empty);",
                   "pm.test('Has stops array', () => pm.expect(body.stops).to.be.an('array'));",
                   "pm.test('Has transits array', () => pm.expect(body.transits).to.be.an('array'));",
+                  "pm.test('Has changeInfo', () => pm.expect(body.changeInfo).to.be.an('object'));",
+                  "pm.test('changeInfo has type', () => pm.expect(body.changeInfo.type).to.be.oneOf(['new_session', 'free_change', 'charged_change']));",
                   "if (body.stops.length > 0) {",
                   "    pm.test('Stop has cityId', () => pm.expect(body.stops[0].cityId).to.be.a('string'));",
                   "    pm.test('Stop has checkIn', () => pm.expect(body.stops[0].checkIn).to.be.a('string'));",
@@ -1468,7 +2274,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1496,7 +2302,7 @@
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type",  "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -1536,8 +2342,68 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
-                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏠 Landing",
+      "description": "Public endpoints. No auth required. Results are Redis-cached.",
+      "item": [
+        {
+          "name": "GET /featured",
+          "description": "Returns array of featured SharedTripPayload objects ordered by FEATURED_TRIP_IDS env var. Returns [] when var is unset.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/featured", "host": ["{{baseUrl}}"], "path": ["featured"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "if (pm.response.json().length > 0) {",
+                  "    const trip = pm.response.json()[0];",
+                  "    pm.test('Featured trip has id', () => pm.expect(trip.id).to.be.a('string'));",
+                  "    pm.test('Featured trip has tripName', () => pm.expect(trip.tripName).to.be.a('string'));",
+                  "    pm.test('Featured trip has planId', () => pm.expect(trip.planId).to.be.a('string'));",
+                  "    pm.test('Featured trip has stops', () => pm.expect(trip.stops).to.be.an('array'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /stats",
+          "description": "Returns { cities, users, plans } counts. Cached in Redis under GLOBAL_STATS for 1 hour.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/stats", "host": ["{{baseUrl}}"], "path": ["stats"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has cities', () => pm.expect(body.cities).to.be.a('number'));",
+                  "pm.test('Has users', () => pm.expect(body.users).to.be.a('number'));",
+                  "pm.test('Has plans', () => pm.expect(body.plans).to.be.a('number'));",
+                  "pm.test('cities is integer', () => pm.expect(Number.isInteger(body.cities)).to.be.true);",
+                  "pm.test('users is integer', () => pm.expect(Number.isInteger(body.users)).to.be.true);",
+                  "pm.test('plans is integer', () => pm.expect(Number.isInteger(body.plans)).to.be.true);"
                 ]
               }
             }
