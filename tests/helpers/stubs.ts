@@ -5,7 +5,8 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip } from '../../src/types';
+import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -89,7 +90,7 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id };
   }
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
@@ -107,7 +108,7 @@ export class StubTripRepository implements ITripRepository {
     return [...this.trips.values()]
       .filter(t => t.shareId && t.title.toLowerCase().includes(q))
       .slice(0, 5)
-      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id }));
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
   }
 
   async delete(id: string): Promise<boolean> {
@@ -223,5 +224,46 @@ export class StubKarmaPurchaseRepository implements IKarmaPurchaseRepository {
   async failPurchase(providerOrderId: string): Promise<void> {
     const p = this.store.get(providerOrderId);
     if (p) this.store.set(providerOrderId, { ...p, status: 'failed' });
+  }
+}
+
+export class StubFavoriteRepository implements IFavoriteRepository {
+  private rows: Array<{ userId: string; tripId: string; createdAt: Date }> = [];
+
+  async toggle(userId: string, tripId: string): Promise<FavoriteToggleResult> {
+    const idx = this.rows.findIndex(r => r.userId === userId && r.tripId === tripId);
+    if (idx >= 0) {
+      this.rows.splice(idx, 1);
+    } else {
+      this.rows.push({ userId, tripId, createdAt: new Date() });
+    }
+    const favoriteCount = this.rows.filter(r => r.tripId === tripId).length;
+    return { favorited: idx < 0, favoriteCount };
+  }
+
+  async list(userId: string): Promise<FavoritedTrip[]> {
+    return this.rows
+      .filter(r => r.userId === userId)
+      .map(r => ({
+        id:              'stub-share-id',
+        shareId:         'stub-share-id',
+        tripId:          r.tripId,
+        planId:          r.tripId,
+        tripName:        'Stub Trip',
+        ownerName:       'Stub Owner',
+        ownerEmail:      '',
+        createdAt:       new Date().toISOString(),
+        stops:           [],
+        transits:        [],
+        favoritedAt:     r.createdAt.toISOString(),
+        favoriteCount:   1,
+        isFavoritedByMe: true,
+      }));
+  }
+
+  async getCountAndStatus(tripId: string, userId: string | null) {
+    const favoriteCount   = this.rows.filter(r => r.tripId === tripId).length;
+    const isFavoritedByMe = !!userId && this.rows.some(r => r.tripId === tripId && r.userId === userId);
+    return { favoriteCount, isFavoritedByMe };
   }
 }
