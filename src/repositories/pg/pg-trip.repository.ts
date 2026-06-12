@@ -123,7 +123,8 @@ export class PgTripRepository implements ITripRepository {
     if (!q) return [];
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name
+              u.email AS owner_email, u.name AS owner_name,
+              (SELECT COUNT(*) FROM trip_favorites f WHERE f.trip_id = t.trip_id)::int AS favorite_count
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
        WHERE t.share_id IS NOT NULL
@@ -135,15 +136,16 @@ export class PgTripRepository implements ITripRepository {
     return Promise.all(rows.map(async row => {
       const trip = await hydrateTrip(this.pool, row);
       return {
-        id:         row.share_id as string,
-        tripName:   trip.title,
-        ownerEmail: row.owner_email as string,
-        ownerName:  row.owner_name as string,
-        createdAt:  trip.createdAt,
-        stops:      trip.stops,
-        transits:   trip.transits,
-        planId:     trip.id,
-        tripId:     trip.id,
+        id:            row.share_id as string,
+        tripName:      trip.title,
+        ownerEmail:    row.owner_email as string,
+        ownerName:     row.owner_name as string,
+        createdAt:     trip.createdAt,
+        stops:         trip.stops,
+        transits:      trip.transits,
+        planId:        trip.id,
+        tripId:        trip.id,
+        favoriteCount: row.favorite_count as number,
       };
     }));
   }

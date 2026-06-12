@@ -45,15 +45,19 @@ export class PgFavoriteRepository implements IFavoriteRepository {
   async list(userId: string): Promise<FavoritedTrip[]> {
     const { rows } = await this.pool.query(
       `SELECT
+         t.share_id             AS "id",
          t.share_id             AS "shareId",
          t.trip_id              AS "tripId",
+         t.trip_id              AS "planId",
          t.title                AS "tripName",
          u.name                 AS "ownerName",
+         u.email                AS "ownerEmail",
+         t.created_at           AS "createdAt",
          tf.created_at          AS "favoritedAt",
          (SELECT COUNT(*) FROM trip_favorites f2 WHERE f2.trip_id = t.trip_id)::int AS "favoriteCount"
        FROM trip_favorites tf
        JOIN trips t ON t.trip_id = tf.trip_id
-       JOIN users u ON u.user_id = t.user_id
+       JOIN users u ON u.user_id = t.owner_id
        WHERE tf.user_id = $1
        ORDER BY tf.created_at DESC`,
       [userId],
@@ -64,6 +68,7 @@ export class PgFavoriteRepository implements IFavoriteRepository {
       isFavoritedByMe: true,
       stops:           [],
       transits:        [],
+      createdAt:       r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
       favoritedAt:     r.favoritedAt instanceof Date ? r.favoritedAt.toISOString() : r.favoritedAt,
     }));
   }

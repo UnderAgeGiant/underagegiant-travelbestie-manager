@@ -13,12 +13,10 @@ import { createSharedCommentsRouter }  from './routes/shared-comments.routes';
 import { createCommentsRouter }        from './routes/comments.routes';
 import { createKarmaRouter }           from './routes/karma.routes';
 import { createAiRouter }              from './routes/ai.routes';
-import { createLandingRouter }         from './routes/landing.routes';
-import { requireAuth }                 from './middleware/auth/require-auth.middleware';
-import { makeFavoriteList }            from './middleware/favorites/favorite.list.middleware';
+import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes';
+import { createFavoritesRouter }       from './routes/favorites.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
-import { respond } from './middleware/respond.middleware';
 
 export const app = express();
 
@@ -40,11 +38,9 @@ app.use((req, _res, next) => {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-const favoriteList = makeFavoriteList(favoriteRepository);
-
-app.use('/auth',     createAuthRouter(userController));
-app.use('/shared',   createSharedRouter(tripController, karmaController, favoriteRepository));
-app.get('/favorites', requireAuth, favoriteList, respond(200));
+app.use('/auth',       createAuthRouter(userController));
+app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository));
+app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo),
 );
@@ -52,7 +48,8 @@ app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));
-app.use(createLandingRouter(tripController, statsController));
+app.use('/featured', createFeaturedRouter(tripController));
+app.use('/stats',    createStatsRouter(statsController));
 
 app.use(notFound);
 app.use(errorHandler);

@@ -7,10 +7,8 @@ import { KarmaController } from '../src/controllers/karma.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createTripsRouter } from '../src/routes/trips.routes';
 import { createSharedRouter } from '../src/routes/shared.routes';
-import { requireAuth } from '../src/middleware/auth/require-auth.middleware';
-import { makeFavoriteList } from '../src/middleware/favorites/favorite.list.middleware';
+import { createFavoritesRouter } from '../src/routes/favorites.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
-import { respond } from '../src/middleware/respond.middleware';
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -33,14 +31,13 @@ function buildApp() {
   const userController  = new UserController(userRepo);
   const tripController  = new TripController(tripRepo);
   const karmaController = new KarmaController(karmaRepo);
-  const favoriteList    = makeFavoriteList(favoriteRepo);
 
   const app = express();
   app.use(express.json());
-  app.use('/auth',     createAuthRouter(userController));
-  app.use('/trips',    createTripsRouter(tripController, karmaController));
-  app.use('/shared',   createSharedRouter(tripController, karmaController, favoriteRepo));
-  app.get('/favorites', requireAuth, favoriteList, respond(200));
+  app.use('/auth',      createAuthRouter(userController));
+  app.use('/trips',     createTripsRouter(tripController, karmaController));
+  app.use('/shared',    createSharedRouter(tripController, karmaController, favoriteRepo));
+  app.use('/favorites', createFavoritesRouter(favoriteRepo));
   app.use(errorHandler);
 
   return { app, tripRepo, favoriteRepo };

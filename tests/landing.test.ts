@@ -3,7 +3,7 @@ import express from 'express';
 import { StubTripRepository } from './helpers/stubs';
 import { TripController }     from '../src/controllers/trip.controller';
 import { StatsController }    from '../src/controllers/stats.controller';
-import { createLandingRouter } from '../src/routes/landing.routes';
+import { createFeaturedRouter, createStatsRouter } from '../src/routes/landing.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 import { AppStats } from '../src/types';
 
@@ -24,10 +24,8 @@ function buildApp(featuredTripIds = '') {
   const statsStub = new StubStatsRepository();
   const app = express();
   app.use(express.json());
-  app.use(createLandingRouter(
-    new TripController(tripStub),
-    new StatsController(statsStub as any),
-  ));
+  app.use('/featured', createFeaturedRouter(new TripController(tripStub)));
+  app.use('/stats',    createStatsRouter(new StatsController(statsStub as any)));
   app.use(errorHandler);
   return { app, tripStub };
 }
