@@ -104,6 +104,7 @@ export class PgTripRepository implements ITripRepository {
       stops:      trip.stops,
       transits:   trip.transits,
       planId:     trip.id,
+      tripId:     trip.id,
     };
   }
 
@@ -142,6 +143,7 @@ export class PgTripRepository implements ITripRepository {
         stops:      trip.stops,
         transits:   trip.transits,
         planId:     trip.id,
+        tripId:     trip.id,
       };
     }));
   }

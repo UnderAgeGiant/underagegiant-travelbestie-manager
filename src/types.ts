@@ -57,14 +57,26 @@ export interface Trip {
 }
 
 export interface SharedTripPayload {
-  id:         string;   // shareId (not trip_id)
-  tripName:   string;
-  ownerEmail: string;
-  ownerName:  string;
-  createdAt:  string;
-  stops:      TripStop[];
-  transits:   TransitLeg[];
-  planId:     string;   // trips.trip_id — used by the frontend to reference the source plan
+  id:               string;   // shareId (not trip_id)
+  tripName:         string;
+  ownerEmail:       string;
+  ownerName:        string;
+  createdAt:        string;
+  stops:            TripStop[];
+  transits:         TransitLeg[];
+  planId:           string;   // trips.trip_id — used by the frontend to reference the source plan
+  tripId:           string;   // same as planId — internal UUID used by favorites
+  favoriteCount?:   number;
+  isFavoritedByMe?: boolean;
+}
+
+export interface FavoriteToggleResult {
+  favorited:     boolean;
+  favoriteCount: number;
+}
+
+export interface FavoritedTrip extends SharedTripPayload {
+  favoritedAt: string;   // ISO-8601
 }
 
 export interface AppStats {
