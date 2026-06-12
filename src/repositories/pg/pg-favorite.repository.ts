@@ -6,40 +6,32 @@ export class PgFavoriteRepository implements IFavoriteRepository {
   constructor(private readonly pool: Pool) {}
 
   async toggle(userId: string, tripId: string): Promise<FavoriteToggleResult> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    const { rows } = await this.pool.query<{ favorited: boolean; favoriteCount: number }>(
+      `WITH deleted AS (
+         DELETE FROM trip_favorites
+         WHERE user_id = $1 AND trip_id = $2
+         RETURNING trip_id
+       ),
+       inserted AS (
+         INSERT INTO trip_favorites (user_id, trip_id)
+         SELECT $1, $2
+         WHERE NOT EXISTS (SELECT 1 FROM deleted)
+         ON CONFLICT DO NOTHING
+         RETURNING trip_id
+       ),
+       base_count AS (
+         SELECT COUNT(*)::int AS n FROM trip_favorites WHERE trip_id = $2
+       )
+       SELECT
+         EXISTS (SELECT 1 FROM inserted)                        AS favorited,
+         base_count.n
+           + (SELECT COUNT(*)::int FROM inserted)
+           - (SELECT COUNT(*)::int FROM deleted)                AS "favoriteCount"
+       FROM base_count`,
+      [userId, tripId],
+    );
 
-      const del = await client.query<{ user_id: string }>(
-        `DELETE FROM trip_favorites WHERE user_id = $1 AND trip_id = $2 RETURNING user_id`,
-        [userId, tripId],
-      );
-
-      const wasPresent = del.rowCount! > 0;
-      if (!wasPresent) {
-        await client.query(
-          `INSERT INTO trip_favorites (user_id, trip_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [userId, tripId],
-        );
-      }
-
-      const { rows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM trip_favorites WHERE trip_id = $1`,
-        [tripId],
-      );
-
-      await client.query('COMMIT');
-
-      return {
-        favorited:     !wasPresent,
-        favoriteCount: parseInt(rows[0].count, 10),
-      };
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    return rows[0];
   }
 
   async list(userId: string): Promise<FavoritedTrip[]> {
