@@ -56,13 +56,19 @@ describe('POST /auth/login', () => {
     expect(res.body.token).toBeDefined();
   });
 
-  it('returns 401 for wrong password', async () => {
+  it('returns 401 with incorrect-password message for wrong password', async () => {
     const app = buildApp();
     await request(app).post('/auth/register').send({ name: 'Ana', email: 'ana@test.com', password: 'secret123', otp: '123456' });
-    expect((await request(app).post('/auth/login').send({ email: 'ana@test.com', password: 'wrong' })).status).toBe(401);
+    const res = await request(app).post('/auth/login').send({ email: 'ana@test.com', password: 'wrong' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('WRONG_PASSWORD');
+    expect(res.body.error).toBe('Incorrect password');
   });
 
-  it('returns 401 for unknown email', async () => {
-    expect((await request(buildApp()).post('/auth/login').send({ email: 'nobody@test.com', password: 'x' })).status).toBe(401);
+  it('returns 401 with not-found message for unknown email', async () => {
+    const res = await request(buildApp()).post('/auth/login').send({ email: 'nobody@test.com', password: 'x' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('USER_NOT_FOUND');
+    expect(res.body.error).toBe('No account found with that email');
   });
 });
