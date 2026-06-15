@@ -21,7 +21,9 @@ import { requestLoggerMiddleware } from './middleware/request-logger.middleware'
 export const app = express();
 
 app.use(requestLoggerMiddleware);
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200', credentials: true }));
+const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
+const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 
 // Strip __proto__, constructor, prototype keys to prevent prototype pollution via JSON body
