@@ -17,6 +17,7 @@ import { hashNewPasswordMiddleware }       from '../middleware/auth/hash-new-pas
 import { checkNewEmailTaken }              from '../middleware/auth/check-new-email-taken.middleware';
 import { generateProfileOtpMiddleware }    from '../middleware/auth/generate-profile-otp.middleware';
 import { verifyProfileOtpMiddleware }      from '../middleware/auth/verify-profile-otp.middleware';
+import { logCtaEvent }                     from '../lib/log-event';
 
 export function createAuthRouter(user: UserController): Router {
   const router = Router();
@@ -46,6 +47,7 @@ export function createAuthRouter(user: UserController): Router {
     user.create,
     sendWelcomeEmailMiddleware,
     signTokenMiddleware,
+    logCtaEvent('cta_register', req => ({ email: req.foundUser?.email })),
     respond(201)
   );
 
@@ -55,6 +57,7 @@ export function createAuthRouter(user: UserController): Router {
     user.findByEmail,
     verifyPasswordMiddleware,
     signTokenMiddleware,
+    logCtaEvent('cta_login', req => ({ email: req.foundUser?.email })),
     respond(200)
   );
 

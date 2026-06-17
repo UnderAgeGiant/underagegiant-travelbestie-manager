@@ -8,6 +8,7 @@ import { validateKarmaPackage } from '../middleware/karma/validate-karma-package
 import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
 import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 export function createKarmaRouter(
   karma: KarmaController,
@@ -46,6 +47,7 @@ export function createKarmaRouter(
     validate({ orderID: { required: true, type: 'string' } }),
     verifyOwnership,
     karmaPurchase.captureOrder,
+    logCtaEvent('cta_karma_purchase', req => ({ provider: req.karmaPurchase?.provider, amount: req.karmaPurchase?.amount })),
     sendKarmaConfirmationEmailMiddleware,
     respond(200),
   );

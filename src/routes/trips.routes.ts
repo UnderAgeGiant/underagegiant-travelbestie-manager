@@ -8,6 +8,7 @@ import { buildTripResponse } from '../middleware/trips/build-trip-response.middl
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 // Wraps a middleware so it is skipped when the trip has already been exported.
 function skipIfExported(fn: RequestHandler): RequestHandler {
@@ -64,6 +65,7 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     karma.requireForTrip,
     trip.createShare,
     karma.spendForShare,
+    logCtaEvent('cta_trip_share', req => ({ tripId: req.params.id })),
     respond(200),
   );
 
@@ -75,6 +77,7 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     trip.create,
     karma.spend,
     buildTripResponse,
+    logCtaEvent('cta_trip_clone', req => ({ sourceTripId: req.params.id, newTripId: (req.result as { id?: string } | undefined)?.id })),
     respond(201),
   );
 

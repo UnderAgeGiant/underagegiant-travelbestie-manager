@@ -10,6 +10,7 @@ import { makeFavoriteToggle } from '../middleware/favorites/favorite.toggle.midd
 import { makeAttachFavoriteMeta } from '../middleware/favorites/attach-favorite-meta.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 export function createSharedRouter(
   trip: TripController,
@@ -42,6 +43,7 @@ export function createSharedRouter(
     trip.create,
     karma.spend,
     buildTripResponse,
+    logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
     respond(201),
   );
 
@@ -49,6 +51,7 @@ export function createSharedRouter(
     requireAuth,
     trip.findByShareId,
     favoriteToggle,
+    logCtaEvent('cta_favorite_toggle', req => ({ tripId: req.params.shareId, favorited: (req.result as { favorited?: boolean } | undefined)?.favorited })),
     respond(200),
   );
 

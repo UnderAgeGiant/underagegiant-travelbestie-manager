@@ -10,6 +10,7 @@ import { storeCommentRedis } from '../middleware/comments/store-comment-redis.mi
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { readCommentsBatchCache, writeCommentsBatchCache } from '../middleware/comments/comments-batch-cache.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 export function createCommentsRouter(comment: CommentController): Router {
   const router = Router();
@@ -35,6 +36,7 @@ export function createCommentsRouter(comment: CommentController): Router {
     validate({ text: { required: true }, rating: { required: true }, color: { required: true }, date: { required: true } }),
     validateRating,
     comment.add,
+    logCtaEvent('cta_comment_post', req => ({ attractionId: req.params.attractionId })),
     storeCommentRedis,
     respond(201),
   );

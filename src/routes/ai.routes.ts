@@ -8,6 +8,7 @@ import { checkPlanChange }              from '../middleware/ai/check-plan-change
 import { storePlanSession }             from '../middleware/ai/store-plan-session.middleware';
 import { appendPlanChangeInfo }         from '../middleware/ai/append-plan-change-info.middleware';
 import { createChargeAiPlanMiddleware } from '../middleware/ai/charge-ai-plan.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 export function createAiRouter(ai: AiController, karma: KarmaController): Router {
   const router = Router();
@@ -19,6 +20,7 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     karma.requireKarma(9),
     karma.spendForAiSuggest,
     ai.suggest,
+    logCtaEvent('cta_ai_suggest', () => ({ karmaSpent: 9 })),
     respond(200),
   );
 
@@ -40,6 +42,7 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     ai.plan,                           // calls DeepSeek, sets req.result
     storePlanSession,                  // writes/updates Redis session
     appendPlanChangeInfo,              // merges changeInfo into req.result
+    logCtaEvent('cta_ai_plan', req => ({ changeType: req.planChangeResult?.type })),
     respond(200),
   );
 
