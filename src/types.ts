@@ -1,3 +1,5 @@
+export type AttractionCategory = 'poi' | 'freetour' | 'event_party' | 'foodie';
+
 export interface User {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export interface PlannedAttraction {
   startTime: string | null;   // HH:mm — null when not set
   endTime:   string | null;   // HH:mm — null when not set
   date?: string;              // dd/mm/yyyy — which day within the stop
+  category?: AttractionCategory; // null treated as 'poi' in app
 }
 
 export interface Lodging {
