@@ -4,6 +4,7 @@ import { logger } from '../lib/logger';
 
 export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   req.flowId = randomUUID();
+  res.setHeader('X-Flow-Id', req.flowId);
   const start = Date.now();
   // Capture here — req.path mutates as Express descends into sub-routers
   const { method } = req;
@@ -13,7 +14,10 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
 
   res.on('finish', () => {
     const ms = Date.now() - start;
-    const entry = { flowId: req.flowId, method, path, status: res.statusCode, ms, msg: '← response' };
+    const entry = {
+      flowId: req.flowId, method, path, status: res.statusCode, ms,
+      userId: req.user?.userId ?? null, msg: '← response',
+    };
     if (res.statusCode >= 500) {
       logger.error(entry);
     } else {

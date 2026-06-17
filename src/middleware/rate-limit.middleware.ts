@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { redis } from '../lib/redis';
+import { respondError } from '../lib/respond-error';
 
 interface RateLimitOptions {
   keyPrefix: string;
@@ -19,7 +20,7 @@ export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
         await redis.expire(key, windowSeconds);
       }
       if (count > maxRequests) {
-        res.status(429).json({ error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.' });
+        respondError(req, res, 429, { error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.' });
         return;
       }
     } catch {

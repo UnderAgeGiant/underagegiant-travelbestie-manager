@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { redis, commentLastTextKey } from '../../lib/redis';
 import { computeTextChangeRatio, COMMENT_SIMILARITY_THRESHOLD } from '../../lib/text-similarity';
 import { logger } from '../../lib/logger';
+import { respondError } from '../../lib/respond-error';
 
 export async function checkCommentSimilarity(
   req: Request,
@@ -13,7 +14,7 @@ export async function checkCommentSimilarity(
     if (lastText) {
       const newText = ((req.body.text as string) ?? '').trim();
       if (computeTextChangeRatio(newText, lastText) < COMMENT_SIMILARITY_THRESHOLD) {
-        res.status(409).json({ error: 'TOO_SIMILAR' });
+        respondError(req, res, 409, { error: 'TOO_SIMILAR' });
         return;
       }
     }
