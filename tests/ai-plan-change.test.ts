@@ -26,6 +26,13 @@ jest.mock('../src/middleware/rate-limit.middleware', () => ({
   rateLimitMiddleware: () => (_req: any, _res: any, next: any) => next(),
 }));
 
+jest.mock('../src/lib/refresh-tokens', () => ({
+  issueRefreshToken:      jest.fn().mockResolvedValue('mock-refresh-token'),
+  validateAndRotate:      jest.fn(),
+  revokeRefreshToken:     jest.fn().mockResolvedValue(undefined),
+  invalidateUserSessions: jest.fn().mockResolvedValue(undefined),
+}));
+
 // In-memory Redis store shared across all mock calls within a test
 const redisStore = new Map<string, string>();
 
