@@ -18,6 +18,10 @@ import { checkNewEmailTaken }              from '../middleware/auth/check-new-em
 import { generateProfileOtpMiddleware }    from '../middleware/auth/generate-profile-otp.middleware';
 import { verifyProfileOtpMiddleware }      from '../middleware/auth/verify-profile-otp.middleware';
 import { logCtaEvent }                     from '../lib/log-event';
+import { validateRefreshTokenMiddleware }  from '../middleware/auth/validate-refresh-token.middleware';
+import { signRefreshedTokenMiddleware }    from '../middleware/auth/sign-refreshed-token.middleware';
+import { revokeRefreshTokenMiddleware }    from '../middleware/auth/revoke-refresh-token.middleware';
+import { invalidateSessionsMiddleware }    from '../middleware/auth/invalidate-sessions.middleware';
 
 export function createAuthRouter(user: UserController): Router {
   const router = Router();
@@ -61,6 +65,21 @@ export function createAuthRouter(user: UserController): Router {
     respond(200)
   );
 
+  router.post('/refresh',
+    validate({ refreshToken: { required: true, minLength: 10 } }),
+    validateRefreshTokenMiddleware,
+    user.findByRefreshUser,
+    signRefreshedTokenMiddleware,
+    respond(200),
+  );
+
+  router.post('/logout',
+    requireAuth,
+    validate({ refreshToken: { required: true, minLength: 10 } }),
+    revokeRefreshTokenMiddleware,
+    respond(204),
+  );
+
   router.post('/request-profile-otp',
     requireAuth,
     rateLimitMiddleware({ keyPrefix: 'rl:profile-otp', windowSeconds: 900, maxRequests: 5 }),
@@ -88,6 +107,7 @@ export function createAuthRouter(user: UserController): Router {
     checkNewEmailTaken,
     verifyProfileOtpMiddleware,
     user.update,
+    invalidateSessionsMiddleware,
     respond(200),
   );
 
