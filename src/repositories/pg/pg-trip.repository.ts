@@ -57,7 +57,7 @@ export class PgTripRepository implements ITripRepository {
       `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
       [ownerId],
     );
-    return Promise.all(rows.map(r => hydrateTrip(this.pool, r)));
+    return hydrateTrips(this.pool, rows);
   }
 
   async findById(id: string): Promise<Trip | null> {
@@ -110,12 +110,35 @@ export class PgTripRepository implements ITripRepository {
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
     if (shareIds.length === 0) return [];
-    const results: SharedTripPayload[] = [];
-    for (const id of shareIds) {
-      const found = await this.findByShareId(id);
-      if (found) results.push(found);
-    }
-    return results;
+    const { rows } = await this.pool.query(
+      `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
+              u.email AS owner_email, u.name AS owner_name
+       FROM trips t
+       JOIN users u ON t.owner_id = u.user_id
+       WHERE t.share_id = ANY($1::text[])`,
+      [shareIds],
+    );
+    const trips = await hydrateTrips(this.pool, rows);
+
+    const byShareId = new Map<string, SharedTripPayload>();
+    trips.forEach((trip, i) => {
+      const row = rows[i];
+      byShareId.set(row.share_id as string, {
+        id:         row.share_id    as string,
+        tripName:   trip.title,
+        ownerEmail: row.owner_email as string,
+        ownerName:  row.owner_name  as string,
+        createdAt:  trip.createdAt,
+        stops:      trip.stops,
+        transits:   trip.transits,
+        planId:     trip.id,
+        tripId:     trip.id,
+      });
+    });
+    return shareIds.flatMap(id => {
+      const p = byShareId.get(id);
+      return p ? [p] : [];
+    });
   }
 
   async searchShared(query: string): Promise<SharedTripPayload[]> {
@@ -133,20 +156,18 @@ export class PgTripRepository implements ITripRepository {
        LIMIT 5`,
       [`%${q}%`],
     );
-    return Promise.all(rows.map(async row => {
-      const trip = await hydrateTrip(this.pool, row);
-      return {
-        id:            row.share_id as string,
-        tripName:      trip.title,
-        ownerEmail:    row.owner_email as string,
-        ownerName:     row.owner_name as string,
-        createdAt:     trip.createdAt,
-        stops:         trip.stops,
-        transits:      trip.transits,
-        planId:        trip.id,
-        tripId:        trip.id,
-        favoriteCount: row.favorite_count as number,
-      };
+    const trips = await hydrateTrips(this.pool, rows);
+    return trips.map((trip, i) => ({
+      id:            rows[i].share_id    as string,
+      tripName:      trip.title,
+      ownerEmail:    rows[i].owner_email as string,
+      ownerName:     rows[i].owner_name  as string,
+      createdAt:     trip.createdAt,
+      stops:         trip.stops,
+      transits:      trip.transits,
+      planId:        trip.id,
+      tripId:        trip.id,
+      favoriteCount: rows[i].favorite_count as number,
     }));
   }
 
@@ -330,4 +351,122 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
     ...(row.share_id ? { shareId: row.share_id as string } : {}),
     ...(row.itinerary_exported_at ? { itineraryExportedAt: (row.itinerary_exported_at as Date).toISOString() } : {}),
   };
+}
+
+async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promise<Trip[]> {
+  if (rows.length === 0) return [];
+
+  const tripIds = rows.map(r => r.trip_id as string);
+
+  const [{ rows: stopRows }, { rows: legRows }] = await Promise.all([
+    pool.query(
+      `SELECT stop_id, trip_id, city_id, check_in, check_out
+       FROM trip_stops WHERE trip_id = ANY($1::uuid[]) ORDER BY trip_id, sort_order`,
+      [tripIds],
+    ),
+    pool.query(
+      `SELECT leg_id, trip_id, from_city_id, to_city_id, date
+       FROM transit_legs WHERE trip_id = ANY($1::uuid[]) ORDER BY trip_id, sort_order`,
+      [tripIds],
+    ),
+  ]);
+
+  const stopIds = stopRows.map(s => s.stop_id as string);
+  const legIds  = legRows.map(l => l.leg_id as string);
+
+  const lodgingMap = new Map<string, { name: string; url: string }>();
+  const attrMap    = new Map<string, PlannedAttraction[]>();
+  const segMap     = new Map<string, TransitSegment[]>();
+
+  const [lodgingRows, attrRows, segRows] = await Promise.all([
+    stopIds.length > 0
+      ? pool.query(`SELECT stop_id, name, url FROM stop_lodgings WHERE stop_id = ANY($1::uuid[])`, [stopIds]).then(r => r.rows)
+      : Promise.resolve([] as Record<string, unknown>[]),
+    stopIds.length > 0
+      ? pool.query(
+          `SELECT stop_id, attraction_id, start_time, end_time, date, category
+           FROM planned_attractions WHERE stop_id = ANY($1::uuid[]) ORDER BY stop_id, sort_order`,
+          [stopIds],
+        ).then(r => r.rows)
+      : Promise.resolve([] as Record<string, unknown>[]),
+    legIds.length > 0
+      ? pool.query(
+          `SELECT leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes
+           FROM transit_segments WHERE leg_id = ANY($1::uuid[]) ORDER BY leg_id, sort_order`,
+          [legIds],
+        ).then(r => r.rows)
+      : Promise.resolve([] as Record<string, unknown>[]),
+  ]);
+
+  for (const l of lodgingRows) {
+    lodgingMap.set(l.stop_id as string, { name: l.name as string, url: l.url as string });
+  }
+  for (const a of attrRows) {
+    const list = attrMap.get(a.stop_id as string) ?? [];
+    list.push({
+      attractionId: a.attraction_id as string,
+      startTime: a.start_time ? toHM(a.start_time as string) : null,
+      endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
+      ...(a.date     ? { date:     toDMY(a.date as string) }             : {}),
+      ...(a.category ? { category: a.category as AttractionCategory }    : {}),
+    });
+    attrMap.set(a.stop_id as string, list);
+  }
+  for (const s of segRows) {
+    const list = segMap.get(s.leg_id as string) ?? [];
+    list.push({
+      mode: s.mode as TransitSegment['mode'],
+      departureDate: toDMY(s.departure_date as string),
+      departureTime: toHM(s.departure_time  as string),
+      arrivalDate:   toDMY(s.arrival_date   as string),
+      arrivalTime:   toHM(s.arrival_time    as string),
+      notes: s.notes as string,
+      ...(s.duration_minutes != null ? { durationMinutes: s.duration_minutes as number } : {}),
+    });
+    segMap.set(s.leg_id as string, list);
+  }
+
+  const stopsByTrip = new Map<string, Record<string, unknown>[]>();
+  for (const s of stopRows) {
+    const list = stopsByTrip.get(s.trip_id as string) ?? [];
+    list.push(s);
+    stopsByTrip.set(s.trip_id as string, list);
+  }
+
+  const legsByTrip = new Map<string, Record<string, unknown>[]>();
+  for (const l of legRows) {
+    const list = legsByTrip.get(l.trip_id as string) ?? [];
+    list.push(l);
+    legsByTrip.set(l.trip_id as string, list);
+  }
+
+  return rows.map(row => {
+    const tripId = row.trip_id as string;
+
+    const stops: TripStop[] = (stopsByTrip.get(tripId) ?? []).map(s => ({
+      cityId:   s.city_id  as string,
+      checkIn:  toDMY(s.check_in  as string),
+      checkOut: toDMY(s.check_out as string),
+      lodging:  lodgingMap.get(s.stop_id as string),
+      selectedAttractions: attrMap.get(s.stop_id as string) ?? [],
+    }));
+
+    const transits: TransitLeg[] = (legsByTrip.get(tripId) ?? []).map(l => ({
+      fromCityId: l.from_city_id as string,
+      toCityId:   l.to_city_id   as string,
+      ...(l.date ? { date: toDMY(l.date as string) } : {}),
+      segments: segMap.get(l.leg_id as string) ?? [],
+    }));
+
+    return {
+      id:        tripId,
+      title:     row.title    as string,
+      stops,
+      transits,
+      ownerId:   row.owner_id as string,
+      createdAt: (row.created_at as Date).toISOString(),
+      ...(row.share_id              ? { shareId:             row.share_id              as string }              : {}),
+      ...(row.itinerary_exported_at ? { itineraryExportedAt: (row.itinerary_exported_at as Date).toISOString() } : {}),
+    };
+  });
 }
