@@ -18,10 +18,18 @@ jest.mock('../src/middleware/rate-limit.middleware', () => ({
 
 jest.mock('../src/lib/redis', () => ({
   redis: {
-    set: jest.fn().mockResolvedValue('OK'),
-    get: jest.fn().mockResolvedValue(null),
-    del: jest.fn().mockResolvedValue(1),
+    set:  jest.fn().mockResolvedValue('OK'),
+    get:  jest.fn().mockResolvedValue(null),
+    del:  jest.fn().mockResolvedValue(1),
+    incr: jest.fn().mockResolvedValue(1),
   },
+}));
+
+jest.mock('../src/lib/refresh-tokens', () => ({
+  issueRefreshToken:      jest.fn().mockResolvedValue('mock-refresh-token'),
+  validateAndRotate:      jest.fn(),
+  revokeRefreshToken:     jest.fn().mockResolvedValue(undefined),
+  invalidateUserSessions: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../src/lib/email', () => ({

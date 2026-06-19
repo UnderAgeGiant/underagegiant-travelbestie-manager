@@ -23,6 +23,13 @@ jest.mock('../src/lib/redis', () => ({
   },
 }));
 
+jest.mock('../src/lib/refresh-tokens', () => ({
+  issueRefreshToken:      jest.fn().mockResolvedValue('mock-refresh-token'),
+  validateAndRotate:      jest.fn(),
+  revokeRefreshToken:     jest.fn().mockResolvedValue(undefined),
+  invalidateUserSessions: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../src/lib/email', () => ({
   sendOtpEmail:              jest.fn().mockResolvedValue(undefined),
   sendWelcomeEmail:          jest.fn().mockResolvedValue(undefined),

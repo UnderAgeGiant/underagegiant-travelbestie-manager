@@ -26,6 +26,13 @@ export class UserController {
     } catch (err) { next(err); }
   };
 
+  findByRefreshUser = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      req.foundUser = await this.users.findById(req.tokenUserId!) ?? undefined;
+      next();
+    } catch (err) { next(err); }
+  };
+
   findByNewEmail = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.body.newEmail) { next(); return; }

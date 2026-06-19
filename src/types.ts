@@ -215,6 +215,8 @@ declare global {
       foundUser?: User;
       newEmailUser?: User;
       newPasswordHash?: string;
+      tokenUserId?: string;          // userId extracted from a validated refresh token
+      newRawRefreshToken?: string;   // new raw refresh token after rotation
       trip?: Trip;
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
