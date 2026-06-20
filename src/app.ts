@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 import {
   userController, tripController, commentController,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
@@ -39,6 +41,10 @@ app.use((req, _res, next) => {
 });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
+}
 
 app.use('/auth',       createAuthRouter(userController));
 app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository));
