@@ -66,7 +66,6 @@ export function createAuthRouter(user: UserController): Router {
   );
 
   router.post('/refresh',
-    validate({ refreshToken: { required: true, minLength: 10 } }),
     validateRefreshTokenMiddleware,
     user.findByRefreshUser,
     signRefreshedTokenMiddleware,
@@ -75,7 +74,6 @@ export function createAuthRouter(user: UserController): Router {
 
   router.post('/logout',
     requireAuth,
-    validate({ refreshToken: { required: true, minLength: 10 } }),
     revokeRefreshTokenMiddleware,
     respond(204),
   );
