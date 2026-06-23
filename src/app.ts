@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
 import {
@@ -26,6 +27,7 @@ app.use(requestLoggerMiddleware);
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
 const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
 app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 
 // Strip __proto__, constructor, prototype keys to prevent prototype pollution via JSON body
