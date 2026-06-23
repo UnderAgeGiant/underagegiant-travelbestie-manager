@@ -26,6 +26,7 @@ jest.mock('../src/lib/redis', () => ({
 }));
 
 jest.mock('../src/lib/refresh-tokens', () => ({
+  REFRESH_TTL:            86400,
   issueRefreshToken:      jest.fn().mockResolvedValue('mock-refresh-token'),
   validateAndRotate:      jest.fn(),
   revokeRefreshToken:     jest.fn().mockResolvedValue(undefined),
