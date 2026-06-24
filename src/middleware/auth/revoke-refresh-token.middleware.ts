@@ -1,16 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { revokeRefreshToken } from '../../lib/refresh-tokens';
 import { logger } from '../../lib/logger';
+import { REFRESH_COOKIE, clearRefreshCookie } from '../../lib/refresh-cookie';
 
 export async function revokeRefreshTokenMiddleware(
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  try {
-    await revokeRefreshToken(req.body.refreshToken as string);
-  } catch (err) {
-    logger.warn({ flowId: req.flowId, msg: 'revokeRefreshToken failed', err: String(err) });
+  const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  if (raw) {
+    try {
+      await revokeRefreshToken(raw);
+    } catch (err) {
+      logger.warn({ flowId: req.flowId, msg: 'revokeRefreshToken failed', err: String(err) });
+    }
   }
+  clearRefreshCookie(res); // always expire the cookie on logout, even if Redis DEL failed
   next();
 }

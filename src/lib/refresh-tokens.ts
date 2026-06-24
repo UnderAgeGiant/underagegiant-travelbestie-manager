@@ -1,7 +1,7 @@
 import { redis } from './redis';
 import { generateRefreshToken, hashToken } from './tokens';
 
-const REFRESH_TTL = 86400; // 1 day in seconds
+export const REFRESH_TTL = 86400; // 1 day in seconds
 
 export async function issueRefreshToken(userId: string): Promise<string> {
   const raw     = generateRefreshToken();
