@@ -104,13 +104,13 @@ describe('GET /comments?ids=...', () => {
     expect(res.body.paris_0).toHaveLength(1);
     expect(res.body.paris_0[0].text).toBe('Nice!');
     expect(res.body.paris_1).toEqual([]);
-  });
+  }, 30000); // Redis cooldown+similarity+cache each wait up to connectTimeout when unavailable
 
   it('deduplicates repeated ids', async () => {
     const res = await request(buildApp()).get('/comments?ids=paris_0,paris_0,paris_0');
     expect(res.status).toBe(200);
     expect(Object.keys(res.body)).toEqual(['paris_0']);
-  });
+  }, 30000); // Redis cache falls through to DB when unavailable; connectTimeout adds latency
 
   it('returns 400 when ids param is absent', async () => {
     const res = await request(buildApp()).get('/comments');
