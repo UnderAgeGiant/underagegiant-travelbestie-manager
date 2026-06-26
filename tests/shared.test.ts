@@ -154,10 +154,10 @@ describe('GET /shared?q=', () => {
   });
 });
 
-// ─── POST /trips/:id/share — karma enforcement ────────────────────────────────
+// ─── POST /trips/:id/share ────────────────────────────────────────────────────
 
-describe('POST /trips/:id/share karma enforcement', () => {
-  it('returns 200 and a shareId on first share when karma >= 1', async () => {
+describe('POST /trips/:id/share', () => {
+  it('returns 200 and a shareId on first share', async () => {
     const { app } = buildApp(100);
     const token = await getToken(app);
     const tripRes = await request(app)
@@ -172,30 +172,7 @@ describe('POST /trips/:id/share karma enforcement', () => {
     expect(shareRes.body.shareId).toBeDefined();
   });
 
-  it('returns 402 on first share when karma < 1', async () => {
-    // Share the same trip repo across two apps so:
-    //   – richApp (karma=100) creates the trip
-    //   – poorApp (karma=0) tries to share it → 402
-    // Both use the same JWT secret so the token is valid across apps.
-    const sharedRepo = new StubTripRepository();
-    const { app: richApp } = buildApp(100, sharedRepo);
-    const { app: poorApp } = buildApp(0, sharedRepo);
-
-    const token = await getToken(richApp);
-    const tripRes = await request(richApp)
-      .post('/trips')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ title: 'Trip', stops: [], transits: [] });
-    const tripId = tripRes.body.id as string;
-
-    const shareRes = await request(poorApp)
-      .post(`/trips/${tripId}/share`)
-      .set('Authorization', `Bearer ${token}`);
-    expect(shareRes.status).toBe(402);
-    expect(shareRes.body.error).toMatch(/Insufficient karma/);
-  });
-
-  it('returns same shareId on re-share without karma check (idempotent)', async () => {
+  it('returns same shareId on re-share (idempotent)', async () => {
     const { app } = buildApp(100);
     const token = await getToken(app);
     const { tripId, shareId: firstShareId } = await createAndShareTrip(app, token);
