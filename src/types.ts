@@ -5,6 +5,7 @@ export interface User {
   name: string;
   email: string;
   passwordHash: string;
+  homeCity: string | null;
   createdAt: string;
 }
 

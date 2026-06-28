@@ -51,6 +51,7 @@ const testUser: User = {
   name:         'Test User',
   email:        'test@example.com',
   passwordHash: TEST_PASSWORD_HASH,
+  homeCity:     null,
   createdAt:    new Date().toISOString(),
 };
 
