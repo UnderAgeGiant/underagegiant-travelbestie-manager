@@ -62,9 +62,7 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
     trip.findById,
     checkTripOwnership,
     trip.shareIfAlreadyShared,
-    karma.requireForTrip,
     trip.createShare,
-    karma.spendForShare,
     logCtaEvent('cta_trip_share', req => ({ tripId: req.params.id })),
     respond(200),
   );
