@@ -17,6 +17,8 @@ import { hashNewPasswordMiddleware }       from '../middleware/auth/hash-new-pas
 import { checkNewEmailTaken }              from '../middleware/auth/check-new-email-taken.middleware';
 import { generateProfileOtpMiddleware }    from '../middleware/auth/generate-profile-otp.middleware';
 import { verifyProfileOtpMiddleware }      from '../middleware/auth/verify-profile-otp.middleware';
+import { generateResetOtpMiddleware }      from '../middleware/auth/generate-reset-otp.middleware';
+import { verifyResetOtpMiddleware }        from '../middleware/auth/verify-reset-otp.middleware';
 import { logCtaEvent }                     from '../lib/log-event';
 import { validateRefreshTokenMiddleware }  from '../middleware/auth/validate-refresh-token.middleware';
 import { signRefreshedTokenMiddleware }    from '../middleware/auth/sign-refreshed-token.middleware';
@@ -85,6 +87,30 @@ export function createAuthRouter(user: UserController): Router {
     user.findByNewEmail,
     checkNewEmailTaken,
     generateProfileOtpMiddleware,
+    respond(200),
+  );
+
+  router.post('/request-password-reset',
+    rateLimitMiddleware({ keyPrefix: 'rl:reset-otp', windowSeconds: 900, maxRequests: 5 }),
+    validate({ email: { required: true, minLength: 3 } }),
+    user.findByEmail,
+    generateResetOtpMiddleware,
+    respond(200),
+  );
+
+  router.post('/reset-password',
+    decryptPayloadMiddleware,
+    validate({
+      email:       { required: true, minLength: 3 },
+      otp:         { required: true, minLength: 6 },
+      newPassword: { required: true, minLength: 6 },
+    }),
+    user.findByEmail,
+    verifyResetOtpMiddleware,
+    hashNewPasswordMiddleware,
+    user.resetPassword,
+    invalidateSessionsMiddleware,
+    logCtaEvent('cta_password_reset', req => ({ email: req.body.email })),
     respond(200),
   );
 
