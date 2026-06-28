@@ -236,6 +236,30 @@ describe('PUT /auth/profile — email change', () => {
   });
 });
 
+// ── PUT /auth/profile — home city ─────────────────────────────────────────
+describe('PUT /auth/profile — home city', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('updates home_city and returns it in the user payload', async () => {
+    const res = await request(buildApp())
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ homeCity: 'Santiago, Chile' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.homeCity).toBe('Santiago, Chile');
+  });
+
+  it('does not require a password or OTP to set home city', async () => {
+    const res = await request(buildApp())
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ homeCity: 'Lima, Perú' });
+
+    expect(res.status).toBe(200);
+  });
+});
+
 // ── PUT /auth/profile — password change ───────────────────────────────────
 describe('PUT /auth/profile — password change', () => {
   beforeEach(() => jest.clearAllMocks());

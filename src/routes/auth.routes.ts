@@ -97,6 +97,7 @@ export function createAuthRouter(user: UserController): Router {
       otp:             { minLength: 6 },
       currentPassword: { minLength: 1 },
       newPassword:     { minLength: 6 },
+      homeCity:        { type: 'string' },
     }),
     user.findById,
     verifyCurrentPasswordMiddleware,
