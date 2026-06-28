@@ -40,3 +40,21 @@ export async function getStoredProfileOtpCode(email: string): Promise<string | n
 export async function deleteProfileOtp(email: string): Promise<void> {
   await redis.del(profileOtpKey(email));
 }
+
+export function resetOtpKey(email: string): string {
+  return `otp:reset:${email.toLowerCase()}`;
+}
+
+export async function storeResetOtp(email: string, code: string): Promise<void> {
+  await redis.set(resetOtpKey(email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
+}
+
+export async function getStoredResetOtpCode(email: string): Promise<string | null> {
+  const raw = await redis.get(resetOtpKey(email));
+  if (!raw) return null;
+  return (JSON.parse(raw) as { code: string }).code;
+}
+
+export async function deleteResetOtp(email: string): Promise<void> {
+  await redis.del(resetOtpKey(email));
+}
