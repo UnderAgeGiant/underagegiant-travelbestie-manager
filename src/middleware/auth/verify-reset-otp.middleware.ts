@@ -1,39 +1,37 @@
 import { Request, Response, NextFunction } from 'express';
-import { getStoredProfileOtpCode, generateOtpCode, storeProfileOtp, deleteProfileOtp } from '../../lib/otp';
+import { getStoredResetOtpCode, generateOtpCode, storeResetOtp, deleteResetOtp } from '../../lib/otp';
 import { sendOtpEmail } from '../../lib/email';
 import { logger } from '../../lib/logger';
 
-export async function verifyProfileOtpMiddleware(
+export async function verifyResetOtpMiddleware(
   req: Request, res: Response, next: NextFunction,
 ): Promise<void> {
-  if (!req.body.newEmail) { next(); return; }
-
-  const newEmail = (req.body.newEmail as string).toLowerCase();
+  const email = (req.body.email as string).toLowerCase();
   const otp = req.body.otp !== undefined ? String(req.body.otp).trim() : undefined;
 
   if (!otp) {
-    res.status(400).json({ error: 'Se requiere el código de verificación para cambiar el correo.' });
+    res.status(400).json({ error: 'Se requiere el código de verificación para restablecer la contraseña.' });
     return;
   }
 
   try {
-    const storedCode = await getStoredProfileOtpCode(newEmail);
+    const storedCode = await getStoredResetOtpCode(email);
     if (!storedCode) {
       res.status(400).json({ error: 'Código expirado o no solicitado. Solicita un nuevo código.' });
       return;
     }
     if (storedCode !== otp) {
       const newCode = generateOtpCode();
-      await storeProfileOtp(newEmail, newCode);
-      await sendOtpEmail(newEmail, newCode);
-      logger.info({ msg: 'Profile OTP mismatch — renewed and sent', flowId: req.flowId, newEmail });
+      await storeResetOtp(email, newCode);
+      await sendOtpEmail(email, newCode);
+      logger.info({ msg: 'Password reset OTP mismatch — renewed and sent', flowId: req.flowId, email });
       res.status(400).json({ error: 'Código incorrecto. Se ha enviado un nuevo código a tu correo.' });
       return;
     }
-    await deleteProfileOtp(newEmail);
+    await deleteResetOtp(email);
     next();
   } catch (err) {
-    logger.error({ msg: 'Profile OTP verification error', flowId: req.flowId, newEmail, err });
+    logger.error({ msg: 'Password reset OTP verification error', flowId: req.flowId, email, err: String(err) });
     res.status(500).json({ error: 'Error al verificar el código. Intenta de nuevo.' });
   }
 }

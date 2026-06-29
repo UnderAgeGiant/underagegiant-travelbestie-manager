@@ -7,9 +7,10 @@ export async function invalidateSessionsMiddleware(
   _res: Response,
   next: NextFunction,
 ): Promise<void> {
-  if (!req.newPasswordHash) { next(); return; }
+  const userId = req.user?.userId ?? req.foundUser?.id;
+  if (!req.newPasswordHash || !userId) { next(); return; }
   try {
-    await invalidateUserSessions(req.user!.userId);
+    await invalidateUserSessions(userId);
   } catch (err) {
     logger.warn({ flowId: req.flowId, msg: 'invalidateUserSessions failed', err: String(err) });
   }

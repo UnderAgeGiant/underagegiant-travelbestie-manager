@@ -51,6 +51,7 @@ const testUser: User = {
   name:         'Test User',
   email:        'test@example.com',
   passwordHash: TEST_PASSWORD_HASH,
+  homeCity:     null,
   createdAt:    new Date().toISOString(),
 };
 
@@ -232,6 +233,30 @@ describe('PUT /auth/profile — email change', () => {
       .put('/auth/profile')
       .send({ newEmail: 'taken@example.com', otp: '123456' });
     expect(res.status).toBe(400);
+  });
+});
+
+// ── PUT /auth/profile — home city ─────────────────────────────────────────
+describe('PUT /auth/profile — home city', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('updates home_city and returns it in the user payload', async () => {
+    const res = await request(buildApp())
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ homeCity: 'Santiago, Chile' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.homeCity).toBe('Santiago, Chile');
+  });
+
+  it('does not require a password or OTP to set home city', async () => {
+    const res = await request(buildApp())
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ homeCity: 'Lima, Perú' });
+
+    expect(res.status).toBe(200);
   });
 });
 

@@ -21,7 +21,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), homeCity: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -35,7 +35,10 @@ export class StubUserRepository implements IUserRepository {
     return this.byId.get(id) ?? null;
   }
 
-  async update(userId: string, fields: { name?: string; email?: string; passwordHash?: string }): Promise<User> {
+  async update(
+    userId: string,
+    fields: { name?: string; email?: string; passwordHash?: string; homeCity?: string | null },
+  ): Promise<User> {
     const user = this.byId.get(userId);
     if (!user) throw new Error('User not found');
     if (fields.name !== undefined) user.name = fields.name;
@@ -45,6 +48,7 @@ export class StubUserRepository implements IUserRepository {
       this.byEmail.set(user.email, user);
     }
     if (fields.passwordHash !== undefined) user.passwordHash = fields.passwordHash;
+    if (fields.homeCity !== undefined) user.homeCity = fields.homeCity;
     return { ...user };
   }
 }
