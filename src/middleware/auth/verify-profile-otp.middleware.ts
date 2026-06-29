@@ -9,7 +9,7 @@ export async function verifyProfileOtpMiddleware(
   if (!req.body.newEmail) { next(); return; }
 
   const newEmail = (req.body.newEmail as string).toLowerCase();
-  const otp = req.body.otp as string | undefined;
+  const otp = req.body.otp !== undefined ? String(req.body.otp).trim() : undefined;
 
   if (!otp) {
     res.status(400).json({ error: 'Se requiere el código de verificación para cambiar el correo.' });

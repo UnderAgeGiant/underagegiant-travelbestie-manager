@@ -5,7 +5,7 @@ import { logger } from '../../lib/logger';
 
 export async function verifyOtpMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const email = (req.body.email as string).toLowerCase();
-  const otp   = req.body.otp as string;
+  const otp   = req.body.otp !== undefined ? String(req.body.otp).trim() : '';
 
   try {
     const storedCode = await getStoredOtpCode(email);
