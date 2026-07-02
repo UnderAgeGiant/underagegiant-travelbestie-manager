@@ -21,6 +21,7 @@ import { createFavoritesRouter }       from './routes/favorites.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
+import { stripPollutionKeys } from './lib/sanitize-body';
 
 export const app = express();
 
@@ -34,15 +35,9 @@ app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 
-// Strip __proto__, constructor, prototype keys to prevent prototype pollution via JSON body
+// Recursively strip prototype-pollution keys from the parsed JSON body (B-6).
 app.use((req, _res, next) => {
-  if (req.body && typeof req.body === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body = req.body as any;
-    delete body.__proto__;
-    delete body.constructor;
-    delete body.prototype;
-  }
+  stripPollutionKeys(req.body);
   next();
 });
 
