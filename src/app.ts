@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
@@ -29,6 +30,9 @@ export const app = express();
 validateProductionSecrets();
 
 app.use(requestLoggerMiddleware);
+// API-appropriate security headers. contentSecurityPolicy is disabled here — this is a
+// JSON API (no HTML it serves), and the browser CSP is enforced at the frontend/Vercel edge.
+app.use(helmet({ contentSecurityPolicy: false }));
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
 const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
 app.use(cors({ origin: corsOrigin, credentials: true }));
