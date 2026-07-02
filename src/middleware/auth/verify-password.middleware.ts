@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyPassword } from '../../lib/password';
 
+// Generic error for both "no such user" and "wrong password" so the response
+// does not reveal whether an account exists (B-2 enumeration).
 export async function verifyPasswordMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (!req.foundUser) { res.status(401).json({ code: 'USER_NOT_FOUND', error: 'No account found with that email' }); return; }
+    const INVALID = { code: 'INVALID_CREDENTIALS', error: 'Email o contraseña incorrectos' };
+    if (!req.foundUser) { res.status(401).json(INVALID); return; }
     const ok = await verifyPassword(req.body.password as string, req.foundUser.passwordHash);
-    if (!ok) { res.status(401).json({ code: 'WRONG_PASSWORD', error: 'Incorrect password' }); return; }
+    if (!ok) { res.status(401).json(INVALID); return; }
     next();
   } catch (err) { next(err); }
 }

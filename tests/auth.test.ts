@@ -74,20 +74,18 @@ describe('POST /auth/login', () => {
     expect(res.headers['set-cookie'][0]).toContain('tb_refresh_token=mock-refresh-token');
   });
 
-  it('returns 401 with incorrect-password message for wrong password', async () => {
+  it('returns 401 INVALID_CREDENTIALS for a wrong password', async () => {
     const app = buildApp();
     await request(app).post('/auth/register').send({ name: 'Ana', email: 'ana@test.com', password: 'secret123', otp: '123456' });
-    const res = await request(app).post('/auth/login').send({ email: 'ana@test.com', password: 'wrong' });
+    const res = await request(app).post('/auth/login').send({ email: 'ana@test.com', password: 'wrongpass' });
     expect(res.status).toBe(401);
-    expect(res.body.code).toBe('WRONG_PASSWORD');
-    expect(res.body.error).toBe('Incorrect password');
+    expect(res.body.code).toBe('INVALID_CREDENTIALS');
   });
 
-  it('returns 401 with not-found message for unknown email', async () => {
-    const res = await request(buildApp()).post('/auth/login').send({ email: 'nobody@test.com', password: 'x' });
+  it('returns 401 INVALID_CREDENTIALS for an unknown email', async () => {
+    const res = await request(buildApp()).post('/auth/login').send({ email: 'nobody@test.com', password: 'whatever' });
     expect(res.status).toBe(401);
-    expect(res.body.code).toBe('USER_NOT_FOUND');
-    expect(res.body.error).toBe('No account found with that email');
+    expect(res.body.code).toBe('INVALID_CREDENTIALS');
   });
 });
 
