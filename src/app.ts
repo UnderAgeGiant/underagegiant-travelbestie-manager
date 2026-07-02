@@ -20,8 +20,12 @@ import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes
 import { createFavoritesRouter }       from './routes/favorites.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
+import { validateProductionSecrets } from './lib/validate-env';
 
 export const app = express();
+
+// Fail fast if production is misconfigured (B-5) — never sign tokens with the dev key.
+validateProductionSecrets();
 
 app.use(requestLoggerMiddleware);
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
