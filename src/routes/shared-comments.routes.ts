@@ -6,7 +6,8 @@ import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { makeResolveSharedTrip } from '../middleware/shared-comments/resolve-shared-trip.middleware';
 import { makeAwardStepCommentKarma } from '../middleware/shared-comments/award-step-comment-karma.middleware';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { validateBody } from '../middleware/validate-body.middleware';
+import { addStepCommentSchema } from '../schemas/comment.schemas';
 import { checkCommentCooldown } from '../middleware/comments/check-comment-cooldown.middleware';
 import { checkCommentSimilarity } from '../middleware/comments/check-comment-similarity.middleware';
 import { storeCommentRedis } from '../middleware/comments/store-comment-redis.middleware';
@@ -35,7 +36,7 @@ export function createSharedCommentsRouter(
     resolveSharedTrip,
     checkCommentCooldown,
     checkCommentSimilarity,
-    validate({ text: { required: true, minLength: 50 } }),
+    validateBody(addStepCommentSchema),
     controller.add,
     awardStepCommentKarma,
     storeCommentRedis,

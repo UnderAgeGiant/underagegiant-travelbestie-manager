@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { CommentController } from '../controllers/comment.controller';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { validateBody } from '../middleware/validate-body.middleware';
+import { addCommentSchema } from '../schemas/comment.schemas';
 import { validateRating } from '../middleware/comments/validate-rating.middleware';
 import { injectCommentAuthor } from '../middleware/comments/inject-comment-author.middleware';
 import { checkCommentCooldown } from '../middleware/comments/check-comment-cooldown.middleware';
@@ -33,7 +34,7 @@ export function createCommentsRouter(comment: CommentController): Router {
     checkCommentCooldown,
     checkCommentSimilarity,
     injectCommentAuthor,
-    validate({ text: { required: true }, rating: { required: true }, color: { required: true }, date: { required: true } }),
+    validateBody(addCommentSchema),
     validateRating,
     comment.add,
     logCtaEvent('cta_comment_post', req => ({ attractionId: req.params.attractionId })),

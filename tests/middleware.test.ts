@@ -9,29 +9,6 @@ function mockReqRes(body: object = {}, params: object = {}, headers: object = {}
   return { req, res, next };
 }
 
-describe('validate middleware', () => {
-  const { validate } = require('../src/middleware/validate.middleware');
-
-  it('calls next when all required fields present', () => {
-    const { req, res, next } = mockReqRes({ name: 'Ana', email: 'a@b.com', password: 'secret' });
-    validate({ name: { required: true }, email: { required: true }, password: { required: true, minLength: 6 } })(req, res, next);
-    expect(next).toHaveBeenCalledWith();
-  });
-
-  it('returns 400 when required field missing', () => {
-    const { req, res, next } = mockReqRes({ email: 'a@b.com' });
-    validate({ name: { required: true }, email: { required: true } })(req, res, next);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(next).not.toHaveBeenCalledWith();
-  });
-
-  it('returns 400 when field too short', () => {
-    const { req, res, next } = mockReqRes({ name: 'A', email: 'a@b.com', password: '12' });
-    validate({ password: { required: true, minLength: 6 } })(req, res, next);
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-});
-
 describe('require-auth middleware', () => {
   const { requireAuth } = require('../src/middleware/auth/require-auth.middleware');
 
