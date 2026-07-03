@@ -3,7 +3,8 @@ import { KarmaController } from '../controllers/karma.controller';
 import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
 import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { validateBody } from '../middleware/validate-body.middleware';
+import { createOrderSchema, captureOrderSchema } from '../schemas/karma.schemas';
 import { validateKarmaPackage } from '../middleware/karma/validate-karma-package.middleware';
 import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
 import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
@@ -35,7 +36,7 @@ export function createKarmaRouter(
   // POST /karma/purchase/create-order — create a provider order for a package
   router.post('/purchase/create-order',
     requireAuth,
-    validate({ packageId: { required: true, type: 'string' } }),
+    validateBody(createOrderSchema),
     validateKarmaPackage,
     karmaPurchase.createOrder,
     respond(201),
@@ -44,7 +45,7 @@ export function createKarmaRouter(
   // POST /karma/purchase/capture-order — capture approved payment and credit karma
   router.post('/purchase/capture-order',
     requireAuth,
-    validate({ orderID: { required: true, type: 'string' } }),
+    validateBody(captureOrderSchema),
     verifyOwnership,
     karmaPurchase.captureOrder,
     logCtaEvent('cta_karma_purchase', req => ({ provider: req.karmaPurchase?.provider, amount: req.karmaPurchase?.amount })),
