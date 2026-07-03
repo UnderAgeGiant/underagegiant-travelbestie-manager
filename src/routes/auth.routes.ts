@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { decryptPayloadMiddleware } from '../middleware/auth/decrypt-payload.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { validateBody } from '../middleware/validate-body.middleware';
+import {
+  requestOtpSchema, registerSchema, loginSchema, requestProfileOtpSchema,
+  requestPasswordResetSchema, resetPasswordSchema, profileSchema,
+} from '../schemas/auth.schemas';
 import { checkEmailAvailable } from '../middleware/auth/check-email-available.middleware';
 import { hashPasswordMiddleware } from '../middleware/auth/hash-password.middleware';
 import { verifyPasswordMiddleware } from '../middleware/auth/verify-password.middleware';
@@ -30,7 +34,7 @@ export function createAuthRouter(user: UserController): Router {
 
   router.post('/request-otp',
     rateLimitMiddleware({ keyPrefix: 'rl:req-otp', windowSeconds: 900, maxRequests: 5 }),
-    validate({ email: { required: true, minLength: 3 } }),
+    validateBody(requestOtpSchema),
     user.findByEmail,
     checkEmailAvailable,
     generateOtpMiddleware,
@@ -40,12 +44,7 @@ export function createAuthRouter(user: UserController): Router {
   router.post('/register',
     rateLimitMiddleware({ keyPrefix: 'rl:register', windowSeconds: 900, maxRequests: 10 }),
     decryptPayloadMiddleware,
-    validate({
-      name:     { required: true, minLength: 1 },
-      email:    { required: true, minLength: 3 },
-      password: { required: true, minLength: 6 },
-      otp:      { required: true, minLength: 6 },
-    }),
+    validateBody(registerSchema),
     user.findByEmail,
     checkEmailAvailable,
     verifyOtpMiddleware,
@@ -59,7 +58,7 @@ export function createAuthRouter(user: UserController): Router {
 
   router.post('/login',
     decryptPayloadMiddleware,
-    validate({ email: { required: true }, password: { required: true } }),
+    validateBody(loginSchema),
     rateLimitMiddleware({
       keyPrefix: 'rl:login',
       windowSeconds: 900,
@@ -89,7 +88,7 @@ export function createAuthRouter(user: UserController): Router {
   router.post('/request-profile-otp',
     requireAuth,
     rateLimitMiddleware({ keyPrefix: 'rl:profile-otp', windowSeconds: 900, maxRequests: 5 }),
-    validate({ newEmail: { required: true, minLength: 3 } }),
+    validateBody(requestProfileOtpSchema),
     user.findByNewEmail,
     checkNewEmailTaken,
     generateProfileOtpMiddleware,
@@ -98,7 +97,7 @@ export function createAuthRouter(user: UserController): Router {
 
   router.post('/request-password-reset',
     rateLimitMiddleware({ keyPrefix: 'rl:reset-otp', windowSeconds: 900, maxRequests: 5 }),
-    validate({ email: { required: true, minLength: 3 } }),
+    validateBody(requestPasswordResetSchema),
     user.findByEmail,
     generateResetOtpMiddleware,
     respond(200),
@@ -106,11 +105,7 @@ export function createAuthRouter(user: UserController): Router {
 
   router.post('/reset-password',
     decryptPayloadMiddleware,
-    validate({
-      email:       { required: true, minLength: 3 },
-      otp:         { required: true, minLength: 6 },
-      newPassword: { required: true, minLength: 6 },
-    }),
+    validateBody(resetPasswordSchema),
     user.findByEmail,
     verifyResetOtpMiddleware,
     hashNewPasswordMiddleware,
@@ -123,14 +118,7 @@ export function createAuthRouter(user: UserController): Router {
   router.put('/profile',
     requireAuth,
     decryptPayloadMiddleware,
-    validate({
-      name:            { minLength: 1 },
-      newEmail:        { minLength: 3 },
-      otp:             { minLength: 6 },
-      currentPassword: { minLength: 1 },
-      newPassword:     { minLength: 6 },
-      homeCity:        { type: 'string' },
-    }),
+    validateBody(profileSchema),
     user.findById,
     verifyCurrentPasswordMiddleware,
     hashNewPasswordMiddleware,
