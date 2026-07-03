@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getStoredResetOtpCode, generateOtpCode, storeResetOtp, deleteResetOtp } from '../../lib/otp';
+import { registerFailedAttempt, clearAttempts } from '../../lib/otp-attempts';
 import { sendOtpEmail } from '../../lib/email';
 import { logger } from '../../lib/logger';
 
@@ -21,6 +22,12 @@ export async function verifyResetOtpMiddleware(
       return;
     }
     if (storedCode !== otp) {
+      const locked = await registerFailedAttempt('reset', email);
+      if (locked) {
+        logger.warn({ msg: 'Password reset OTP attempt limit reached', flowId: req.flowId, email });
+        res.status(429).json({ error: 'Demasiados intentos. Solicita un nuevo código más tarde.' });
+        return;
+      }
       const newCode = generateOtpCode();
       await storeResetOtp(email, newCode);
       await sendOtpEmail(email, newCode);
@@ -29,6 +36,7 @@ export async function verifyResetOtpMiddleware(
       return;
     }
     await deleteResetOtp(email);
+    await clearAttempts('reset', email);
     next();
   } catch (err) {
     logger.error({ msg: 'Password reset OTP verification error', flowId: req.flowId, email, err: String(err) });

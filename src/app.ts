@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
@@ -20,25 +21,27 @@ import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes
 import { createFavoritesRouter }       from './routes/favorites.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
+import { validateProductionSecrets } from './lib/validate-env';
+import { stripPollutionKeys } from './lib/sanitize-body';
 
 export const app = express();
 
+// Fail fast if production is misconfigured (B-5) — never sign tokens with the dev key.
+validateProductionSecrets();
+
 app.use(requestLoggerMiddleware);
+// API-appropriate security headers. contentSecurityPolicy is disabled here — this is a
+// JSON API (no HTML it serves), and the browser CSP is enforced at the frontend/Vercel edge.
+app.use(helmet({ contentSecurityPolicy: false }));
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
 const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 
-// Strip __proto__, constructor, prototype keys to prevent prototype pollution via JSON body
+// Recursively strip prototype-pollution keys from the parsed JSON body (B-6).
 app.use((req, _res, next) => {
-  if (req.body && typeof req.body === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body = req.body as any;
-    delete body.__proto__;
-    delete body.constructor;
-    delete body.prototype;
-  }
+  stripPollutionKeys(req.body);
   next();
 });
 

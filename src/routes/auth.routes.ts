@@ -60,6 +60,12 @@ export function createAuthRouter(user: UserController): Router {
   router.post('/login',
     decryptPayloadMiddleware,
     validate({ email: { required: true }, password: { required: true } }),
+    rateLimitMiddleware({
+      keyPrefix: 'rl:login',
+      windowSeconds: 900,
+      maxRequests: 10,
+      getKey: req => `${req.ip ?? 'unknown'}:${String(req.body.email ?? '').toLowerCase()}`,
+    }),
     user.findByEmail,
     verifyPasswordMiddleware,
     signTokenMiddleware,

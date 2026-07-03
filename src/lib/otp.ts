@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { redis } from './redis';
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
@@ -6,7 +7,8 @@ export function otpKey(email: string): string {
 }
 
 export function generateOtpCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // crypto.randomInt is uniform and cryptographically secure; upper bound is exclusive.
+  return randomInt(100000, 1000000).toString();
 }
 
 export async function storeOtp(email: string, code: string): Promise<void> {
