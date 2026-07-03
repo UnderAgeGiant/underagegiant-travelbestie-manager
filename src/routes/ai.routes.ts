@@ -2,7 +2,8 @@ import { Router, RequestHandler } from 'express';
 import { AiController }    from '../controllers/ai.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
-import { validate }        from '../middleware/validate.middleware';
+import { validateBody }    from '../middleware/validate-body.middleware';
+import { aiSuggestSchema, aiPlanSchema } from '../schemas/ai.schemas';
 import { respond }         from '../middleware/respond.middleware';
 import { checkPlanChange }              from '../middleware/ai/check-plan-change.middleware';
 import { storePlanSession }             from '../middleware/ai/store-plan-session.middleware';
@@ -16,7 +17,7 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
   router.use(requireAuth);
 
   router.post('/suggest',
-    validate({ preferences: { required: true, type: 'string', minLength: 1 } }),
+    validateBody(aiSuggestSchema),
     karma.requireKarma(9),
     karma.spendForAiSuggest,
     ai.suggest,
@@ -32,10 +33,7 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
   };
 
   router.post('/plan',
-    validate({
-      preferences:    { required: true, type: 'string', minLength: 1 },
-      selectedOption: { required: true },
-    }),
+    validateBody(aiPlanSchema),
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
     requireKarmaForAiPlanIfNeeded,     // 402 if insufficient karma (skipped for free_change)
     chargeAiPlanIfNeeded,              // deducts 1 karma unless free_change

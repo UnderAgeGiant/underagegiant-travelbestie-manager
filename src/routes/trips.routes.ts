@@ -2,7 +2,8 @@ import { Router, RequestHandler } from 'express';
 import { TripController } from '../controllers/trip.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { validateBody } from '../middleware/validate-body.middleware';
+import { createTripSchema } from '../schemas/trip.schemas';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
@@ -26,7 +27,7 @@ export function createTripsRouter(trip: TripController, karma: KarmaController):
   );
 
   router.post('/',
-    validate({ title: { required: true, minLength: 1 }, stops: { required: true } }),
+    validateBody(createTripSchema),
     karma.requireForTrip,
     trip.create,
     karma.spend,
