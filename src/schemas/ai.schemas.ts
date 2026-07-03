@@ -20,3 +20,6 @@ export const aiPlanSchema = z.object({
   planSessionId: z.string().max(200).optional(),
   cityCatalog:   z.record(z.string(), z.array(z.object({ id: z.string(), name: z.string() }).passthrough())).optional(),
 }).passthrough();
+
+export type AiSuggestBody = z.infer<typeof aiSuggestSchema>;
+export type AiPlanBody    = z.infer<typeof aiPlanSchema>;

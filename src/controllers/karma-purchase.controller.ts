@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
 import { createPayPalOrder, capturePayPalOrder } from '../lib/paypal';
 import { findPackage, KARMA_PACKAGES } from '../lib/karma-packages';
+import type { CreateOrderBody } from '../schemas/karma.schemas';
 
 export class KarmaPurchaseController {
   constructor(private readonly purchases: IKarmaPurchaseRepository) {}
@@ -13,7 +14,7 @@ export class KarmaPurchaseController {
 
   createOrder = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { packageId } = req.body as { packageId: string };
+      const { packageId } = req.body as CreateOrderBody;
       const pkg = findPackage(packageId)!; // already validated by middleware
 
       // PayPal-specific: create the order via PayPal REST API

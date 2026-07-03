@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
-import { SuggestTripsResponse, PlanTripResponse, TripSuggestion, CityCatalog } from '../types';
+import { SuggestTripsResponse, PlanTripResponse, CityCatalog } from '../types';
+import type { AiSuggestBody, AiPlanBody } from '../schemas/ai.schemas';
 
 interface PromptsFile {
   suggest: { system: string; userTemplate: string };
@@ -42,11 +43,7 @@ function buildCatalogBlock(catalog?: CityCatalog): string {
 export class AiController {
   suggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { preferences, duration, budget } = req.body as {
-        preferences: string;
-        duration?: number;
-        budget?: string;
-      };
+      const { preferences, duration, budget } = req.body as AiSuggestBody;
 
       const prompts = loadPrompts();
 
@@ -73,14 +70,7 @@ export class AiController {
 
   plan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = req.body as {
-        selectedOption: TripSuggestion;
-        preferences:    string;
-        duration?:      number;
-        budget?:        string;
-        startDate?:     string;
-        cityCatalog?:   CityCatalog;
-      };
+      const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = req.body as AiPlanBody;
 
       const prompts = loadPrompts();
       const systemPrompt = fillTemplate(prompts.plan.system, { catalogBlock: buildCatalogBlock(cityCatalog) });
