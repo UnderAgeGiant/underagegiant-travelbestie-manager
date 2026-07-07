@@ -53,7 +53,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use('/auth',       createAuthRouter(userController));
-app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository));
+app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo),

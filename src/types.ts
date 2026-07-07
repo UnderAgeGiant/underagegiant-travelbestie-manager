@@ -63,6 +63,7 @@ export interface Trip {
 export interface SharedTripPayload {
   id:               string;   // shareId (not trip_id)
   tripName:         string;
+  ownerId?:         string;   // internal user UUID — populated by findByShareId; consumed by notify middleware
   ownerEmail:       string;
   ownerName:        string;
   createdAt:        string;
@@ -242,7 +243,7 @@ declare global {
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
-      sharedTripMeta?: { tripId: string; ownerId: string };
+      sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
     }
   }
 }
