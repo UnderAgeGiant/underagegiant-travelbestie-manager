@@ -11,6 +11,7 @@ import { makeFavoriteToggle } from '../middleware/favorites/favorite.toggle.midd
 import { makeAttachFavoriteMeta } from '../middleware/favorites/attach-favorite-meta.middleware';
 import { captureSharedTripMeta } from '../middleware/notifications/capture-shared-trip-meta.middleware';
 import { makeNotifyFavorite } from '../middleware/notifications/notify-favorite.middleware';
+import { makeNotifyClone } from '../middleware/notifications/notify-clone.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -25,6 +26,7 @@ export function createSharedRouter(
   const favoriteToggle     = makeFavoriteToggle(favoriteRepo);
   const attachFavoriteMeta = makeAttachFavoriteMeta(favoriteRepo);
   const notifyFavorite     = makeNotifyFavorite(notificationRepo);
+  const notifyClone        = makeNotifyClone(notificationRepo);
 
   router.get('/',
     rateLimitMiddleware({ keyPrefix: 'rl:shared:search', windowSeconds: 60, maxRequests: 30 }),
@@ -43,12 +45,14 @@ export function createSharedRouter(
   router.post('/:shareId/clone',
     requireAuth,
     trip.findByShareId,
+    captureSharedTripMeta,
     prepareSharedClone,
     karma.requireForTrip,
     trip.create,
     karma.spend,
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
+    notifyClone,
     respond(201),
   );
 
