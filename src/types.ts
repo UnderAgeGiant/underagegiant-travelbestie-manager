@@ -83,6 +83,26 @@ export interface FavoritedTrip extends SharedTripPayload {
   favoritedAt: string;   // ISO-8601
 }
 
+// ── In-app notifications (Feature 25) ──────────────────────────────────────
+
+/**
+ * Discriminator for every notification. Future triggers (e.g. Feature 16's
+ * collaborator invite) extend this union — the bell renders any type, so no
+ * frontend change is needed. Also the hook for a future per-type mute.
+ */
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase';
+
+export interface NotificationRecord {
+  notificationId: string;
+  userId:         string;
+  type:           NotificationType;
+  title:          string;
+  body:           string;
+  url:            string;   // relative deep link, e.g. /?share=abc
+  read:           boolean;
+  createdAt:      string;   // ISO-8601
+}
+
 export interface AppStats {
   cities: number;
   users:  number;
