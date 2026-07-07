@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { KarmaController } from '../controllers/karma.controller';
 import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
 import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
+import { INotificationRepository } from '../repositories/interfaces/notification.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
 import { createOrderSchema, captureOrderSchema } from '../schemas/karma.schemas';
 import { validateKarmaPackage } from '../middleware/karma/validate-karma-package.middleware';
 import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
 import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
+import { makeNotifyKarmaPurchase } from '../middleware/notifications/notify-karma-purchase.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
 
@@ -15,9 +17,11 @@ export function createKarmaRouter(
   karma: KarmaController,
   karmaPurchase: KarmaPurchaseController,
   purchaseRepo: IKarmaPurchaseRepository,
+  notificationRepo: INotificationRepository,
 ): Router {
   const router = Router();
-  const verifyOwnership = createVerifyPurchaseOwnership(purchaseRepo);
+  const verifyOwnership     = createVerifyPurchaseOwnership(purchaseRepo);
+  const notifyKarmaPurchase = makeNotifyKarmaPurchase(notificationRepo);
 
   // GET /karma — authenticated user's karma score
   router.get('/',
@@ -50,6 +54,7 @@ export function createKarmaRouter(
     karmaPurchase.captureOrder,
     logCtaEvent('cta_karma_purchase', req => ({ provider: req.karmaPurchase?.provider, amount: req.karmaPurchase?.amount })),
     sendKarmaConfirmationEmailMiddleware,
+    notifyKarmaPurchase,
     respond(200),
   );
 

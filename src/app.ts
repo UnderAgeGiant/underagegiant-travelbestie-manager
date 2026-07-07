@@ -60,7 +60,7 @@ app.use('/shared/:shareId/comments',
 );
 app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
-app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo));
+app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo, notificationRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));

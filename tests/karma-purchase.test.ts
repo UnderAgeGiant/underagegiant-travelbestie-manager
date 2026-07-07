@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository } from './helpers/stubs';
+import { StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository, StubNotificationRepository } from './helpers/stubs';
 import { UserController }          from '../src/controllers/user.controller';
 import { KarmaController }         from '../src/controllers/karma.controller';
 import { KarmaPurchaseController } from '../src/controllers/karma-purchase.controller';
@@ -48,6 +48,7 @@ function buildApp() {
     new KarmaController(new StubKarmaRepository()),
     new KarmaPurchaseController(purchaseRepo),
     purchaseRepo,
+    new StubNotificationRepository(),
   ));
   app.use(errorHandler);
   return app;
