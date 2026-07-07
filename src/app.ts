@@ -8,7 +8,7 @@ import {
   userController, tripController, commentController,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
-  statsController, favoriteRepository,
+  statsController, favoriteRepository, notificationRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -19,6 +19,7 @@ import { createKarmaRouter }           from './routes/karma.routes';
 import { createAiRouter }              from './routes/ai.routes';
 import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes';
 import { createFavoritesRouter }       from './routes/favorites.routes';
+import { createNotificationsRouter }   from './routes/notifications.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
@@ -55,7 +56,7 @@ app.use('/auth',       createAuthRouter(userController));
 app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
-  createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo),
+  createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo),
 );
 app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
@@ -63,6 +64,7 @@ app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController,
 app.use('/ai',       createAiRouter(aiController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
+app.use('/notifications', createNotificationsRouter(notificationRepo));
 
 app.use(notFound);
 app.use(errorHandler);
