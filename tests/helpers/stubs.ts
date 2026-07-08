@@ -5,8 +5,9 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
+import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -94,7 +95,7 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
   }
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
@@ -269,5 +270,40 @@ export class StubFavoriteRepository implements IFavoriteRepository {
     const favoriteCount   = this.rows.filter(r => r.tripId === tripId).length;
     const isFavoritedByMe = !!userId && this.rows.some(r => r.tripId === tripId && r.userId === userId);
     return { favoriteCount, isFavoritedByMe };
+  }
+}
+
+export class StubNotificationRepository implements INotificationRepository {
+  items: NotificationRecord[] = [];
+  mutedUsers = new Set<string>();
+
+  async add(data: { userId: string; type: NotificationType; title: string; body: string; url: string }): Promise<void> {
+    if (this.mutedUsers.has(data.userId)) return;
+    this.items.unshift({ notificationId: randomUUID(), ...data, read: false, createdAt: new Date().toISOString() });
+  }
+
+  async listByUser(userId: string): Promise<NotificationRecord[]> {
+    return this.items.filter(n => n.userId === userId).slice(0, NOTIFICATIONS_LIST_LIMIT).map(n => ({ ...n }));
+  }
+
+  async countUnread(userId: string): Promise<number> {
+    return this.items.filter(n => n.userId === userId && !n.read).length;
+  }
+
+  async getStatus(userId: string): Promise<{ count: number; muted: boolean }> {
+    return { count: await this.countUnread(userId), muted: await this.isMuted(userId) };
+  }
+
+  async markAllRead(userId: string): Promise<void> {
+    this.items = this.items.map(n => (n.userId === userId ? { ...n, read: true } : n));
+  }
+
+  async isMuted(userId: string): Promise<boolean> {
+    return this.mutedUsers.has(userId);
+  }
+
+  async setMuted(userId: string, muted: boolean): Promise<void> {
+    if (muted) this.mutedUsers.add(userId);
+    else this.mutedUsers.delete(userId);
   }
 }

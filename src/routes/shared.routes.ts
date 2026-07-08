@@ -2,12 +2,16 @@ import { Router } from 'express';
 import { TripController } from '../controllers/trip.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { IFavoriteRepository } from '../repositories/interfaces/favorite.repository.interface';
+import { INotificationRepository } from '../repositories/interfaces/notification.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { optionalAuth } from '../middleware/auth/optional-auth.middleware';
 import { prepareSharedClone } from '../middleware/trips/prepare-shared-clone.middleware';
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { makeFavoriteToggle } from '../middleware/favorites/favorite.toggle.middleware';
 import { makeAttachFavoriteMeta } from '../middleware/favorites/attach-favorite-meta.middleware';
+import { captureSharedTripMeta } from '../middleware/notifications/capture-shared-trip-meta.middleware';
+import { makeNotifyFavorite } from '../middleware/notifications/notify-favorite.middleware';
+import { makeNotifyClone } from '../middleware/notifications/notify-clone.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -16,10 +20,13 @@ export function createSharedRouter(
   trip: TripController,
   karma: KarmaController,
   favoriteRepo: IFavoriteRepository,
+  notificationRepo: INotificationRepository,
 ): Router {
   const router = Router();
   const favoriteToggle     = makeFavoriteToggle(favoriteRepo);
   const attachFavoriteMeta = makeAttachFavoriteMeta(favoriteRepo);
+  const notifyFavorite     = makeNotifyFavorite(notificationRepo);
+  const notifyClone        = makeNotifyClone(notificationRepo);
 
   router.get('/',
     rateLimitMiddleware({ keyPrefix: 'rl:shared:search', windowSeconds: 60, maxRequests: 30 }),
@@ -38,20 +45,24 @@ export function createSharedRouter(
   router.post('/:shareId/clone',
     requireAuth,
     trip.findByShareId,
+    captureSharedTripMeta,
     prepareSharedClone,
     karma.requireForTrip,
     trip.create,
     karma.spend,
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
+    notifyClone,
     respond(201),
   );
 
   router.post('/:shareId/favorite',
     requireAuth,
     trip.findByShareId,
+    captureSharedTripMeta,
     favoriteToggle,
     logCtaEvent('cta_favorite_toggle', req => ({ tripId: req.params.shareId, favorited: (req.result as { favorited?: boolean } | undefined)?.favorited })),
+    notifyFavorite,
     respond(200),
   );
 

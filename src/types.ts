@@ -63,6 +63,7 @@ export interface Trip {
 export interface SharedTripPayload {
   id:               string;   // shareId (not trip_id)
   tripName:         string;
+  ownerId?:         string;   // internal user UUID — populated by findByShareId; consumed by notify middleware
   ownerEmail:       string;
   ownerName:        string;
   createdAt:        string;
@@ -81,6 +82,26 @@ export interface FavoriteToggleResult {
 
 export interface FavoritedTrip extends SharedTripPayload {
   favoritedAt: string;   // ISO-8601
+}
+
+// ── In-app notifications (Feature 25) ──────────────────────────────────────
+
+/**
+ * Discriminator for every notification. Future triggers (e.g. Feature 16's
+ * collaborator invite) extend this union — the bell renders any type, so no
+ * frontend change is needed. Also the hook for a future per-type mute.
+ */
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase';
+
+export interface NotificationRecord {
+  notificationId: string;
+  userId:         string;
+  type:           NotificationType;
+  title:          string;
+  body:           string;
+  url:            string;   // relative deep link, e.g. /?share=abc
+  read:           boolean;
+  createdAt:      string;   // ISO-8601
 }
 
 export interface AppStats {
@@ -222,7 +243,7 @@ declare global {
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
-      sharedTripMeta?: { tripId: string; ownerId: string };
+      sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
     }
   }
 }

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubStepCommentRepository, StubKarmaRepository } from './helpers/stubs';
+import { StubUserRepository, StubStepCommentRepository, StubKarmaRepository, StubNotificationRepository } from './helpers/stubs';
 import { StepCommentController } from '../src/controllers/step-comment.controller';
 import { UserController } from '../src/controllers/user.controller';
 import { createSharedCommentsRouter } from '../src/routes/shared-comments.routes';
@@ -58,6 +58,7 @@ function buildApp(stepCommentRepo = new StubStepCommentRepository(), karmaRepo =
       new StepCommentController(stepCommentRepo),
       stepCommentRepo,
       karmaRepo,
+      new StubNotificationRepository(),
     ),
   );
   app.use(errorHandler);

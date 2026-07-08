@@ -98,6 +98,7 @@ export class PgTripRepository implements ITripRepository {
     return {
       id:         shareId,
       tripName:   trip.title,
+      ownerId:    row.owner_id as string,
       ownerEmail: row.owner_email as string,
       ownerName:  row.owner_name as string,
       createdAt:  trip.createdAt,

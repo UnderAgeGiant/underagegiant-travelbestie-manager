@@ -38,3 +38,12 @@ export function commentCacheKey(attractionId: string): string {
 }
 
 export const COMMENT_CACHE_TTL = 60;
+
+export function notificationStatusKey(userId: string): string {
+  return `notif:status:${userId}`;
+}
+
+// Correctness comes from invalidate-on-write (add/markAllRead/setMuted), not this TTL —
+// it's only a safety net for a missed invalidation. Set well above the 60 s poll interval
+// so normal continuous polling never expires mid-session; 90 s would miss on every other poll.
+export const NOTIFICATION_STATUS_CACHE_TTL = 600;

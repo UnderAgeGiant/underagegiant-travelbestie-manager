@@ -7,6 +7,7 @@ import { PgKarmaPurchaseRepository } from './repositories/pg/pg-karma-purchase.r
 import { PgStepCommentRepository }   from './repositories/pg/pg-step-comment.repository';
 import { PgStatsRepository }         from './repositories/pg/pg-stats.repository';
 import { PgFavoriteRepository }      from './repositories/pg/pg-favorite.repository';
+import { PgNotificationRepository }  from './repositories/pg/pg-notification.repository';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
 import { CommentController }         from './controllers/comment.controller';
@@ -19,6 +20,7 @@ import { StatsController }           from './controllers/stats.controller';
 export { pool };
 
 export const favoriteRepository      = new PgFavoriteRepository(pool);
+export const notificationRepo        = new PgNotificationRepository(pool);
 export const karmaRepo               = new PgKarmaRepository(pool);
 export const karmaPurchaseRepo       = new PgKarmaPurchaseRepository(pool);
 export const stepCommentRepo         = new PgStepCommentRepository(pool);
