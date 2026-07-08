@@ -43,5 +43,7 @@ export function notificationStatusKey(userId: string): string {
   return `notif:status:${userId}`;
 }
 
-// A bit over the 60 s frontend poll interval — self-heals if an invalidation is ever missed.
-export const NOTIFICATION_STATUS_CACHE_TTL = 90;
+// Correctness comes from invalidate-on-write (add/markAllRead/setMuted), not this TTL —
+// it's only a safety net for a missed invalidation. Set well above the 60 s poll interval
+// so normal continuous polling never expires mid-session; 90 s would miss on every other poll.
+export const NOTIFICATION_STATUS_CACHE_TTL = 600;
