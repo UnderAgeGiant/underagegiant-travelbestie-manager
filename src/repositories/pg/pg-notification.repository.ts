@@ -3,6 +3,7 @@ import {
   INotificationRepository, NOTIFICATIONS_MAX_STORED, NOTIFICATIONS_LIST_LIMIT,
 } from '../interfaces/notification.repository';
 import { NotificationRecord, NotificationType } from '../../types';
+import { redis, notificationStatusKey, NOTIFICATION_STATUS_CACHE_TTL } from '../../lib/redis';
 
 export class PgNotificationRepository implements INotificationRepository {
   constructor(private readonly pool: Pool) {}
@@ -24,6 +25,7 @@ export class PgNotificationRepository implements INotificationRepository {
              WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2)`,
         [data.userId, NOTIFICATIONS_MAX_STORED],
       );
+      try { await redis.del(notificationStatusKey(data.userId)); } catch { /* non-fatal */ }
     }
   }
 
@@ -51,11 +53,32 @@ export class PgNotificationRepository implements INotificationRepository {
     return row.count as number;
   }
 
+  /**
+   * Cache-aside over countUnread + isMuted, keyed per user. Reads skip the DB
+   * entirely on a cache hit; add/markAllRead/setMuted invalidate the key so
+   * the next poll rebuilds it. TTL is a safety net, not the primary mechanism.
+   */
+  async getStatus(userId: string): Promise<{ count: number; muted: boolean }> {
+    const key = notificationStatusKey(userId);
+    try {
+      const cached = await redis.get(key);
+      if (cached) return JSON.parse(cached) as { count: number; muted: boolean };
+    } catch { /* non-fatal — fall through to DB */ }
+
+    const [count, muted] = await Promise.all([this.countUnread(userId), this.isMuted(userId)]);
+    const result = { count, muted };
+
+    try { await redis.set(key, JSON.stringify(result), 'EX', NOTIFICATION_STATUS_CACHE_TTL); } catch { /* non-fatal */ }
+
+    return result;
+  }
+
   async markAllRead(userId: string): Promise<void> {
     await this.pool.query(
       `UPDATE notifications SET read = TRUE WHERE user_id = $1 AND NOT read`,
       [userId],
     );
+    try { await redis.del(notificationStatusKey(userId)); } catch { /* non-fatal */ }
   }
 
   async isMuted(userId: string): Promise<boolean> {
@@ -71,5 +94,6 @@ export class PgNotificationRepository implements INotificationRepository {
       `UPDATE users SET notifications_muted = $2 WHERE user_id = $1`,
       [userId, muted],
     );
+    try { await redis.del(notificationStatusKey(userId)); } catch { /* non-fatal */ }
   }
 }

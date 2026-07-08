@@ -290,6 +290,10 @@ export class StubNotificationRepository implements INotificationRepository {
     return this.items.filter(n => n.userId === userId && !n.read).length;
   }
 
+  async getStatus(userId: string): Promise<{ count: number; muted: boolean }> {
+    return { count: await this.countUnread(userId), muted: await this.isMuted(userId) };
+  }
+
   async markAllRead(userId: string): Promise<void> {
     this.items = this.items.map(n => (n.userId === userId ? { ...n, read: true } : n));
   }

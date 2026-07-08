@@ -14,6 +14,9 @@ export interface INotificationRepository {
 
   countUnread(userId: string): Promise<number>;
 
+  /** Cached facade over countUnread + isMuted — the poll target for GET /notifications/status. */
+  getStatus(userId: string): Promise<{ count: number; muted: boolean }>;
+
   /** Mark every notification of the user as read. Idempotent. */
   markAllRead(userId: string): Promise<void>;
 

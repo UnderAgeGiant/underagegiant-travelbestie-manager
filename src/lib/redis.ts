@@ -38,3 +38,10 @@ export function commentCacheKey(attractionId: string): string {
 }
 
 export const COMMENT_CACHE_TTL = 60;
+
+export function notificationStatusKey(userId: string): string {
+  return `notif:status:${userId}`;
+}
+
+// A bit over the 60 s frontend poll interval — self-heals if an invalidation is ever missed.
+export const NOTIFICATION_STATUS_CACHE_TTL = 90;
