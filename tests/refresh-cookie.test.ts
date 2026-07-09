@@ -25,12 +25,12 @@ describe('refresh-cookie helper', () => {
     expect(cookie).toMatch(/Path=\/auth/i);
   });
 
-  it('marks the cookie Secure + SameSite=None in production', async () => {
+  it('marks the cookie Secure + SameSite=Lax in production', async () => {
     process.env.NODE_ENV = 'production';
     const app = appWith((_req, res) => { setRefreshCookie(res, 'raw'); res.end(); });
     const cookie = (await request(app).get('/set')).headers['set-cookie'][0];
     expect(cookie).toMatch(/Secure/i);
-    expect(cookie).toMatch(/SameSite=None/i);
+    expect(cookie).toMatch(/SameSite=Lax/i);
   });
 
   it('uses SameSite=Lax and no Secure outside production', async () => {

@@ -7,9 +7,12 @@ function baseOptions(): CookieOptions {
   const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: isProd,                       // Secure cannot be set over http://localhost in dev
-    sameSite: isProd ? 'none' : 'lax',    // cross-site in prod needs None; dev is same-site (localhost)
-    path: '/auth',                        // only /auth/refresh and /auth/logout need it
+    secure: isProd,   // Secure cannot be set over http://localhost in dev
+    // api.tripilove.com and www.tripilove.com share a registrable domain, so the
+    // refresh cookie is first-party in prod too — Lax avoids SameSite=None being
+    // dropped by third-party-cookie blocking (Safari ITP, Firefox ETP, Chrome).
+    sameSite: 'lax',
+    path: '/auth',    // only /auth/refresh and /auth/logout need it
   };
 }
 
