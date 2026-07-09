@@ -1,4 +1,5 @@
 import { issueRefreshToken, validateAndRotate, revokeRefreshToken, invalidateUserSessions } from '../../src/lib/refresh-tokens';
+import { hashToken } from '../../src/lib/tokens';
 
 jest.mock('../../src/lib/redis', () => ({
   redis: {
@@ -59,6 +60,44 @@ describe('validateAndRotate', () => {
       'EX',
       86400,
     );
+  });
+
+  it('also stores a short-lived rotation pointer from the old token to the new one', async () => {
+    r.get
+      .mockResolvedValueOnce(`${USER_ID}|0`)  // token key
+      .mockResolvedValueOnce(null);            // session_version key → '0'
+    const result = await validateAndRotate('valid-token');
+    const oldHash = hashToken('valid-token');
+    expect(r.set).toHaveBeenCalledWith(`rotated:${oldHash}`, result!.newRaw, 'EX', 10);
+  });
+
+  it('resolves a concurrent request racing a just-rotated token to the same new token (multi-tab race)', async () => {
+    const oldHash = hashToken('raced-old-token');
+    const newRaw  = 'a'.repeat(64);
+    r.get
+      .mockResolvedValueOnce(null)                  // token key: already rotated away
+      .mockResolvedValueOnce(newRaw)                 // rotated:{oldHash} → newRaw
+      .mockResolvedValueOnce(`${USER_ID}|0`);        // refresh:{hash(newRaw)} still active
+    const result = await validateAndRotate('raced-old-token');
+    expect(result).toEqual({ userId: USER_ID, newRaw });
+    expect(r.get).toHaveBeenNthCalledWith(2, `rotated:${oldHash}`);
+    expect(r.get).toHaveBeenNthCalledWith(3, `refresh:${hashToken(newRaw)}`);
+  });
+
+  it('rejects a raced token whose rotated replacement was since revoked', async () => {
+    const newRaw = 'b'.repeat(64);
+    r.get
+      .mockResolvedValueOnce(null)     // token key: already rotated away
+      .mockResolvedValueOnce(newRaw)    // rotated:{oldHash} → newRaw
+      .mockResolvedValueOnce(null);     // refresh:{hash(newRaw)} gone (revoked/expired)
+    expect(await validateAndRotate('raced-old-token')).toBeNull();
+  });
+
+  it('rejects a token that is simply invalid (no rotation pointer either)', async () => {
+    r.get
+      .mockResolvedValueOnce(null)   // token key: not found
+      .mockResolvedValueOnce(null);  // rotated:{hash}: not found either
+    expect(await validateAndRotate('never-issued')).toBeNull();
   });
 });
 

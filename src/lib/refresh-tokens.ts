@@ -3,6 +3,13 @@ import { generateRefreshToken, hashToken } from './tokens';
 
 export const REFRESH_TTL = 86400; // 1 day in seconds
 
+// Window during which a just-rotated token still resolves to its replacement
+// instead of failing. Multiple tabs share one refresh cookie; if two of them
+// call /auth/refresh at nearly the same moment, whichever the server sees
+// second would otherwise find its token already deleted and get logged out
+// (see validateAndRotate below).
+const ROTATION_GRACE_TTL = 10; // seconds
+
 export async function issueRefreshToken(userId: string): Promise<string> {
   const raw     = generateRefreshToken();
   const hash    = hashToken(raw);
@@ -16,7 +23,14 @@ export async function validateAndRotate(
 ): Promise<{ userId: string; newRaw: string } | null> {
   const hash  = hashToken(rawToken);
   const value = await redis.get(`refresh:${hash}`);
-  if (!value) return null;
+
+  if (!value) {
+    // Not an active token — it may have just been rotated by a concurrent
+    // request on this same cookie (e.g. a second open tab). Hand back the
+    // same freshly-issued token rather than rejecting, so this request
+    // doesn't clear a cookie the browser may already hold the new value for.
+    return resolveRecentlyRotated(hash);
+  }
 
   const [userId, storedVersion] = value.split('|');
   const currentVersion = await getSessionVersion(userId);
@@ -26,6 +40,16 @@ export async function validateAndRotate(
   const newRaw  = generateRefreshToken();
   const newHash = hashToken(newRaw);
   await redis.set(`refresh:${newHash}`, `${userId}|${currentVersion}`, 'EX', REFRESH_TTL);
+  await redis.set(`rotated:${hash}`, newRaw, 'EX', ROTATION_GRACE_TTL);
+  return { userId, newRaw };
+}
+
+async function resolveRecentlyRotated(oldHash: string): Promise<{ userId: string; newRaw: string } | null> {
+  const newRaw = await redis.get(`rotated:${oldHash}`);
+  if (!newRaw) return null;
+  const newValue = await redis.get(`refresh:${hashToken(newRaw)}`);
+  if (!newValue) return null; // superseded token was since revoked/logged out
+  const [userId] = newValue.split('|');
   return { userId, newRaw };
 }
 
