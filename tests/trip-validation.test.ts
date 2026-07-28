@@ -41,6 +41,38 @@ describe('trip/ai/karma schemas', () => {
     expect(res.body.error).toContain('selectedOption');
   });
 
+  it('rejects ai/suggest cityIndex entries missing a name', async () => {
+    const res = await request(appWith(aiSuggestSchema)).post('/t').send({
+      preferences: 'historia y arte',
+      cityIndex: [{ id: 'paris' }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts ai/suggest with a valid cityIndex', async () => {
+    const res = await request(appWith(aiSuggestSchema)).post('/t').send({
+      preferences: 'historia y arte',
+      cityIndex: [{ id: 'paris', name: 'Paris' }, { id: 'rome', name: 'Rome' }],
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects ai/plan selectedOption.cityIds containing a non-string entry', async () => {
+    const res = await request(appWith(aiPlanSchema)).post('/t').send({
+      preferences: 'historia y arte',
+      selectedOption: { id: 1, title: 'T', summary: 'S', highlights: [], cityIds: [123] },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts ai/plan selectedOption with valid cityIds', async () => {
+    const res = await request(appWith(aiPlanSchema)).post('/t').send({
+      preferences: 'historia y arte',
+      selectedOption: { id: 1, title: 'T', summary: 'S', highlights: [], cityIds: ['paris', 'rome'] },
+    });
+    expect(res.status).toBe(200);
+  });
+
   it('rejects create-order without packageId', async () => {
     const res = await request(appWith(createOrderSchema)).post('/t').send({});
     expect(res.status).toBe(400);
