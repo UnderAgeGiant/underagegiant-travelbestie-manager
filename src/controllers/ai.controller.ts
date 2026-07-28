@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
-import { SuggestTripsResponse, PlanTripResponse, CityCatalog } from '../types';
+import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry } from '../types';
 import type { AiSuggestBody, AiPlanBody } from '../schemas/ai.schemas';
 
 interface PromptsFile {
@@ -40,12 +40,26 @@ function buildCatalogBlock(catalog?: CityCatalog): string {
   ].join('\n');
 }
 
+function buildCityIndexBlock(cityIndex?: CatalogEntry[]): string {
+  if (!cityIndex || cityIndex.length === 0) {
+    return 'No se recibió un índice de ciudades — usa kebab-case para cityId basado en el nombre en inglés de la ciudad (ej: "paris", "newyork").';
+  }
+  const lines = cityIndex.map(c => `  ${c.id} = ${c.name}`);
+  return [
+    '<city_index>',
+    'Usa ÚNICAMENTE estos cityId al llenar "cityIds" en cada opción. Nunca inventes uno que no esté en esta lista.',
+    ...lines,
+    '</city_index>',
+  ].join('\n');
+}
+
 export class AiController {
   suggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { preferences, duration, budget } = req.body as AiSuggestBody;
+      const { preferences, duration, budget, cityIndex } = req.body as AiSuggestBody;
 
       const prompts = loadPrompts();
+      const systemPrompt = fillTemplate(prompts.suggest.system, { cityIndexBlock: buildCityIndexBlock(cityIndex) });
 
       const userMessage = fillTemplate(prompts.suggest.userTemplate, {
         preferences,
@@ -57,7 +71,7 @@ export class AiController {
         model: 'deepseek-v4-flash',
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: prompts.suggest.system },
+          { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });

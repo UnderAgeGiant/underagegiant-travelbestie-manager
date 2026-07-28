@@ -4,6 +4,10 @@ export const aiSuggestSchema = z.object({
   preferences: z.string().trim().min(1).max(2000),
   duration:    z.number().int().min(1).max(60).optional(),
   budget:      z.string().max(100).optional(),
+  cityIndex:   z.array(z.object({
+    id:   z.string().min(1).max(80),
+    name: z.string().min(1).max(120),
+  }).passthrough()).max(1000).optional(),
 }).passthrough();
 
 export const aiPlanSchema = z.object({
@@ -13,6 +17,7 @@ export const aiPlanSchema = z.object({
     title:      z.string().max(300),
     summary:    z.string().max(3000),
     highlights: z.array(z.string().max(300)).max(50),
+    cityIds:    z.array(z.string().min(1).max(80)).max(20).optional(),
   }).passthrough(),
   duration:      z.number().int().min(1).max(60).optional(),
   budget:        z.string().max(100).optional(),
