@@ -147,6 +147,18 @@ export interface PlanTripResponse {
   transits: TransitLeg[];
 }
 
+export interface CityAttractionSuggestion {
+  attractionId: string;   // must be one of the single-city cityCatalog IDs sent in the request
+  date:         string;   // dd/mm/yyyy — within [checkIn, checkOut]
+  startTime:    string;   // HH:mm
+  endTime:      string;   // HH:mm
+  reason:       string;   // one-sentence Spanish blurb
+}
+
+export interface SuggestCityAttractionsResponse {
+  suggestions: CityAttractionSuggestion[];
+}
+
 export interface AuthPayload {
   userId: string;
   email: string;
