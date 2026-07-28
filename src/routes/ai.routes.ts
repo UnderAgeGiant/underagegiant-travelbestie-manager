@@ -3,7 +3,8 @@ import { AiController }    from '../controllers/ai.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
-import { aiSuggestSchema, aiPlanSchema } from '../schemas/ai.schemas';
+import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema } from '../schemas/ai.schemas';
+import type { AiSuggestAttractionsBody } from '../schemas/ai.schemas';
 import { respond }         from '../middleware/respond.middleware';
 import { checkPlanChange }              from '../middleware/ai/check-plan-change.middleware';
 import { storePlanSession }             from '../middleware/ai/store-plan-session.middleware';
@@ -41,6 +42,18 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     storePlanSession,                  // writes/updates Redis session
     appendPlanChangeInfo,              // merges changeInfo into req.result
     logCtaEvent('cta_ai_plan', req => ({ changeType: req.planChangeResult?.type })),
+    respond(200),
+  );
+
+  router.post('/suggest-attractions',
+    validateBody(aiSuggestAttractionsSchema),
+    karma.requireKarma(2),
+    karma.spendForCitySuggest,
+    ai.suggestCityAttractions,
+    logCtaEvent('cta_ai_city_suggest', req => ({
+      cityId: (req.body as AiSuggestAttractionsBody).cityId,
+      karmaSpent: 2,
+    })),
     respond(200),
   );
 
