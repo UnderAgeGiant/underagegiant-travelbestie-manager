@@ -103,6 +103,24 @@ describe('POST /ai/suggest-attractions', () => {
     expect(res.status).toBe(402);
   });
 
+  it('skips the karma check entirely when isFollowUp is true, even with insufficient karma', async () => {
+    karmaRepo.setScore(0);
+    const res = await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...VALID_BODY, isFollowUp: true });
+    expect(res.status).toBe(200);
+  });
+
+  it('still requires and spends 2 karma when isFollowUp is false or omitted', async () => {
+    karmaRepo.setScore(1);
+    const res = await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...VALID_BODY, isFollowUp: false });
+    expect(res.status).toBe(402);
+  });
+
   it('rejects a body missing cityCatalog', async () => {
     const { cityCatalog, ...rest } = VALID_BODY;
     const res = await request(app)

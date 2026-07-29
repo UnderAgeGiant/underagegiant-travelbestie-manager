@@ -32,6 +32,7 @@ export const aiSuggestAttractionsSchema = z.object({
   checkOut:               z.string().min(1).max(10),
   existingAttractionIds:  z.array(z.string().min(1).max(120)).max(100).optional(),
   cityCatalog:            z.array(z.object({ id: z.string(), name: z.string() }).passthrough()).max(300),
+  isFollowUp:             z.boolean().optional(),
 }).passthrough();
 
 export type AiSuggestBody             = z.infer<typeof aiSuggestSchema>;

@@ -45,14 +45,24 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     respond(200),
   );
 
+  const requireKarmaForCitySuggestIfNeeded: RequestHandler = (req, res, next) => {
+    if ((req.body as AiSuggestAttractionsBody).isFollowUp === true) return next();
+    return karma.requireKarma(2)(req, res, next);
+  };
+
+  const spendForCitySuggestIfNeeded: RequestHandler = (req, res, next) => {
+    if ((req.body as AiSuggestAttractionsBody).isFollowUp === true) return next();
+    return karma.spendForCitySuggest(req, res, next);
+  };
+
   router.post('/suggest-attractions',
     validateBody(aiSuggestAttractionsSchema),
-    karma.requireKarma(2),
-    karma.spendForCitySuggest,
+    requireKarmaForCitySuggestIfNeeded,
+    spendForCitySuggestIfNeeded,
     ai.suggestCityAttractions,
     logCtaEvent('cta_ai_city_suggest', req => ({
       cityId: (req.body as AiSuggestAttractionsBody).cityId,
-      karmaSpent: 2,
+      karmaSpent: (req.body as AiSuggestAttractionsBody).isFollowUp ? 0 : 2,
     })),
     respond(200),
   );
