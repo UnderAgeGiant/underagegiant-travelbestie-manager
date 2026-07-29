@@ -60,7 +60,7 @@ function buildScheduleBlock(schedule?: { date: string; startTime: string; endTim
   }
   const lines = schedule.map(s => `  ${s.date}: ${s.startTime}–${s.endTime}`);
   return [
-    'Horarios YA OCUPADOS por atracciones planificadas en esta parada — NINGUNA sugerencia puede superponerse con estos rangos:',
+    'Horarios YA OCUPADOS por atracciones planificadas en esta parada — NINGUNA sugerencia puede superponerse ni colisionar con estos rangos, ni total ni parcialmente:',
     ...lines,
   ].join('\n');
 }
@@ -71,7 +71,7 @@ function buildDepartureBlock(departures?: { date: string; time: string }[]): str
   }
   const lines = departures.map(d => `  ${d.date} a las ${d.time}`);
   return [
-    'El viajero ya tiene transporte reservado saliendo de esta ciudad en estos momentos — NINGUNA sugerencia puede comenzar en o después de esa hora, en la misma fecha:',
+    'El viajero ya tiene transporte reservado saliendo de esta ciudad en estos momentos. NINGUNA sugerencia puede coincidir con la hora de viaje ni ser posterior a ella: toda sugerencia (desde su startTime hasta su endTime) debe completarse ANTES de la hora de salida, en la misma fecha — el viajero ya no estará en la ciudad a partir de ese momento:',
     ...lines,
   ].join('\n');
 }

@@ -170,8 +170,9 @@ describe('POST /ai/suggest-attractions', () => {
     const userMessage = create.mock.calls[0][0].messages[1].content as string;
     expect(userMessage).toContain('02/07/2026: 10:00–11:00');
     expect(userMessage).toContain('03/07/2026 a las 15:00');
-    expect(userMessage).toContain('NINGUNA sugerencia puede superponerse');
-    expect(userMessage).toContain('NINGUNA sugerencia puede comenzar en o después de esa hora');
+    expect(userMessage).toContain('NINGUNA sugerencia puede superponerse ni colisionar');
+    expect(userMessage).toContain('NINGUNA sugerencia puede coincidir con la hora de viaje ni ser posterior a ella');
+    expect(userMessage).toContain('debe completarse ANTES de la hora de salida');
   });
 
   it('falls back to "no schedule / no transport" messages when existingSchedule and departureTimes are omitted', async () => {
