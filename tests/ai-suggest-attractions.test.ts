@@ -157,6 +157,34 @@ describe('POST /ai/suggest-attractions', () => {
     expect(userMessage).toContain('ninguna');
   });
 
+  it('includes the existing schedule and transit departure times in the user message, with explicit no-overlap/no-after-departure rules', async () => {
+    await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ...VALID_BODY,
+        existingSchedule: [{ date: '02/07/2026', startTime: '10:00', endTime: '11:00' }],
+        departureTimes: [{ date: '03/07/2026', time: '15:00' }],
+      });
+
+    const userMessage = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('02/07/2026: 10:00–11:00');
+    expect(userMessage).toContain('03/07/2026 a las 15:00');
+    expect(userMessage).toContain('NINGUNA sugerencia puede superponerse');
+    expect(userMessage).toContain('NINGUNA sugerencia puede comenzar en o después de esa hora');
+  });
+
+  it('falls back to "no schedule / no transport" messages when existingSchedule and departureTimes are omitted', async () => {
+    await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send(VALID_BODY);
+
+    const userMessage = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('no tiene otras atracciones con horario definido en esta parada');
+    expect(userMessage).toContain('no tiene transporte reservado saliendo de esta ciudad todavía');
+  });
+
   it('returns 200 with the parsed suggestions on success', async () => {
     const res = await request(app)
       .post('/ai/suggest-attractions')

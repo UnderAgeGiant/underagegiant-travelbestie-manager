@@ -54,6 +54,28 @@ function buildCityIndexBlock(cityIndex?: CatalogEntry[]): string {
   ].join('\n');
 }
 
+function buildScheduleBlock(schedule?: { date: string; startTime: string; endTime: string }[]): string {
+  if (!schedule || schedule.length === 0) {
+    return 'El viajero no tiene otras atracciones con horario definido en esta parada.';
+  }
+  const lines = schedule.map(s => `  ${s.date}: ${s.startTime}–${s.endTime}`);
+  return [
+    'Horarios YA OCUPADOS por atracciones planificadas en esta parada — NINGUNA sugerencia puede superponerse con estos rangos:',
+    ...lines,
+  ].join('\n');
+}
+
+function buildDepartureBlock(departures?: { date: string; time: string }[]): string {
+  if (!departures || departures.length === 0) {
+    return 'El viajero no tiene transporte reservado saliendo de esta ciudad todavía.';
+  }
+  const lines = departures.map(d => `  ${d.date} a las ${d.time}`);
+  return [
+    'El viajero ya tiene transporte reservado saliendo de esta ciudad en estos momentos — NINGUNA sugerencia puede comenzar en o después de esa hora, en la misma fecha:',
+    ...lines,
+  ].join('\n');
+}
+
 export class AiController {
   suggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -117,7 +139,7 @@ export class AiController {
 
   suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { cityId, checkIn, checkOut, existingAttractionIds, cityCatalog } = req.body as AiSuggestAttractionsBody;
+      const { cityId, checkIn, checkOut, existingAttractionIds, existingSchedule, departureTimes, cityCatalog } = req.body as AiSuggestAttractionsBody;
 
       const prompts = loadPrompts();
       const systemPrompt = fillTemplate(prompts.suggestAttractions.system, {
@@ -131,6 +153,8 @@ export class AiController {
         existingBlock: existingAttractionIds && existingAttractionIds.length > 0
           ? existingAttractionIds.join(', ')
           : 'ninguna',
+        scheduleBlock: buildScheduleBlock(existingSchedule),
+        departureBlock: buildDepartureBlock(departureTimes),
       });
 
       const completion = await deepseekClient.chat.completions.create({
