@@ -6,7 +6,7 @@ import request from 'supertest';
 import express from 'express';
 import { z } from 'zod';
 import { createTripSchema } from '../src/schemas/trip.schemas';
-import { aiSuggestSchema, aiPlanSchema } from '../src/schemas/ai.schemas';
+import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema } from '../src/schemas/ai.schemas';
 import { createOrderSchema } from '../src/schemas/karma.schemas';
 import { validateBody } from '../src/middleware/validate-body.middleware';
 
@@ -69,6 +69,22 @@ describe('trip/ai/karma schemas', () => {
     const res = await request(appWith(aiPlanSchema)).post('/t').send({
       preferences: 'historia y arte',
       selectedOption: { id: 1, title: 'T', summary: 'S', highlights: [], cityIds: ['paris', 'rome'] },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects ai/suggest-attractions without a cityCatalog', async () => {
+    const res = await request(appWith(aiSuggestAttractionsSchema)).post('/t').send({
+      cityId: 'paris', checkIn: '01/07/2026', checkOut: '05/07/2026',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a valid ai/suggest-attractions body', async () => {
+    const res = await request(appWith(aiSuggestAttractionsSchema)).post('/t').send({
+      cityId: 'paris', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      existingAttractionIds: ['paris_0'],
+      cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
     });
     expect(res.status).toBe(200);
   });

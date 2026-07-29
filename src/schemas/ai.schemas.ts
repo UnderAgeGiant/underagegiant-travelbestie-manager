@@ -26,5 +26,15 @@ export const aiPlanSchema = z.object({
   cityCatalog:   z.record(z.string(), z.array(z.object({ id: z.string(), name: z.string() }).passthrough())).optional(),
 }).passthrough();
 
-export type AiSuggestBody = z.infer<typeof aiSuggestSchema>;
-export type AiPlanBody    = z.infer<typeof aiPlanSchema>;
+export const aiSuggestAttractionsSchema = z.object({
+  cityId:                z.string().min(1).max(80),
+  checkIn:                z.string().min(1).max(10),
+  checkOut:               z.string().min(1).max(10),
+  existingAttractionIds:  z.array(z.string().min(1).max(120)).max(100).optional(),
+  cityCatalog:            z.array(z.object({ id: z.string(), name: z.string() }).passthrough()).max(300),
+  isFollowUp:             z.boolean().optional(),
+}).passthrough();
+
+export type AiSuggestBody             = z.infer<typeof aiSuggestSchema>;
+export type AiPlanBody                = z.infer<typeof aiPlanSchema>;
+export type AiSuggestAttractionsBody  = z.infer<typeof aiSuggestAttractionsSchema>;

@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
-import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry } from '../types';
-import type { AiSuggestBody, AiPlanBody } from '../schemas/ai.schemas';
+import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse } from '../types';
+import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody } from '../schemas/ai.schemas';
 
 interface PromptsFile {
-  suggest: { system: string; userTemplate: string };
-  plan:    { system: string; userTemplate: string };
+  suggest:            { system: string; userTemplate: string };
+  plan:               { system: string; userTemplate: string };
+  suggestAttractions: { system: string; userTemplate: string };
 }
 
 function loadPrompts(): PromptsFile {
@@ -110,6 +111,39 @@ export class AiController {
 
       const raw = completion.choices[0].message.content ?? '{}';
       req.result = JSON.parse(raw) as PlanTripResponse;
+      next();
+    } catch (err) { next(err); }
+  };
+
+  suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { cityId, checkIn, checkOut, existingAttractionIds, cityCatalog } = req.body as AiSuggestAttractionsBody;
+
+      const prompts = loadPrompts();
+      const systemPrompt = fillTemplate(prompts.suggestAttractions.system, {
+        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
+      });
+
+      const userMessage = fillTemplate(prompts.suggestAttractions.userTemplate, {
+        cityId,
+        checkIn,
+        checkOut,
+        existingBlock: existingAttractionIds && existingAttractionIds.length > 0
+          ? existingAttractionIds.join(', ')
+          : 'ninguna',
+      });
+
+      const completion = await deepseekClient.chat.completions.create({
+        model: 'deepseek-v4-flash',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userMessage },
+        ],
+      });
+
+      const raw = completion.choices[0].message.content ?? '{}';
+      req.result = JSON.parse(raw) as SuggestCityAttractionsResponse;
       next();
     } catch (err) { next(err); }
   };
