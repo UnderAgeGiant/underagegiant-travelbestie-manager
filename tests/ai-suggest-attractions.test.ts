@@ -175,6 +175,16 @@ describe('POST /ai/suggest-attractions', () => {
     expect(userMessage).toContain('debe completarse ANTES de la hora de salida');
   });
 
+  it('tells ARIA the new suggestions must not collide with each other either', async () => {
+    await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send(VALID_BODY);
+
+    const systemMessage = create.mock.calls[0][0].messages[0].content as string;
+    expect(systemMessage).toContain('NINGUNA sugerencia nueva puede superponerse ni colisionar con otra sugerencia nueva');
+  });
+
   it('falls back to "no schedule / no transport" messages when existingSchedule and departureTimes are omitted', async () => {
     await request(app)
       .post('/ai/suggest-attractions')
