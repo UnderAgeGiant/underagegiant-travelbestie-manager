@@ -89,6 +89,26 @@ describe('trip/ai/karma schemas', () => {
     expect(res.status).toBe(200);
   });
 
+  it('accepts ai/suggest-attractions with existingSchedule and departureTimes', async () => {
+    const res = await request(appWith(aiSuggestAttractionsSchema)).post('/t').send({
+      cityId: 'paris', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      existingAttractionIds: ['paris_0'],
+      existingSchedule: [{ date: '02/07/2026', startTime: '10:00', endTime: '11:00' }],
+      departureTimes: [{ date: '03/07/2026', time: '15:00' }],
+      cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects ai/suggest-attractions when an existingSchedule entry is missing endTime', async () => {
+    const res = await request(appWith(aiSuggestAttractionsSchema)).post('/t').send({
+      cityId: 'paris', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      existingSchedule: [{ date: '02/07/2026', startTime: '10:00' }],
+      cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('rejects create-order without packageId', async () => {
     const res = await request(appWith(createOrderSchema)).post('/t').send({});
     expect(res.status).toBe(400);
