@@ -3,13 +3,17 @@ import { AiController }    from '../controllers/ai.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
-import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema } from '../schemas/ai.schemas';
-import type { AiSuggestAttractionsBody } from '../schemas/ai.schemas';
+import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
+import type { AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
+import type { CompanionSuggestion } from '../types';
 import { respond }         from '../middleware/respond.middleware';
 import { checkPlanChange }              from '../middleware/ai/check-plan-change.middleware';
 import { storePlanSession }             from '../middleware/ai/store-plan-session.middleware';
 import { appendPlanChangeInfo }         from '../middleware/ai/append-plan-change-info.middleware';
 import { createChargeAiPlanMiddleware } from '../middleware/ai/charge-ai-plan.middleware';
+import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
+import { rollCompanionSuggestion } from '../middleware/ai/roll-companion-suggestion.middleware';
+import { COMPANION_SUGGEST_RATE_LIMIT } from '../lib/companion-suggest';
 import { logCtaEvent } from '../lib/log-event';
 
 export function createAiRouter(ai: AiController, karma: KarmaController): Router {
@@ -63,6 +67,24 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     logCtaEvent('cta_ai_city_suggest', req => ({
       cityId: (req.body as AiSuggestAttractionsBody).cityId,
       karmaSpent: (req.body as AiSuggestAttractionsBody).isFollowUp ? 0 : 2,
+    })),
+    respond(200),
+  );
+
+  router.post('/suggest-companion',
+    validateBody(suggestCompanionSchema),
+    rateLimitMiddleware({
+      keyPrefix:     'rl:companion-suggest',
+      windowSeconds: 3600,
+      maxRequests:   COMPANION_SUGGEST_RATE_LIMIT,
+      getKey:        req => req.user!.userId,
+    }),
+    rollCompanionSuggestion,   // 204 short-circuit on a dice-roll miss
+    ai.suggestCompanion,       // 204 short-circuit on an invalid/colliding suggestion
+    logCtaEvent('cta_companion_suggest_shown', req => ({
+      cityId:               (req.body as SuggestCompanionBody).cityId,
+      addedAttractionId:    (req.body as SuggestCompanionBody).addedAttractionId,
+      suggestedAttractionId: (req.result as CompanionSuggestion).attractionId,
     })),
     respond(200),
   );
