@@ -507,4 +507,6 @@ export const CITY_NAMES: Record<string, string> = {
   'victoriafalls': 'Victoria Falls',
   'bulawayo': 'Bulawayo',
   'masvingo': 'Masvingo',
+  'willemstad': 'Willemstad',
+  'westpunt': 'Westpunt',
 };
