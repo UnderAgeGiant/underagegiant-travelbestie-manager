@@ -16,6 +16,7 @@ import { KarmaPurchaseController }   from './controllers/karma-purchase.controll
 import { AiController }              from './controllers/ai.controller';
 import { StepCommentController }     from './controllers/step-comment.controller';
 import { StatsController }           from './controllers/stats.controller';
+import { CompanionController }       from './controllers/companion.controller';
 
 export { pool };
 
@@ -33,3 +34,4 @@ export const karmaPurchaseController = new KarmaPurchaseController(karmaPurchase
 export const aiController            = new AiController();
 export const stepCommentController   = new StepCommentController(stepCommentRepo);
 export const statsController         = new StatsController(new PgStatsRepository(pool));
+export const companionController     = new CompanionController();
