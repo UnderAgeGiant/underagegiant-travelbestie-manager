@@ -9,6 +9,7 @@ const plannedAttraction = z.object({
   endTime:   z.string().max(5).nullable().optional(),
   date:      z.string().max(10).nullable().optional(),
   category:  z.enum(['poi', 'freetour', 'event_party', 'foodie']).optional(),
+  ticketPurchased: z.boolean().optional(),
 }).passthrough();
 
 const tripStop = z.object({
@@ -16,7 +17,12 @@ const tripStop = z.object({
   checkIn:  z.string().max(10),
   checkOut: z.string().max(10),
   selectedAttractions: z.array(plannedAttraction).max(500),
-  lodging: z.object({ name: z.string().max(200), url: z.string().max(2000) }).optional(),
+  lodging: z.object({
+    name: z.string().max(200),
+    url: z.string().max(2000),
+    address: z.string().max(500).nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
+  }).optional(),
 }).passthrough();
 
 const transitLeg = z.object({

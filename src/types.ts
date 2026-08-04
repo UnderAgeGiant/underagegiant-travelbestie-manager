@@ -15,11 +15,14 @@ export interface PlannedAttraction {
   endTime:   string | null;   // HH:mm — null when not set
   date?: string;              // dd/mm/yyyy — which day within the stop
   category?: AttractionCategory; // null treated as 'poi' in app
+  ticketPurchased?: boolean;  // user-toggled; only meaningful when the curated attraction has a ticketUrl
 }
 
 export interface Lodging {
   name: string;
   url: string;
+  address?: string;
+  notes?: string;
 }
 
 export interface TripStop {
@@ -40,6 +43,8 @@ export interface TransitSegment {
   arrivalTime: string;                    // HH:mm
   notes: string;
   durationMinutes?: number;
+  carrier?: string;        // e.g. "Latam", "Iryo"
+  locationUrl?: string;    // Google Maps link to the departure/arrival station or airport
 }
 
 export interface TransitLeg {
