@@ -44,6 +44,25 @@ export const aiSuggestAttractionsSchema = z.object({
   isFollowUp:             z.boolean().optional(),
 }).passthrough();
 
+export const suggestCompanionSchema = z.object({
+  cityId:                z.string().min(1).max(80),
+  addedAttractionId:     z.string().min(1).max(120),
+  checkIn:                z.string().min(1).max(10),
+  checkOut:               z.string().min(1).max(10),
+  existingAttractionIds:  z.array(z.string().min(1).max(120)).max(100).optional(),
+  existingSchedule:       z.array(z.object({
+    date:      z.string().min(1).max(10),
+    startTime: z.string().min(1).max(5),
+    endTime:   z.string().min(1).max(5),
+  }).passthrough()).max(100).optional(),
+  departureTimes:         z.array(z.object({
+    date: z.string().min(1).max(10),
+    time: z.string().min(1).max(5),
+  }).passthrough()).max(20).optional(),
+  cityCatalog:            z.array(z.object({ id: z.string(), name: z.string() }).passthrough()).max(300),
+}).passthrough();
+
 export type AiSuggestBody             = z.infer<typeof aiSuggestSchema>;
 export type AiPlanBody                = z.infer<typeof aiPlanSchema>;
 export type AiSuggestAttractionsBody  = z.infer<typeof aiSuggestAttractionsSchema>;
+export type SuggestCompanionBody      = z.infer<typeof suggestCompanionSchema>;

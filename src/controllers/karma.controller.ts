@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
-const KARMA_COST_TRIP          = 1;
-const KARMA_COST_SHARE         = 1;
-const KARMA_COST_AI_PLAN       = 1;
-const KARMA_COST_AI_SUGGEST    = 9;
-const KARMA_COST_CITY_SUGGEST  = 2;
+const KARMA_COST_TRIP           = 1;
+const KARMA_COST_SHARE          = 1;
+const KARMA_COST_AI_PLAN        = 1;
+const KARMA_COST_AI_SUGGEST     = 9;
+const KARMA_COST_CITY_SUGGEST   = 2;
+const KARMA_COST_COMPANION_BOOST = 2;
 
 function insufficientKarmaError(have: number, need: number): Error & { status: number } {
   const err = new Error(`Insufficient karma: need ${need}, have ${have}`) as Error & { status: number };
@@ -58,6 +59,13 @@ export class KarmaController {
   spendForCitySuggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.karma.spendAmount(req.user!.userId, KARMA_COST_CITY_SUGGEST, 'ai_city_suggest', req.flowId);
+      next();
+    } catch (err) { next(err); }
+  };
+
+  spendForCompanionBoost = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spendAmount(req.user!.userId, KARMA_COST_COMPANION_BOOST, 'companion_boost', req.flowId);
       next();
     } catch (err) { next(err); }
   };

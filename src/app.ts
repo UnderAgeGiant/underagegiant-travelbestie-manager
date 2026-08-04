@@ -9,6 +9,7 @@ import {
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
   statsController, favoriteRepository, notificationRepo,
+  companionController,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -20,6 +21,7 @@ import { createAiRouter }              from './routes/ai.routes';
 import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes';
 import { createFavoritesRouter }       from './routes/favorites.routes';
 import { createNotificationsRouter }   from './routes/notifications.routes';
+import { createCompanionRouter }       from './routes/companion.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
@@ -62,6 +64,7 @@ app.use('/trips',    createTripsRouter(tripController, karmaController));
 app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo, notificationRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));
+app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));

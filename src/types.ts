@@ -159,6 +159,14 @@ export interface SuggestCityAttractionsResponse {
   suggestions: CityAttractionSuggestion[];
 }
 
+export interface CompanionSuggestion {
+  attractionId: string;   // must be one of the single-city cityCatalog IDs sent in the request
+  date:         string;   // dd/mm/yyyy — within [checkIn, checkOut]
+  startTime:    string;   // HH:mm — computed to land in a free slot
+  endTime:      string;   // HH:mm
+  reason:       string;   // one-sentence Spanish blurb, e.g. "Muchos viajeros visitan esto justo después"
+}
+
 export interface AuthPayload {
   userId: string;
   email: string;

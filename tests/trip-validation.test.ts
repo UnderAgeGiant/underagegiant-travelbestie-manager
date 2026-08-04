@@ -6,7 +6,7 @@ import request from 'supertest';
 import express from 'express';
 import { z } from 'zod';
 import { createTripSchema } from '../src/schemas/trip.schemas';
-import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema } from '../src/schemas/ai.schemas';
+import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../src/schemas/ai.schemas';
 import { createOrderSchema } from '../src/schemas/karma.schemas';
 import { validateBody } from '../src/middleware/validate-body.middleware';
 
@@ -107,6 +107,33 @@ describe('trip/ai/karma schemas', () => {
       cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
     });
     expect(res.status).toBe(400);
+  });
+
+  it('rejects ai/suggest-companion without addedAttractionId', async () => {
+    const res = await request(appWith(suggestCompanionSchema)).post('/t').send({
+      cityId: 'paris', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a valid ai/suggest-companion body', async () => {
+    const res = await request(appWith(suggestCompanionSchema)).post('/t').send({
+      cityId: 'paris', addedAttractionId: 'paris_0', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      existingAttractionIds: ['paris_0'],
+      cityCatalog: [{ id: 'paris_0', name: 'Torre Eiffel' }, { id: 'paris_1', name: 'Louvre' }],
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('accepts ai/suggest-companion with existingSchedule and departureTimes', async () => {
+    const res = await request(appWith(suggestCompanionSchema)).post('/t').send({
+      cityId: 'paris', addedAttractionId: 'paris_0', checkIn: '01/07/2026', checkOut: '05/07/2026',
+      existingSchedule: [{ date: '02/07/2026', startTime: '10:00', endTime: '11:00' }],
+      departureTimes: [{ date: '03/07/2026', time: '15:00' }],
+      cityCatalog: [{ id: 'paris_1', name: 'Louvre' }],
+    });
+    expect(res.status).toBe(200);
   });
 
   it('rejects create-order without packageId', async () => {
