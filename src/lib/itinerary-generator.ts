@@ -7,6 +7,7 @@ export interface ItineraryOptions {
   cityNames?: Record<string, string>;
   attractionNames?: Record<string, string>;
   ticketRequiredIds?: string[];
+  attractionDurations?: Record<string, number>; // attractionId → estimatedMinutes, from the curated catalog (backend has no access to it)
 }
 
 // Brand palette — derived from frontend styles.css (oklch tokens) and favicon.svg
@@ -203,6 +204,7 @@ function buildRawAttractionSpans(
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
+  attractionDurations?: Record<string, number>,
 ): RawAttractionSpan[] {
   const dayIndex = new Map(days.map((d, i) => [d, i]));
   const raw: RawAttractionSpan[] = [];
@@ -227,7 +229,9 @@ function buildRawAttractionSpans(
         continue;
       }
 
-      const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + 1;
+      const defaultMinutes = attractionDurations?.[att.attractionId] ?? 60;
+      const defaultHours = Math.max(1, Math.ceil(defaultMinutes / 60));
+      const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + defaultHours;
       const endHour = Math.min(23, Math.max(startHour, rawEndHour - 1));
       raw.push({
         dayIdx, startHour, endHour,
@@ -278,8 +282,9 @@ function buildAttractionBlocks(
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
+  attractionDurations?: Record<string, number>,
 ): PlacedBlock[] {
-  const raw = buildRawAttractionSpans(days, stops, transitBlockOwner, cityNames, attractionNames, ticketRequiredIds);
+  const raw = buildRawAttractionSpans(days, stops, transitBlockOwner, cityNames, attractionNames, ticketRequiredIds, attractionDurations);
   const clusters = clusterOverlappingSpans(raw);
   const blocks: PlacedBlock[] = [];
 
@@ -479,7 +484,7 @@ function buildHospedajeSheet(
 }
 
 export async function buildItinerary(options: ItineraryOptions): Promise<Buffer> {
-  const { trip, cityNames, attractionNames, ticketRequiredIds } = options;
+  const { trip, cityNames, attractionNames, ticketRequiredIds, attractionDurations } = options;
   const { title, stops, transits } = trip;
 
   const days = buildDayRange(stops);
@@ -499,7 +504,10 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
       transitBlockOwner.set(key, block);
     }
   }
-  const attractionBlocks = buildAttractionBlocks(days, stops, transitOccupied, transitBlockOwner, cityNames, attractionNames, ticketRequiredSet);
+  const attractionBlocks = buildAttractionBlocks(
+    days, stops, transitOccupied, transitBlockOwner,
+    cityNames, attractionNames, ticketRequiredSet, attractionDurations,
+  );
   const blockByStartCell = new Map<string, PlacedBlock>();
   const blockCoveredCells = new Set<string>();
   for (const block of attractionBlocks) {

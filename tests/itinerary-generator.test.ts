@@ -309,3 +309,47 @@ describe('buildItinerary — multi-hour attraction blocks', () => {
     expect(String(sheet.getCell(21, 2).value)).toContain('15:00');
   });
 });
+
+describe('buildItinerary — default block duration from attractionDurations', () => {
+  it('uses attractionDurations minutes for the default block when endTime is absent', async () => {
+    const trip = baseTrip();
+    trip.stops[0].selectedAttractions[0] = {
+      attractionId: 'paris_0', startTime: '10:00', endTime: null, date: '01/06/2026',
+    };
+    const buffer = await buildItinerary({
+      trip,
+      attractionDurations: { paris_0: 150 }, // 2h30 → covers 10:00, 11:00, 12:00
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    // 10:00 → row 16 (6 + 10); 150 min → last covered row is 18 (12:00's row)
+    expect(sheet.model.merges).toContain('B16:B18');
+  });
+
+  it('falls back to a flat 1-hour block when attractionDurations has no entry for the attraction', async () => {
+    const buffer = await buildItinerary({
+      trip: baseTrip(), // paris_0, startTime 10:00, endTime null
+      attractionDurations: { paris_1: 180 }, // unrelated id
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    expect(sheet.model.merges.some(m => m.startsWith('B16'))).toBe(false);
+  });
+
+  it('endTime still wins over attractionDurations when both are present', async () => {
+    const trip = baseTrip();
+    trip.stops[0].selectedAttractions[0] = {
+      attractionId: 'paris_0', startTime: '10:00', endTime: '11:00', date: '01/06/2026',
+    };
+    const buffer = await buildItinerary({
+      trip,
+      attractionDurations: { paris_0: 300 }, // would cover through ~15:00 if it won
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    expect(sheet.model.merges.some(m => m.startsWith('B16'))).toBe(false); // 10:00-11:00 → 1 row, no merge
+  });
+});
