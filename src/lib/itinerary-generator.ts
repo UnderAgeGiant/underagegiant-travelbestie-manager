@@ -118,6 +118,12 @@ interface PlacedTransitBlock {
   startHour: number;
   endHour: number; // inclusive
   text: string;
+  // Attractions whose own start hour falls inside this block's span get their
+  // text attached here instead of becoming an independent PlacedBlock — once
+  // ExcelJS merges startHour..endHour into one cell, sheet.getCell() on any
+  // row in that range resolves to the same master cell, so a second
+  // mergeCells()/value write there would silently clobber this block's text.
+  extraLines?: string[];
 }
 
 // Same-day departures/arrivals stay as single-hour point markers (pointMap).
@@ -193,6 +199,7 @@ interface PlacedBlock {
 function buildRawAttractionSpans(
   days: string[],
   stops: TripStop[],
+  transitBlockOwner: Map<string, PlacedTransitBlock>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
@@ -207,14 +214,27 @@ function buildRawAttractionSpans(
       const dayIdx = dayIndex.get(attDay);
       if (dayIdx === undefined || !att.startTime) continue;
       const startHour = Math.max(0, Math.min(23, parseHour(att.startTime)));
+      const name = resolveAttractionName(att.attractionId, cityName, attractionNames);
+      const ticketNeeded = !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased;
+
+      // The attraction's own start hour already sits inside a merged overnight
+      // transit block — there is no independent cell left to place it in, so
+      // attach it to that block's text instead of creating a conflicting block.
+      const owner = transitBlockOwner.get(`${dayIdx}:${startHour}`);
+      if (owner) {
+        owner.extraLines = owner.extraLines ?? [];
+        owner.extraLines.push(`${ticketNeeded ? '🎟️ ' : ''}${att.startTime} ${name}`);
+        continue;
+      }
+
       const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + 1;
       const endHour = Math.min(23, Math.max(startHour, rawEndHour - 1));
       raw.push({
         dayIdx, startHour, endHour,
         startLabel: att.startTime,
         endLabel: att.endTime ?? '',
-        name: resolveAttractionName(att.attractionId, cityName, attractionNames),
-        ticketNeeded: !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased,
+        name,
+        ticketNeeded,
       });
     }
   }
@@ -254,11 +274,12 @@ function buildAttractionBlocks(
   days: string[],
   stops: TripStop[],
   transitOccupied: Set<string>,
+  transitBlockOwner: Map<string, PlacedTransitBlock>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
 ): PlacedBlock[] {
-  const raw = buildRawAttractionSpans(days, stops, cityNames, attractionNames, ticketRequiredIds);
+  const raw = buildRawAttractionSpans(days, stops, transitBlockOwner, cityNames, attractionNames, ticketRequiredIds);
   const clusters = clusterOverlappingSpans(raw);
   const blocks: PlacedBlock[] = [];
 
@@ -468,15 +489,17 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   const transitOccupied = new Set<string>(transitPointMap.keys());
   const transitBlockByStartCell = new Map<string, PlacedTransitBlock>();
   const transitBlockCoveredCells = new Set<string>();
+  const transitBlockOwner = new Map<string, PlacedTransitBlock>();
   for (const block of transitBlocks) {
     transitBlockByStartCell.set(`${block.dayIdx}:${block.startHour}`, block);
     for (let h = block.startHour; h <= block.endHour; h++) {
       const key = `${block.dayIdx}:${h}`;
       transitOccupied.add(key);
       transitBlockCoveredCells.add(key);
+      transitBlockOwner.set(key, block);
     }
   }
-  const attractionBlocks = buildAttractionBlocks(days, stops, transitOccupied, cityNames, attractionNames, ticketRequiredSet);
+  const attractionBlocks = buildAttractionBlocks(days, stops, transitOccupied, transitBlockOwner, cityNames, attractionNames, ticketRequiredSet);
   const blockByStartCell = new Map<string, PlacedBlock>();
   const blockCoveredCells = new Set<string>();
   for (const block of attractionBlocks) {
@@ -564,7 +587,10 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
 
       if (block || transitBlock) {
         const lines = pointActivities.map(a => a.text);
-        if (transitBlock) lines.push(transitBlock.text);
+        if (transitBlock) {
+          lines.push(transitBlock.text);
+          if (transitBlock.extraLines) lines.push(...transitBlock.extraLines);
+        }
         if (block) {
           const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
           lines.push(prefix + block.text);

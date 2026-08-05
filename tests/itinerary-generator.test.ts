@@ -183,6 +183,39 @@ describe('buildItinerary — full 24-hour grid', () => {
     expect(String(sheet.getCell(6, 4).value)).toContain('Llega Tren');
   });
 
+  it('attaches an attraction whose own start hour falls inside an overnight transit block instead of corrupting the merge', async () => {
+    const trip = baseTrip();
+    // Move the fixture's attraction to 16:00 on 01/06/2026, then add an
+    // overnight departure that swallows that same hour on the same day.
+    trip.stops[0].selectedAttractions[0].startTime = '16:00';
+    trip.transits.push({
+      fromCityId: 'paris',
+      toCityId: 'rome',
+      segments: [{
+        mode: 'flight',
+        departureDate: '01/06/2026', departureTime: '14:00',
+        arrivalDate: '02/06/2026', arrivalTime: '03:00',
+        notes: '',
+      }],
+    });
+    const buffer = await buildItinerary({ trip });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+
+    // Departure block on 01/06/2026 (dayIdx 0, col B): 14:00 → 23:00 → rows 20-29.
+    expect(sheet.model.merges).toContain('B20:B29');
+    const masterCell = sheet.getCell(20, 2);
+    expect(String(masterCell.value)).toContain('Sale Vuelo');
+    // The attraction that would have started at 16:00 (inside the merged range)
+    // is folded into the same cell instead of overwriting it.
+    expect(String(masterCell.value)).toContain('16:00');
+    expect(String(masterCell.value)).toContain('Attraction 1');
+
+    // No independent block/merge was created at the attraction's own start hour.
+    expect(sheet.model.merges.some(m => m.startsWith('B22'))).toBe(false);
+  });
+
   it('keeps a same-day transit segment as separate single-hour markers (no merge)', async () => {
     const buffer = await buildItinerary({ trip: baseTrip() });
     const workbook = new ExcelJS.Workbook();
