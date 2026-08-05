@@ -113,17 +113,31 @@ interface TransitActivity {
   text: string;
 }
 
-function buildTransitMap(
+interface PlacedTransitBlock {
+  dayIdx: number;
+  startHour: number;
+  endHour: number; // inclusive
+  text: string;
+}
+
+// Same-day departures/arrivals stay as single-hour point markers (pointMap).
+// A segment whose arrival date is after its departure date is split into one
+// merged block per day it touches: departure hour → 23:00 on the first day,
+// a full 00:00–23:00 block on any day fully in between, and 00:00 → arrival
+// hour on the last day — so an overnight trip reads as one continuous block
+// instead of two disconnected single-hour markers.
+function buildTransitData(
   days: string[],
   transits: TransitLeg[],
   cityNames?: Record<string, string>,
-): Map<string, TransitActivity[]> {
-  const map = new Map<string, TransitActivity[]>();
-  const push = (dayIdx: number, hour: number, activity: TransitActivity) => {
+): { pointMap: Map<string, TransitActivity[]>; blocks: PlacedTransitBlock[] } {
+  const pointMap = new Map<string, TransitActivity[]>();
+  const blocks: PlacedTransitBlock[] = [];
+  const pushPoint = (dayIdx: number, hour: number, activity: TransitActivity) => {
     const key = `${dayIdx}:${hour}`;
-    const list = map.get(key) ?? [];
+    const list = pointMap.get(key) ?? [];
     list.push(activity);
-    map.set(key, list);
+    pointMap.set(key, list);
   };
   const dayIndex = new Map(days.map((d, i) => [d, i]));
 
@@ -132,20 +146,28 @@ function buildTransitMap(
     const toCity = resolveCityName(leg.toCityId, cityNames);
     for (const seg of leg.segments) {
       const modeLabel = MODE_LABELS[seg.mode] ?? seg.mode;
+      const notes = seg.notes ? ` (${seg.notes})` : '';
       const depIdx = dayIndex.get(seg.departureDate);
-      if (depIdx !== undefined) {
-        const hour = Math.max(0, Math.min(23, parseHour(seg.departureTime)));
-        const notes = seg.notes ? ` (${seg.notes})` : '';
-        push(depIdx, hour, { text: `${seg.departureTime} Sale ${modeLabel} → ${toCity}${notes}` });
-      }
       const arrIdx = dayIndex.get(seg.arrivalDate);
-      if (arrIdx !== undefined) {
-        const hour = Math.max(0, Math.min(23, parseHour(seg.arrivalTime)));
-        push(arrIdx, hour, { text: `${seg.arrivalTime} Llega ${modeLabel} desde ${fromCity}` });
+      const depHour = Math.max(0, Math.min(23, parseHour(seg.departureTime)));
+      const arrHour = Math.max(0, Math.min(23, parseHour(seg.arrivalTime)));
+      const departureText = `${seg.departureTime} Sale ${modeLabel} → ${toCity}${notes}`;
+      const arrivalText = `${seg.arrivalTime} Llega ${modeLabel} desde ${fromCity}`;
+
+      if (depIdx !== undefined && arrIdx !== undefined && arrIdx > depIdx) {
+        blocks.push({ dayIdx: depIdx, startHour: depHour, endHour: 23, text: departureText });
+        for (let d = depIdx + 1; d < arrIdx; d++) {
+          blocks.push({ dayIdx: d, startHour: 0, endHour: 23, text: `En tránsito · ${modeLabel}` });
+        }
+        blocks.push({ dayIdx: arrIdx, startHour: 0, endHour: arrHour, text: arrivalText });
+        continue;
       }
+
+      if (depIdx !== undefined) pushPoint(depIdx, depHour, { text: departureText });
+      if (arrIdx !== undefined) pushPoint(arrIdx, arrHour, { text: arrivalText });
     }
   }
-  return map;
+  return { pointMap, blocks };
 }
 
 interface RawAttractionSpan {
@@ -231,7 +253,7 @@ function clusterOverlappingSpans(spans: RawAttractionSpan[]): RawAttractionSpan[
 function buildAttractionBlocks(
   days: string[],
   stops: TripStop[],
-  transitMap: Map<string, TransitActivity[]>,
+  transitOccupied: Set<string>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
@@ -246,7 +268,7 @@ function buildAttractionBlocks(
       // Shrink the merge range so it never overwrites an hour a transit event occupies.
       let endHour = span.startHour;
       for (let h = span.startHour + 1; h <= span.endHour; h++) {
-        if (transitMap.has(`${span.dayIdx}:${h}`)) break;
+        if (transitOccupied.has(`${span.dayIdx}:${h}`)) break;
         endHour = h;
       }
       blocks.push({
@@ -442,8 +464,19 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   const days = buildDayRange(stops);
   const totalCols = days.length + 1;
   const ticketRequiredSet = ticketRequiredIds ? new Set(ticketRequiredIds) : undefined;
-  const transitMap = buildTransitMap(days, transits, cityNames);
-  const attractionBlocks = buildAttractionBlocks(days, stops, transitMap, cityNames, attractionNames, ticketRequiredSet);
+  const { pointMap: transitPointMap, blocks: transitBlocks } = buildTransitData(days, transits, cityNames);
+  const transitOccupied = new Set<string>(transitPointMap.keys());
+  const transitBlockByStartCell = new Map<string, PlacedTransitBlock>();
+  const transitBlockCoveredCells = new Set<string>();
+  for (const block of transitBlocks) {
+    transitBlockByStartCell.set(`${block.dayIdx}:${block.startHour}`, block);
+    for (let h = block.startHour; h <= block.endHour; h++) {
+      const key = `${block.dayIdx}:${h}`;
+      transitOccupied.add(key);
+      transitBlockCoveredCells.add(key);
+    }
+  }
+  const attractionBlocks = buildAttractionBlocks(days, stops, transitOccupied, cityNames, attractionNames, ticketRequiredSet);
   const blockByStartCell = new Map<string, PlacedBlock>();
   const blockCoveredCells = new Set<string>();
   for (const block of attractionBlocks) {
@@ -526,31 +559,42 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
       const col = dayIdx + 2;
       const cell = sheet.getCell(rowNum, col);
       const block = blockByStartCell.get(key);
-      const transitActivities = transitMap.get(key) ?? [];
+      const transitBlock = transitBlockByStartCell.get(key);
+      const pointActivities = transitPointMap.get(key) ?? [];
 
-      if (block) {
-        const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
-        const parts = [...transitActivities.map(a => a.text), prefix + block.text];
-        cell.value = parts.join('\n');
-        if (block.comment) cell.note = block.comment;
-        if (block.kind === 'solo' && block.endHour > block.startHour) {
-          sheet.mergeCells(rowNum, col, rowNum + (block.endHour - block.startHour), col);
+      if (block || transitBlock) {
+        const lines = pointActivities.map(a => a.text);
+        if (transitBlock) lines.push(transitBlock.text);
+        if (block) {
+          const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
+          lines.push(prefix + block.text);
         }
+        cell.value = lines.join('\n');
+        if (block?.comment) cell.note = block.comment;
+
+        const mergeEndOffset = Math.max(
+          block?.kind === 'solo' ? block.endHour - block.startHour : 0,
+          transitBlock ? transitBlock.endHour - transitBlock.startHour : 0,
+        );
+        if (mergeEndOffset > 0) {
+          sheet.mergeCells(rowNum, col, rowNum + mergeEndOffset, col);
+        }
+
         const style =
-          transitActivities.length ? 'transit' :
-          block.kind === 'conflict' ? 'conflict' :
-          block.ticketNeeded ? 'ticket' : 'attraction';
+          pointActivities.length || transitBlock ? 'transit' :
+          block?.kind === 'conflict' ? 'conflict' :
+          block?.ticketNeeded ? 'ticket' : 'attraction';
         applyActivityStyle(cell, style);
         return;
       }
-      if (blockCoveredCells.has(key)) {
-        return; // continuation row of a merged solo attraction block above
+      if (blockCoveredCells.has(key) || transitBlockCoveredCells.has(key)) {
+        return; // continuation row of a merged block above
       }
 
-      if (transitActivities.length === 0) {
+      if (pointActivities.length === 0) {
         applyActivityStyle(cell, 'empty');
       } else {
-        cell.value = transitActivities.map(a => a.text).join('\n');
+        cell.value = pointActivities.map(a => a.text).join('\n');
         applyActivityStyle(cell, 'transit');
       }
     });

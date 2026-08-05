@@ -157,15 +157,15 @@ describe('buildItinerary — full 24-hour grid', () => {
     expect(sheet.getCell(29, 1).value).toBe('23:00');
   });
 
-  it('places a transit arrival that crosses midnight in the correct day column and hour', async () => {
+  it('splits a transit segment that crosses midnight into two merged blocks — departure-to-midnight and midnight-to-arrival', async () => {
     const trip = baseTrip();
     trip.transits.push({
       fromCityId: 'paris',
       toCityId: 'rome',
       segments: [{
         mode: 'train',
-        departureDate: '02/06/2026', departureTime: '23:30',
-        arrivalDate: '03/06/2026', arrivalTime: '01:15',
+        departureDate: '02/06/2026', departureTime: '20:00',
+        arrivalDate: '03/06/2026', arrivalTime: '02:00',
         notes: '',
       }],
     });
@@ -173,9 +173,25 @@ describe('buildItinerary — full 24-hour grid', () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
     const sheet = workbook.getWorksheet('Itinerario')!;
-    // 03/06/2026 is day index 2 → column 4 (dayIdx + 2); 01:15 → hour 1 → row 7
-    const cell = sheet.getCell(7, 4);
-    expect(String(cell.value)).toContain('Llega Tren');
+
+    // 02/06/2026 is day index 1 → column 3; 20:00 → row 26 (6 + 20); merges to row 29 (23:00)
+    expect(sheet.model.merges).toContain('C26:C29');
+    expect(String(sheet.getCell(26, 3).value)).toContain('Sale Tren');
+
+    // 03/06/2026 is day index 2 → column 4; block starts at 00:00 → row 6, merges to row 8 (02:00)
+    expect(sheet.model.merges).toContain('D6:D8');
+    expect(String(sheet.getCell(6, 4).value)).toContain('Llega Tren');
+  });
+
+  it('keeps a same-day transit segment as separate single-hour markers (no merge)', async () => {
+    const buffer = await buildItinerary({ trip: baseTrip() });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    // london → paris, same day, 07:00–09:30 → rows 13 and 15, column 2 (dayIdx 0)
+    expect(sheet.model.merges.some(m => m.startsWith('B13') || m.startsWith('B15'))).toBe(false);
+    expect(String(sheet.getCell(13, 2).value)).toContain('Sale Vuelo');
+    expect(String(sheet.getCell(15, 2).value)).toContain('Llega Vuelo');
   });
 });
 
