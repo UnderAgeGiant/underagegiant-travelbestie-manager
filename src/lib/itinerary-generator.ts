@@ -79,6 +79,14 @@ function parseHour(hm: string): number {
   return parseInt(hm.split(':')[0], 10);
 }
 
+function addMinutesToTime(hm: string, minutes: number): string {
+  const [h, m] = hm.split(':').map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 function addDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * 86400000);
 }
@@ -112,6 +120,9 @@ function cityForDay(day: string, stops: TripStop[], cityNames?: Record<string, s
 
 interface TransitActivity {
   text: string;
+  startLabel: string;   // HH:mm departure time of the segment this point belongs to
+  endLabel: string;     // HH:mm arrival time of the segment this point belongs to
+  name: string;         // e.g. "Vuelo Londres → París", used in collision comments
 }
 
 interface PlacedTransitBlock {
@@ -160,6 +171,7 @@ function buildTransitData(
       const arrHour = Math.max(0, Math.min(23, parseHour(seg.arrivalTime)));
       const departureText = `${seg.departureTime} Sale ${modeLabel} → ${toCity}${notes}`;
       const arrivalText = `${seg.arrivalTime} Llega ${modeLabel} desde ${fromCity}`;
+      const segmentName = `${modeLabel} ${fromCity} → ${toCity}`;
 
       if (depIdx !== undefined && arrIdx !== undefined && arrIdx > depIdx) {
         blocks.push({ dayIdx: depIdx, startHour: depHour, endHour: 23, text: departureText });
@@ -170,8 +182,16 @@ function buildTransitData(
         continue;
       }
 
-      if (depIdx !== undefined) pushPoint(depIdx, depHour, { text: departureText });
-      if (arrIdx !== undefined) pushPoint(arrIdx, arrHour, { text: arrivalText });
+      if (depIdx !== undefined) {
+        pushPoint(depIdx, depHour, {
+          text: departureText, startLabel: seg.departureTime, endLabel: seg.arrivalTime, name: segmentName,
+        });
+      }
+      if (arrIdx !== undefined) {
+        pushPoint(arrIdx, arrHour, {
+          text: arrivalText, startLabel: seg.departureTime, endLabel: seg.arrivalTime, name: segmentName,
+        });
+      }
     }
   }
   return { pointMap, blocks };
@@ -182,7 +202,7 @@ interface RawAttractionSpan {
   startHour: number;
   endHour: number;      // inclusive, before any transit-shrink
   startLabel: string;   // HH:mm
-  endLabel: string;     // HH:mm, '' when the attraction has no explicit endTime
+  endLabel: string;     // HH:mm — explicit endTime, or startTime + the estimated visit duration
   name: string;
   ticketNeeded?: boolean;
 }
@@ -233,10 +253,13 @@ function buildRawAttractionSpans(
       const defaultHours = Math.max(1, Math.ceil(defaultMinutes / 60));
       const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + defaultHours;
       const endHour = Math.min(23, Math.max(startHour, rawEndHour - 1));
+      // No explicit endTime — fall back to the curated visit-duration estimate
+      // so the collision comment still shows a real end time instead of none.
+      const endLabel = att.endTime ?? addMinutesToTime(att.startTime, defaultMinutes);
       raw.push({
         dayIdx, startHour, endHour,
         startLabel: att.startTime,
-        endLabel: att.endTime ?? '',
+        endLabel,
         name,
         ticketNeeded,
       });
@@ -279,6 +302,7 @@ function buildAttractionBlocks(
   stops: TripStop[],
   transitOccupied: Set<string>,
   transitBlockOwner: Map<string, PlacedTransitBlock>,
+  transitPointMap: Map<string, TransitActivity[]>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
@@ -305,9 +329,15 @@ function buildAttractionBlocks(
       });
     } else {
       const minStartHour = Math.min(...cluster.map(s => s.startHour));
-      const comment = cluster
-        .map(s => `${s.startLabel}${s.endLabel ? '–' + s.endLabel : ''} ${s.name}`)
-        .join('\n');
+      // The warning cell also stacks any transit point (flight/train/etc.)
+      // landing on this exact hour — list its full departure–arrival range
+      // in the comment too, not just the attractions, so the tooltip
+      // explains every item actually shown in the cell.
+      const collidingPoints = transitPointMap.get(`${cluster[0].dayIdx}:${minStartHour}`) ?? [];
+      const comment = [
+        ...cluster.map(s => `${s.startLabel}${s.endLabel ? '–' + s.endLabel : ''} ${s.name}`),
+        ...collidingPoints.map(p => `${p.startLabel}–${p.endLabel} ${p.name}`),
+      ].join('\n');
       blocks.push({
         dayIdx: cluster[0].dayIdx, startHour: minStartHour, endHour: minStartHour,
         kind: 'conflict',
@@ -511,7 +541,7 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
     }
   }
   const attractionBlocks = buildAttractionBlocks(
-    days, stops, transitOccupied, transitBlockOwner,
+    days, stops, transitOccupied, transitBlockOwner, transitPointMap,
     cityNames, attractionNames, ticketRequiredSet, attractionDurations,
   );
   const blockByStartCell = new Map<string, PlacedBlock>();

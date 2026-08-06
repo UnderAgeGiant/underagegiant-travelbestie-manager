@@ -327,6 +327,55 @@ describe('buildItinerary — multi-hour attraction blocks', () => {
     expect(sheet.getCell(17, 2).value).toBeNull();
   });
 
+  it('includes a colliding flight\'s full departure–arrival range in the conflict comment', async () => {
+    const trip = baseTrip();
+    trip.stops[0].selectedAttractions = [
+      { attractionId: 'paris_0', startTime: '10:00', endTime: '13:00', date: '01/06/2026' },
+      { attractionId: 'paris_1', startTime: '11:00', endTime: '12:00', date: '01/06/2026' },
+    ];
+    // A same-day flight departing exactly at the conflict cell's start hour
+    // stacks its text into that cell — the comment should explain it too.
+    trip.transits.push({
+      fromCityId: 'london',
+      toCityId: 'paris',
+      segments: [{
+        mode: 'flight',
+        departureDate: '01/06/2026', departureTime: '10:00',
+        arrivalDate: '01/06/2026', arrivalTime: '10:45',
+        notes: '',
+      }],
+    });
+    const buffer = await buildItinerary({ trip });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    const cell = sheet.getCell(16, 2); // earliest start (10:00) → row 16
+    expect(String(cell.value)).toContain('⚠️');
+    expect(String(cell.note)).toContain('10:00–13:00');
+    expect(String(cell.note)).toContain('11:00–12:00');
+    expect(String(cell.note)).toContain('10:00–10:45');
+    expect(String(cell.note)).toContain('Vuelo');
+  });
+
+  it('uses the estimated visit duration as the end time in the conflict comment when endTime is absent', async () => {
+    const trip = baseTrip();
+    trip.stops[0].selectedAttractions = [
+      { attractionId: 'paris_0', startTime: '10:00', endTime: null, date: '01/06/2026' },
+      { attractionId: 'paris_1', startTime: '10:30', endTime: '11:30', date: '01/06/2026' },
+    ];
+    const buffer = await buildItinerary({
+      trip,
+      attractionDurations: { paris_0: 90 }, // no endTime → falls back to 10:00 + 90min = 11:30
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    const cell = sheet.getCell(16, 2); // earliest start (10:00) → row 16
+    expect(String(cell.value)).toContain('⚠️');
+    expect(String(cell.note)).toContain('10:00–11:30');
+    expect(String(cell.note)).toContain('10:30–11:30');
+  });
+
   it('does not flag two attractions that only share an hour with no real overlap in a 3-way cluster edge case', async () => {
     // Sanity check: a lone attraction next to (not overlapping) a conflict
     // cluster on the same day still renders as its own normal solo block.
