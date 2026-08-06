@@ -7,6 +7,7 @@ export interface ItineraryOptions {
   cityNames?: Record<string, string>;
   attractionNames?: Record<string, string>;
   ticketRequiredIds?: string[];
+  attractionDurations?: Record<string, number>; // attractionId → estimatedMinutes, from the curated catalog (backend has no access to it)
 }
 
 // Brand palette — derived from frontend styles.css (oklch tokens) and favicon.svg
@@ -78,6 +79,14 @@ function parseHour(hm: string): number {
   return parseInt(hm.split(':')[0], 10);
 }
 
+function addMinutesToTime(hm: string, minutes: number): string {
+  const [h, m] = hm.split(':').map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 function addDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * 86400000);
 }
@@ -111,19 +120,42 @@ function cityForDay(day: string, stops: TripStop[], cityNames?: Record<string, s
 
 interface TransitActivity {
   text: string;
+  startLabel: string;   // HH:mm departure time of the segment this point belongs to
+  endLabel: string;     // HH:mm arrival time of the segment this point belongs to
+  name: string;         // e.g. "Vuelo Londres → París", used in collision comments
 }
 
-function buildTransitMap(
+interface PlacedTransitBlock {
+  dayIdx: number;
+  startHour: number;
+  endHour: number; // inclusive
+  text: string;
+  // Attractions whose own start hour falls inside this block's span get their
+  // text attached here instead of becoming an independent PlacedBlock — once
+  // ExcelJS merges startHour..endHour into one cell, sheet.getCell() on any
+  // row in that range resolves to the same master cell, so a second
+  // mergeCells()/value write there would silently clobber this block's text.
+  extraLines?: string[];
+}
+
+// Same-day departures/arrivals stay as single-hour point markers (pointMap).
+// A segment whose arrival date is after its departure date is split into one
+// merged block per day it touches: departure hour → 23:00 on the first day,
+// a full 00:00–23:00 block on any day fully in between, and 00:00 → arrival
+// hour on the last day — so an overnight trip reads as one continuous block
+// instead of two disconnected single-hour markers.
+function buildTransitData(
   days: string[],
   transits: TransitLeg[],
   cityNames?: Record<string, string>,
-): Map<string, TransitActivity[]> {
-  const map = new Map<string, TransitActivity[]>();
-  const push = (dayIdx: number, hour: number, activity: TransitActivity) => {
+): { pointMap: Map<string, TransitActivity[]>; blocks: PlacedTransitBlock[] } {
+  const pointMap = new Map<string, TransitActivity[]>();
+  const blocks: PlacedTransitBlock[] = [];
+  const pushPoint = (dayIdx: number, hour: number, activity: TransitActivity) => {
     const key = `${dayIdx}:${hour}`;
-    const list = map.get(key) ?? [];
+    const list = pointMap.get(key) ?? [];
     list.push(activity);
-    map.set(key, list);
+    pointMap.set(key, list);
   };
   const dayIndex = new Map(days.map((d, i) => [d, i]));
 
@@ -132,20 +164,37 @@ function buildTransitMap(
     const toCity = resolveCityName(leg.toCityId, cityNames);
     for (const seg of leg.segments) {
       const modeLabel = MODE_LABELS[seg.mode] ?? seg.mode;
+      const notes = seg.notes ? ` (${seg.notes})` : '';
       const depIdx = dayIndex.get(seg.departureDate);
-      if (depIdx !== undefined) {
-        const hour = Math.max(0, Math.min(23, parseHour(seg.departureTime)));
-        const notes = seg.notes ? ` (${seg.notes})` : '';
-        push(depIdx, hour, { text: `${seg.departureTime} Sale ${modeLabel} → ${toCity}${notes}` });
-      }
       const arrIdx = dayIndex.get(seg.arrivalDate);
+      const depHour = Math.max(0, Math.min(23, parseHour(seg.departureTime)));
+      const arrHour = Math.max(0, Math.min(23, parseHour(seg.arrivalTime)));
+      const departureText = `${seg.departureTime} Sale ${modeLabel} → ${toCity}${notes}`;
+      const arrivalText = `${seg.arrivalTime} Llega ${modeLabel} desde ${fromCity}`;
+      const segmentName = `${modeLabel} ${fromCity} → ${toCity}`;
+
+      if (depIdx !== undefined && arrIdx !== undefined && arrIdx > depIdx) {
+        blocks.push({ dayIdx: depIdx, startHour: depHour, endHour: 23, text: departureText });
+        for (let d = depIdx + 1; d < arrIdx; d++) {
+          blocks.push({ dayIdx: d, startHour: 0, endHour: 23, text: `En tránsito · ${modeLabel}` });
+        }
+        blocks.push({ dayIdx: arrIdx, startHour: 0, endHour: arrHour, text: arrivalText });
+        continue;
+      }
+
+      if (depIdx !== undefined) {
+        pushPoint(depIdx, depHour, {
+          text: departureText, startLabel: seg.departureTime, endLabel: seg.arrivalTime, name: segmentName,
+        });
+      }
       if (arrIdx !== undefined) {
-        const hour = Math.max(0, Math.min(23, parseHour(seg.arrivalTime)));
-        push(arrIdx, hour, { text: `${seg.arrivalTime} Llega ${modeLabel} desde ${fromCity}` });
+        pushPoint(arrIdx, arrHour, {
+          text: arrivalText, startLabel: seg.departureTime, endLabel: seg.arrivalTime, name: segmentName,
+        });
       }
     }
   }
-  return map;
+  return { pointMap, blocks };
 }
 
 interface RawAttractionSpan {
@@ -153,7 +202,7 @@ interface RawAttractionSpan {
   startHour: number;
   endHour: number;      // inclusive, before any transit-shrink
   startLabel: string;   // HH:mm
-  endLabel: string;     // HH:mm, '' when the attraction has no explicit endTime
+  endLabel: string;     // HH:mm — explicit endTime, or startTime + the estimated visit duration
   name: string;
   ticketNeeded?: boolean;
 }
@@ -171,9 +220,11 @@ interface PlacedBlock {
 function buildRawAttractionSpans(
   days: string[],
   stops: TripStop[],
+  transitBlockOwner: Map<string, PlacedTransitBlock>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
+  attractionDurations?: Record<string, number>,
 ): RawAttractionSpan[] {
   const dayIndex = new Map(days.map((d, i) => [d, i]));
   const raw: RawAttractionSpan[] = [];
@@ -185,14 +236,32 @@ function buildRawAttractionSpans(
       const dayIdx = dayIndex.get(attDay);
       if (dayIdx === undefined || !att.startTime) continue;
       const startHour = Math.max(0, Math.min(23, parseHour(att.startTime)));
-      const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + 1;
+      const name = resolveAttractionName(att.attractionId, cityName, attractionNames);
+      const ticketNeeded = !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased;
+
+      // The attraction's own start hour already sits inside a merged overnight
+      // transit block — there is no independent cell left to place it in, so
+      // attach it to that block's text instead of creating a conflicting block.
+      const owner = transitBlockOwner.get(`${dayIdx}:${startHour}`);
+      if (owner) {
+        owner.extraLines = owner.extraLines ?? [];
+        owner.extraLines.push(`${ticketNeeded ? '🎟️ ' : ''}${att.startTime} ${name}`);
+        continue;
+      }
+
+      const defaultMinutes = attractionDurations?.[att.attractionId] ?? 60;
+      const defaultHours = Math.max(1, Math.ceil(defaultMinutes / 60));
+      const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + defaultHours;
       const endHour = Math.min(23, Math.max(startHour, rawEndHour - 1));
+      // No explicit endTime — fall back to the curated visit-duration estimate
+      // so the collision comment still shows a real end time instead of none.
+      const endLabel = att.endTime ?? addMinutesToTime(att.startTime, defaultMinutes);
       raw.push({
         dayIdx, startHour, endHour,
         startLabel: att.startTime,
-        endLabel: att.endTime ?? '',
-        name: resolveAttractionName(att.attractionId, cityName, attractionNames),
-        ticketNeeded: !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased,
+        endLabel,
+        name,
+        ticketNeeded,
       });
     }
   }
@@ -231,12 +300,15 @@ function clusterOverlappingSpans(spans: RawAttractionSpan[]): RawAttractionSpan[
 function buildAttractionBlocks(
   days: string[],
   stops: TripStop[],
-  transitMap: Map<string, TransitActivity[]>,
+  transitOccupied: Set<string>,
+  transitBlockOwner: Map<string, PlacedTransitBlock>,
+  transitPointMap: Map<string, TransitActivity[]>,
   cityNames?: Record<string, string>,
   attractionNames?: Record<string, string>,
   ticketRequiredIds?: Set<string>,
+  attractionDurations?: Record<string, number>,
 ): PlacedBlock[] {
-  const raw = buildRawAttractionSpans(days, stops, cityNames, attractionNames, ticketRequiredIds);
+  const raw = buildRawAttractionSpans(days, stops, transitBlockOwner, cityNames, attractionNames, ticketRequiredIds, attractionDurations);
   const clusters = clusterOverlappingSpans(raw);
   const blocks: PlacedBlock[] = [];
 
@@ -246,7 +318,7 @@ function buildAttractionBlocks(
       // Shrink the merge range so it never overwrites an hour a transit event occupies.
       let endHour = span.startHour;
       for (let h = span.startHour + 1; h <= span.endHour; h++) {
-        if (transitMap.has(`${span.dayIdx}:${h}`)) break;
+        if (transitOccupied.has(`${span.dayIdx}:${h}`)) break;
         endHour = h;
       }
       blocks.push({
@@ -257,9 +329,15 @@ function buildAttractionBlocks(
       });
     } else {
       const minStartHour = Math.min(...cluster.map(s => s.startHour));
-      const comment = cluster
-        .map(s => `${s.startLabel}${s.endLabel ? '–' + s.endLabel : ''} ${s.name}`)
-        .join('\n');
+      // The warning cell also stacks any transit point (flight/train/etc.)
+      // landing on this exact hour — list its full departure–arrival range
+      // in the comment too, not just the attractions, so the tooltip
+      // explains every item actually shown in the cell.
+      const collidingPoints = transitPointMap.get(`${cluster[0].dayIdx}:${minStartHour}`) ?? [];
+      const comment = [
+        ...cluster.map(s => `${s.startLabel}${s.endLabel ? '–' + s.endLabel : ''} ${s.name}`),
+        ...collidingPoints.map(p => `${p.startLabel}–${p.endLabel} ${p.name}`),
+      ].join('\n');
       blocks.push({
         dayIdx: cluster[0].dayIdx, startHour: minStartHour, endHour: minStartHour,
         kind: 'conflict',
@@ -345,6 +423,10 @@ function applyLinkCellStyle(cell: ExcelJS.Cell): void {
   cell.border = border();
 }
 
+function googleMapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function buildTransporteSheet(
   workbook: ExcelJS.Workbook,
   trip: Trip,
@@ -377,8 +459,11 @@ function buildTransporteSheet(
       row.getCell(5).value = formatDuration(computeSegmentMinutes(seg));
       row.getCell(6).value = MODE_LABELS[seg.mode] ?? seg.mode;
       row.getCell(7).value = seg.carrier ?? '';
-      if (seg.locationUrl) {
-        row.getCell(8).value = { text: 'Ver mapa', hyperlink: seg.locationUrl };
+      if (seg.locationUrl || seg.carrier) {
+        row.getCell(8).value = {
+          text: seg.carrier ?? 'Ver mapa',
+          hyperlink: seg.locationUrl ?? googleMapsSearchUrl(seg.carrier!),
+        };
         applyLinkCellStyle(row.getCell(8));
       } else {
         applyDataCellStyle(row.getCell(8));
@@ -418,12 +503,11 @@ function buildHospedajeSheet(
     row.getCell(4).value = stop.lodging.name;
     row.getCell(5).value = nightsBetween(stop.checkIn, stop.checkOut);
     row.getCell(6).value = stop.lodging.address ?? '';
-    if (stop.lodging.url) {
-      row.getCell(7).value = { text: 'Ver mapa', hyperlink: stop.lodging.url };
-      applyLinkCellStyle(row.getCell(7));
-    } else {
-      applyDataCellStyle(row.getCell(7));
-    }
+    row.getCell(7).value = {
+      text: stop.lodging.name,
+      hyperlink: stop.lodging.url || googleMapsSearchUrl(stop.lodging.name),
+    };
+    applyLinkCellStyle(row.getCell(7));
     row.getCell(8).value = stop.lodging.notes ?? '';
     applyDataCellStyle(row.getCell(1));
     applyDataCellStyle(row.getCell(2));
@@ -436,14 +520,30 @@ function buildHospedajeSheet(
 }
 
 export async function buildItinerary(options: ItineraryOptions): Promise<Buffer> {
-  const { trip, cityNames, attractionNames, ticketRequiredIds } = options;
+  const { trip, cityNames, attractionNames, ticketRequiredIds, attractionDurations } = options;
   const { title, stops, transits } = trip;
 
   const days = buildDayRange(stops);
   const totalCols = days.length + 1;
   const ticketRequiredSet = ticketRequiredIds ? new Set(ticketRequiredIds) : undefined;
-  const transitMap = buildTransitMap(days, transits, cityNames);
-  const attractionBlocks = buildAttractionBlocks(days, stops, transitMap, cityNames, attractionNames, ticketRequiredSet);
+  const { pointMap: transitPointMap, blocks: transitBlocks } = buildTransitData(days, transits, cityNames);
+  const transitOccupied = new Set<string>(transitPointMap.keys());
+  const transitBlockByStartCell = new Map<string, PlacedTransitBlock>();
+  const transitBlockCoveredCells = new Set<string>();
+  const transitBlockOwner = new Map<string, PlacedTransitBlock>();
+  for (const block of transitBlocks) {
+    transitBlockByStartCell.set(`${block.dayIdx}:${block.startHour}`, block);
+    for (let h = block.startHour; h <= block.endHour; h++) {
+      const key = `${block.dayIdx}:${h}`;
+      transitOccupied.add(key);
+      transitBlockCoveredCells.add(key);
+      transitBlockOwner.set(key, block);
+    }
+  }
+  const attractionBlocks = buildAttractionBlocks(
+    days, stops, transitOccupied, transitBlockOwner, transitPointMap,
+    cityNames, attractionNames, ticketRequiredSet, attractionDurations,
+  );
   const blockByStartCell = new Map<string, PlacedBlock>();
   const blockCoveredCells = new Set<string>();
   for (const block of attractionBlocks) {
@@ -526,31 +626,45 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
       const col = dayIdx + 2;
       const cell = sheet.getCell(rowNum, col);
       const block = blockByStartCell.get(key);
-      const transitActivities = transitMap.get(key) ?? [];
+      const transitBlock = transitBlockByStartCell.get(key);
+      const pointActivities = transitPointMap.get(key) ?? [];
 
-      if (block) {
-        const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
-        const parts = [...transitActivities.map(a => a.text), prefix + block.text];
-        cell.value = parts.join('\n');
-        if (block.comment) cell.note = block.comment;
-        if (block.kind === 'solo' && block.endHour > block.startHour) {
-          sheet.mergeCells(rowNum, col, rowNum + (block.endHour - block.startHour), col);
+      if (block || transitBlock) {
+        const lines = pointActivities.map(a => a.text);
+        if (transitBlock) {
+          lines.push(transitBlock.text);
+          if (transitBlock.extraLines) lines.push(...transitBlock.extraLines);
         }
+        if (block) {
+          const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
+          lines.push(prefix + block.text);
+        }
+        cell.value = lines.join('\n');
+        if (block?.comment) cell.note = block.comment;
+
+        const mergeEndOffset = Math.max(
+          block?.kind === 'solo' ? block.endHour - block.startHour : 0,
+          transitBlock ? transitBlock.endHour - transitBlock.startHour : 0,
+        );
+        if (mergeEndOffset > 0) {
+          sheet.mergeCells(rowNum, col, rowNum + mergeEndOffset, col);
+        }
+
         const style =
-          transitActivities.length ? 'transit' :
-          block.kind === 'conflict' ? 'conflict' :
-          block.ticketNeeded ? 'ticket' : 'attraction';
+          pointActivities.length || transitBlock ? 'transit' :
+          block?.kind === 'conflict' ? 'conflict' :
+          block?.ticketNeeded ? 'ticket' : 'attraction';
         applyActivityStyle(cell, style);
         return;
       }
-      if (blockCoveredCells.has(key)) {
-        return; // continuation row of a merged solo attraction block above
+      if (blockCoveredCells.has(key) || transitBlockCoveredCells.has(key)) {
+        return; // continuation row of a merged block above
       }
 
-      if (transitActivities.length === 0) {
+      if (pointActivities.length === 0) {
         applyActivityStyle(cell, 'empty');
       } else {
-        cell.value = transitActivities.map(a => a.text).join('\n');
+        cell.value = pointActivities.map(a => a.text).join('\n');
         applyActivityStyle(cell, 'transit');
       }
     });
