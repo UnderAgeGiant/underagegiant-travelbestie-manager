@@ -393,6 +393,10 @@ function applyLinkCellStyle(cell: ExcelJS.Cell): void {
   cell.border = border();
 }
 
+function googleMapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function buildTransporteSheet(
   workbook: ExcelJS.Workbook,
   trip: Trip,
@@ -425,8 +429,11 @@ function buildTransporteSheet(
       row.getCell(5).value = formatDuration(computeSegmentMinutes(seg));
       row.getCell(6).value = MODE_LABELS[seg.mode] ?? seg.mode;
       row.getCell(7).value = seg.carrier ?? '';
-      if (seg.locationUrl) {
-        row.getCell(8).value = { text: 'Ver mapa', hyperlink: seg.locationUrl };
+      if (seg.locationUrl || seg.carrier) {
+        row.getCell(8).value = {
+          text: seg.carrier ?? 'Ver mapa',
+          hyperlink: seg.locationUrl ?? googleMapsSearchUrl(seg.carrier!),
+        };
         applyLinkCellStyle(row.getCell(8));
       } else {
         applyDataCellStyle(row.getCell(8));
@@ -466,12 +473,11 @@ function buildHospedajeSheet(
     row.getCell(4).value = stop.lodging.name;
     row.getCell(5).value = nightsBetween(stop.checkIn, stop.checkOut);
     row.getCell(6).value = stop.lodging.address ?? '';
-    if (stop.lodging.url) {
-      row.getCell(7).value = { text: 'Ver mapa', hyperlink: stop.lodging.url };
-      applyLinkCellStyle(row.getCell(7));
-    } else {
-      applyDataCellStyle(row.getCell(7));
-    }
+    row.getCell(7).value = {
+      text: stop.lodging.name,
+      hyperlink: stop.lodging.url || googleMapsSearchUrl(stop.lodging.name),
+    };
+    applyLinkCellStyle(row.getCell(7));
     row.getCell(8).value = stop.lodging.notes ?? '';
     applyDataCellStyle(row.getCell(1));
     applyDataCellStyle(row.getCell(2));

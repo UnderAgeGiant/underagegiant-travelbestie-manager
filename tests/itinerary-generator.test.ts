@@ -67,7 +67,30 @@ describe('buildItinerary — multi-sheet workbook', () => {
     expect(dataRow.getCell(7).value).toBe('Latam');
     const locationCell = dataRow.getCell(8).value as { text: string; hyperlink: string };
     expect(locationCell.hyperlink).toBe('https://maps.app.goo.gl/airport');
-    expect(locationCell.text).toBe('Ver mapa');
+    expect(locationCell.text).toBe('Latam');
+  });
+
+  it('Transporte falls back to a Google Maps search link built from the carrier name when locationUrl is absent', async () => {
+    const trip = baseTrip();
+    trip.transits[0].segments[0].locationUrl = undefined;
+    const buffer = await buildItinerary({ trip });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Transporte')!;
+    const locationCell = sheet.getRow(2).getCell(8).value as { text: string; hyperlink: string };
+    expect(locationCell.text).toBe('Latam');
+    expect(locationCell.hyperlink).toBe('https://www.google.com/maps/search/?api=1&query=Latam');
+  });
+
+  it('Transporte leaves Ubicación blank when neither locationUrl nor carrier is set', async () => {
+    const trip = baseTrip();
+    trip.transits[0].segments[0].locationUrl = undefined;
+    trip.transits[0].segments[0].carrier = undefined;
+    const buffer = await buildItinerary({ trip });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Transporte')!;
+    expect(sheet.getRow(2).getCell(8).value).toBeNull();
   });
 
   it('Hospedaje sheet has the expected header and one row per stop with lodging', async () => {
@@ -91,7 +114,20 @@ describe('buildItinerary — multi-sheet workbook', () => {
     expect(dataRow.getCell(6).value).toBe('12 Rue de Rivoli');
     const locationCell = dataRow.getCell(7).value as { text: string; hyperlink: string };
     expect(locationCell.hyperlink).toBe('https://maps.app.goo.gl/hotel');
+    expect(locationCell.text).toBe('Hotel Rive Gauche');
     expect(dataRow.getCell(8).value).toBe('Desayuno incluido');
+  });
+
+  it('Hospedaje falls back to a Google Maps search link built from the lodging name when url is absent', async () => {
+    const trip = baseTrip();
+    trip.stops[0].lodging!.url = '';
+    const buffer = await buildItinerary({ trip });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Hospedaje')!;
+    const locationCell = sheet.getRow(2).getCell(7).value as { text: string; hyperlink: string };
+    expect(locationCell.text).toBe('Hotel Rive Gauche');
+    expect(locationCell.hyperlink).toBe('https://www.google.com/maps/search/?api=1&query=Hotel%20Rive%20Gauche');
   });
 
   it('Hospedaje sheet has no data rows when no stop has lodging', async () => {
