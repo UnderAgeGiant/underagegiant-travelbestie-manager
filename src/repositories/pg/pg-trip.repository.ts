@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging } from '../../types';
 
 // dd/mm/yyyy → yyyy-mm-dd
 function toISO(dmy: string): string {
@@ -225,17 +225,17 @@ async function insertStops(client: PoolClient, tripId: string, stops: TripStop[]
     );
     if (s.lodging) {
       await client.query(
-        `INSERT INTO stop_lodgings (stop_id, name, url) VALUES ($1, $2, $3)`,
-        [row.stop_id, s.lodging.name, s.lodging.url ?? ''],
+        `INSERT INTO stop_lodgings (stop_id, name, url, address, notes) VALUES ($1, $2, $3, $4, $5)`,
+        [row.stop_id, s.lodging.name, s.lodging.url ?? '', s.lodging.address ?? null, s.lodging.notes ?? null],
       );
     }
     for (let j = 0; j < s.selectedAttractions.length; j++) {
       const a = s.selectedAttractions[j];
       await client.query(
-        `INSERT INTO planned_attractions (stop_id, attraction_id, start_time, end_time, date, category, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO planned_attractions (stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [row.stop_id, a.attractionId, a.startTime ?? null, a.endTime ?? null,
-         a.date ? toISO(a.date) : null, a.category ?? null, j],
+         a.date ? toISO(a.date) : null, a.category ?? null, a.ticketPurchased ?? false, j],
       );
     }
   }
@@ -253,10 +253,11 @@ async function insertLegs(client: PoolClient, tripId: string, legs: TransitLeg[]
       const seg = l.segments[j];
       await client.query(
         `INSERT INTO transit_segments
-           (leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes, carrier, location_url, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [row.leg_id, seg.mode, toISO(seg.departureDate), seg.departureTime,
-          toISO(seg.arrivalDate), seg.arrivalTime, seg.notes, seg.durationMinutes ?? null, j],
+          toISO(seg.arrivalDate), seg.arrivalTime, seg.notes, seg.durationMinutes ?? null,
+          seg.carrier ?? null, seg.locationUrl ?? null, j],
       );
     }
   }
@@ -271,18 +272,25 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
   );
   const stopIds: string[] = stopRows.map(s => s.stop_id as string);
 
-  const lodgingMap = new Map<string, { name: string; url: string }>();
+  const lodgingMap = new Map<string, Lodging>();
   const attrMap = new Map<string, PlannedAttraction[]>();
 
   if (stopIds.length > 0) {
     const { rows: lodgingRows } = await pool.query(
-      `SELECT stop_id, name, url FROM stop_lodgings WHERE stop_id = ANY($1)`,
+      `SELECT stop_id, name, url, address, notes FROM stop_lodgings WHERE stop_id = ANY($1)`,
       [stopIds],
     );
-    for (const l of lodgingRows) lodgingMap.set(l.stop_id as string, { name: l.name as string, url: l.url as string });
+    for (const l of lodgingRows) {
+      lodgingMap.set(l.stop_id as string, {
+        name: l.name as string,
+        url: l.url as string,
+        ...(l.address ? { address: l.address as string } : {}),
+        ...(l.notes   ? { notes:   l.notes   as string } : {}),
+      });
+    }
 
     const { rows: attrRows } = await pool.query(
-      `SELECT stop_id, attraction_id, start_time, end_time, date, category FROM planned_attractions
+      `SELECT stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased FROM planned_attractions
        WHERE stop_id = ANY($1) ORDER BY stop_id, sort_order`,
       [stopIds],
     );
@@ -294,6 +302,7 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
         endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
         ...(a.date     ? { date:     toDMY(a.date as string) } : {}),
         ...(a.category ? { category: a.category as AttractionCategory } : {}),
+        ...(a.ticket_purchased ? { ticketPurchased: true } : {}),
       });
       attrMap.set(a.stop_id as string, list);
     }
@@ -316,7 +325,7 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
   const segMap = new Map<string, TransitSegment[]>();
   if (legIds.length > 0) {
     const { rows: segRows } = await pool.query(
-      `SELECT leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes
+      `SELECT leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes, carrier, location_url
        FROM transit_segments WHERE leg_id = ANY($1) ORDER BY leg_id, sort_order`,
       [legIds],
     );
@@ -330,6 +339,8 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
         arrivalTime: toHM(s.arrival_time as string),
         notes: s.notes as string,
         ...(s.duration_minutes != null ? { durationMinutes: s.duration_minutes as number } : {}),
+        ...(s.carrier      ? { carrier:     s.carrier      as string } : {}),
+        ...(s.location_url ? { locationUrl: s.location_url as string } : {}),
       });
       segMap.set(s.leg_id as string, list);
     }
@@ -375,24 +386,24 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
   const stopIds = stopRows.map(s => s.stop_id as string);
   const legIds  = legRows.map(l => l.leg_id as string);
 
-  const lodgingMap = new Map<string, { name: string; url: string }>();
+  const lodgingMap = new Map<string, Lodging>();
   const attrMap    = new Map<string, PlannedAttraction[]>();
   const segMap     = new Map<string, TransitSegment[]>();
 
   const [lodgingRows, attrRows, segRows] = await Promise.all([
     stopIds.length > 0
-      ? pool.query(`SELECT stop_id, name, url FROM stop_lodgings WHERE stop_id = ANY($1::uuid[])`, [stopIds]).then(r => r.rows)
+      ? pool.query(`SELECT stop_id, name, url, address, notes FROM stop_lodgings WHERE stop_id = ANY($1::uuid[])`, [stopIds]).then(r => r.rows)
       : Promise.resolve([] as Record<string, unknown>[]),
     stopIds.length > 0
       ? pool.query(
-          `SELECT stop_id, attraction_id, start_time, end_time, date, category
+          `SELECT stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased
            FROM planned_attractions WHERE stop_id = ANY($1::uuid[]) ORDER BY stop_id, sort_order`,
           [stopIds],
         ).then(r => r.rows)
       : Promise.resolve([] as Record<string, unknown>[]),
     legIds.length > 0
       ? pool.query(
-          `SELECT leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes
+          `SELECT leg_id, mode, departure_date, departure_time, arrival_date, arrival_time, notes, duration_minutes, carrier, location_url
            FROM transit_segments WHERE leg_id = ANY($1::uuid[]) ORDER BY leg_id, sort_order`,
           [legIds],
         ).then(r => r.rows)
@@ -400,7 +411,12 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
   ]);
 
   for (const l of lodgingRows) {
-    lodgingMap.set(l.stop_id as string, { name: l.name as string, url: l.url as string });
+    lodgingMap.set(l.stop_id as string, {
+      name: l.name as string,
+      url: l.url as string,
+      ...(l.address ? { address: l.address as string } : {}),
+      ...(l.notes   ? { notes:   l.notes   as string } : {}),
+    });
   }
   for (const a of attrRows) {
     const list = attrMap.get(a.stop_id as string) ?? [];
@@ -410,6 +426,7 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
       endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
       ...(a.date     ? { date:     toDMY(a.date as string) }             : {}),
       ...(a.category ? { category: a.category as AttractionCategory }    : {}),
+      ...(a.ticket_purchased ? { ticketPurchased: true } : {}),
     });
     attrMap.set(a.stop_id as string, list);
   }
@@ -423,6 +440,8 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
       arrivalTime:   toHM(s.arrival_time    as string),
       notes: s.notes as string,
       ...(s.duration_minutes != null ? { durationMinutes: s.duration_minutes as number } : {}),
+      ...(s.carrier      ? { carrier:     s.carrier      as string } : {}),
+      ...(s.location_url ? { locationUrl: s.location_url as string } : {}),
     });
     segMap.set(s.leg_id as string, list);
   }

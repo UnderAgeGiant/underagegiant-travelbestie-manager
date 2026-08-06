@@ -100,6 +100,42 @@ describe('POST /trips', () => {
     expect(stop.selectedAttractions[0].category).toBe('freetour');
     expect(stop.selectedAttractions[1].category).toBeUndefined();
   });
+
+  it('preserves ticket/carrier/location/lodging fields on create', async () => {
+    const app = buildApp();
+    const token = await getToken(app);
+    const res = await request(app).post('/trips')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Rich Export Test',
+        stops: [{
+          cityId: 'paris',
+          checkIn: '01/06/2026',
+          checkOut: '05/06/2026',
+          selectedAttractions: [
+            { attractionId: 'paris_0', startTime: '09:00', date: '02/06/2026', ticketPurchased: true },
+          ],
+          lodging: { name: 'Hotel Rive Gauche', url: 'https://maps.app.goo.gl/abc', address: '12 Rue de Rivoli', notes: 'Desayuno incluido' },
+        }],
+        transits: [{
+          fromCityId: 'london',
+          toCityId: 'paris',
+          segments: [{
+            mode: 'flight', departureDate: '01/06/2026', departureTime: '07:00',
+            arrivalDate: '01/06/2026', arrivalTime: '09:30', notes: 'LA 706',
+            carrier: 'Latam', locationUrl: 'https://maps.app.goo.gl/xyz',
+          }],
+        }],
+      });
+    expect(res.status).toBe(201);
+    const stop = res.body.stops[0];
+    expect(stop.selectedAttractions[0].ticketPurchased).toBe(true);
+    expect(stop.lodging.address).toBe('12 Rue de Rivoli');
+    expect(stop.lodging.notes).toBe('Desayuno incluido');
+    const segment = res.body.transits[0].segments[0];
+    expect(segment.carrier).toBe('Latam');
+    expect(segment.locationUrl).toBe('https://maps.app.goo.gl/xyz');
+  });
 });
 
 describe('PUT /trips/:id', () => {

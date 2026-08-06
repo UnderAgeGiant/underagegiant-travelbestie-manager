@@ -4,13 +4,14 @@ import { logEvent } from '../../lib/log-event';
 
 export async function generateItinerary(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { cityNames, attractionNames } = (req.body ?? {}) as {
+    const { cityNames, attractionNames, ticketRequiredIds } = (req.body ?? {}) as {
       cityNames?: Record<string, string>;
       attractionNames?: Record<string, string>;
+      ticketRequiredIds?: string[];
     };
 
     const firstExport = !req.trip!.itineraryExportedAt;
-    const buffer = await buildItinerary({ trip: req.trip!, cityNames, attractionNames });
+    const buffer = await buildItinerary({ trip: req.trip!, cityNames, attractionNames, ticketRequiredIds });
 
     const safeName = req.trip!.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
     const filename = `itinerario-${safeName}.xlsx`;
