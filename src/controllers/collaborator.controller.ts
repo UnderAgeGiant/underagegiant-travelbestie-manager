@@ -20,7 +20,9 @@ export class CollaboratorController {
 
   accept = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      req.collaboratorAccepted = await this.collaborators.accept(req.trip!.id, req.user!.userId);
+      req.collaboratorAccepted = req.trip
+        ? await this.collaborators.accept(req.trip.id, req.user!.userId)
+        : false;
       next();
     } catch (err) { next(err); }
   };
