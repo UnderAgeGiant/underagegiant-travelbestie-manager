@@ -172,7 +172,25 @@ export class AiController {
       });
 
       const raw = completion.choices[0].message.content ?? '{}';
-      req.result = JSON.parse(raw) as SuggestCityAttractionsResponse;
+      const parsed = JSON.parse(raw) as SuggestCityAttractionsResponse;
+
+      // Reinforce the prompt's "no collisions" instruction with a hard server-side filter —
+      // the model can still slip, and this is the same collision/departure/catalog validation
+      // suggestCompanion already applies to its own single suggestion, applied per-item here so
+      // one bad suggestion doesn't cost the whole batch. See buildScheduleBlock/buildDepartureBlock.
+      const validIds = new Set(cityCatalog.map(c => c.id));
+      const suggestions = (parsed.suggestions ?? []).filter(s => {
+        const inCatalog = validIds.has(s.attractionId);
+        const collidesWithSchedule = (existingSchedule ?? []).some(
+          e => e.date === s.date && rangesOverlap(s.startTime, s.endTime, e.startTime, e.endTime),
+        );
+        const pastDeparture = (departureTimes ?? []).some(
+          d => d.date === s.date && s.endTime > d.time,
+        );
+        return inCatalog && !collidesWithSchedule && !pastDeparture;
+      });
+
+      req.result = { suggestions } as SuggestCityAttractionsResponse;
       next();
     } catch (err) { next(err); }
   };
