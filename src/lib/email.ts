@@ -26,6 +26,15 @@ const KARMA_CONFIRMATION_TEMPLATE_PATH = path.join(__dirname, '..', 'templates',
 
 const OTP_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'OTP-Email.html');
 
+const COLLABORATOR_INVITE_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'Collaborator-Invite-Email.html');
+
+function loadCollaboratorInviteTemplate(inviterName: string, tripTitle: string): string {
+  const html = fs.readFileSync(COLLABORATOR_INVITE_TEMPLATE_PATH, 'utf-8');
+  return html
+    .replace(/\{inviter_name\}/g, inviterName)
+    .replace(/\{trip_title\}/g,   tripTitle);
+}
+
 function loadOtpTemplate(otpCode: string): string {
   const html = fs.readFileSync(OTP_TEMPLATE_PATH, 'utf-8');
   return html.replace(/\{otp_code\}/g, otpCode);
@@ -101,4 +110,18 @@ export async function sendWelcomeEmail(toEmail: string, userName: string): Promi
   });
 
   logger.info({ msg: 'welcome email sent', email: toEmail });
+}
+
+export async function sendCollaboratorInviteEmail(toEmail: string, inviterName: string, tripTitle: string): Promise<void> {
+  const transporter = createTransport();
+  const html = loadCollaboratorInviteTemplate(inviterName, tripTitle);
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
+    to: toEmail,
+    subject: `🤝 ${inviterName} te invitó a colaborar en un viaje — Tripilove`,
+    html,
+  });
+
+  logger.info({ msg: 'collaborator invite email sent', email: toEmail });
 }

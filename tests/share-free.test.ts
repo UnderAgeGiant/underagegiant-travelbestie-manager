@@ -1,9 +1,10 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubTripRepository, StubKarmaRepository } from './helpers/stubs';
+import { StubUserRepository, StubTripRepository, StubKarmaRepository, StubNotificationRepository, StubCollaboratorRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { TripController } from '../src/controllers/trip.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
+import { CollaboratorController } from '../src/controllers/collaborator.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createTripsRouter } from '../src/routes/trips.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
@@ -27,10 +28,15 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 
 // Build an app, optionally sharing a trip repo so two apps see the same trips.
 function buildApp(karmaScore: number, tripRepo = new StubTripRepository()) {
+  const userRepo = new StubUserRepository();
+  const collaboratorRepo = new StubCollaboratorRepository(userRepo, tripRepo);
   const app = express();
   app.use(express.json());
-  app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository())));
-  app.use('/trips', createTripsRouter(new TripController(tripRepo), new KarmaController(new StubKarmaRepository(karmaScore))));
+  app.use('/auth',  createAuthRouter(new UserController(userRepo)));
+  app.use('/trips', createTripsRouter(
+    new TripController(tripRepo), new KarmaController(new StubKarmaRepository(karmaScore)),
+    new CollaboratorController(collaboratorRepo), collaboratorRepo, userRepo, tripRepo, new StubNotificationRepository(),
+  ));
   app.use(errorHandler);
   return { app, tripRepo };
 }

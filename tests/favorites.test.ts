@@ -1,9 +1,10 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubTripRepository, StubKarmaRepository, StubFavoriteRepository, StubNotificationRepository } from './helpers/stubs';
+import { StubUserRepository, StubTripRepository, StubKarmaRepository, StubFavoriteRepository, StubNotificationRepository, StubCollaboratorRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { TripController } from '../src/controllers/trip.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
+import { CollaboratorController } from '../src/controllers/collaborator.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createTripsRouter } from '../src/routes/trips.routes';
 import { createSharedRouter } from '../src/routes/shared.routes';
@@ -35,6 +36,7 @@ function buildApp() {
   const tripRepo    = new StubTripRepository();
   const karmaRepo   = new StubKarmaRepository();
   const favoriteRepo = new StubFavoriteRepository();
+  const collaboratorRepo = new StubCollaboratorRepository(userRepo, tripRepo);
 
   const userController  = new UserController(userRepo);
   const tripController  = new TripController(tripRepo);
@@ -43,7 +45,9 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use('/auth',      createAuthRouter(userController));
-  app.use('/trips',     createTripsRouter(tripController, karmaController));
+  app.use('/trips',     createTripsRouter(
+    tripController, karmaController, new CollaboratorController(collaboratorRepo), collaboratorRepo, userRepo, tripRepo, new StubNotificationRepository(),
+  ));
   app.use('/shared',    createSharedRouter(tripController, karmaController, favoriteRepo, new StubNotificationRepository()));
   app.use('/favorites', createFavoritesRouter(favoriteRepo));
   app.use(errorHandler);

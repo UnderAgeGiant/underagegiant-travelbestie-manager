@@ -7,6 +7,7 @@ const KARMA_COST_AI_PLAN        = 1;
 const KARMA_COST_AI_SUGGEST     = 9;
 const KARMA_COST_CITY_SUGGEST   = 2;
 const KARMA_COST_COMPANION_BOOST = 2;
+const KARMA_COST_COLLABORATOR_INVITE = 1;
 
 function insufficientKarmaError(have: number, need: number): Error & { status: number } {
   const err = new Error(`Insufficient karma: need ${need}, have ${have}`) as Error & { status: number };
@@ -73,6 +74,15 @@ export class KarmaController {
   spendForShare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.karma.spendAmount(req.user!.userId, KARMA_COST_SHARE, 'trip_shared', req.trip!.shareId!);
+      next();
+    } catch (err) { next(err); }
+  };
+
+  requireForCollaboratorInvite = this.requireKarma(KARMA_COST_COLLABORATOR_INVITE);
+
+  spendForCollaboratorInvite = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.karma.spendAmount(req.user!.userId, KARMA_COST_COLLABORATOR_INVITE, 'collaborator_invite', req.trip!.id);
       next();
     } catch (err) { next(err); }
   };

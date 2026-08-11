@@ -10,6 +10,7 @@ import {
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
   statsController, favoriteRepository, notificationRepo,
   companionController,
+  collaboratorController, collaboratorRepo, userRepo, tripRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -60,7 +61,7 @@ app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo),
 );
-app.use('/trips',    createTripsRouter(tripController, karmaController));
+app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo));
 app.use('/comments', createCommentsRouter(commentController));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo, notificationRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController));

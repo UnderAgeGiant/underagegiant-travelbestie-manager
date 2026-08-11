@@ -8,6 +8,8 @@ import { IStepCommentRepository } from '../../src/repositories/interfaces/step-c
 import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
+import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
+import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -305,5 +307,68 @@ export class StubNotificationRepository implements INotificationRepository {
   async setMuted(userId: string, muted: boolean): Promise<void> {
     if (muted) this.mutedUsers.add(userId);
     else this.mutedUsers.delete(userId);
+  }
+}
+
+export class StubCollaboratorRepository implements ICollaboratorRepository {
+  rows: Array<{ tripId: string; userId: string; invitedAt: string; acceptedAt: string | null }> = [];
+
+  constructor(
+    private readonly users: StubUserRepository,
+    private readonly trips: StubTripRepository,
+  ) {}
+
+  async invite(tripId: string, userId: string): Promise<string> {
+    const invitedAt = new Date().toISOString();
+    this.rows.push({ tripId, userId, invitedAt, acceptedAt: null });
+    return invitedAt;
+  }
+
+  async accept(tripId: string, userId: string): Promise<boolean> {
+    const row = this.rows.find(r => r.tripId === tripId && r.userId === userId && r.acceptedAt === null);
+    if (!row) return false;
+    row.acceptedAt = new Date().toISOString();
+    return true;
+  }
+
+  async remove(tripId: string, userId: string): Promise<void> {
+    this.rows = this.rows.filter(r => !(r.tripId === tripId && r.userId === userId));
+  }
+
+  async listForTrip(tripId: string): Promise<CollaboratorRecord[]> {
+    const result: CollaboratorRecord[] = [];
+    for (const r of this.rows.filter(x => x.tripId === tripId)) {
+      const user = await this.users.findById(r.userId);
+      result.push({ userId: r.userId, name: user?.name ?? '', email: user?.email ?? '', invitedAt: r.invitedAt, acceptedAt: r.acceptedAt });
+    }
+    return result;
+  }
+
+  async isAcceptedCollaborator(tripId: string, userId: string): Promise<boolean> {
+    return this.rows.some(r => r.tripId === tripId && r.userId === userId && r.acceptedAt !== null);
+  }
+
+  async isAlreadyInvited(tripId: string, userId: string): Promise<boolean> {
+    return this.rows.some(r => r.tripId === tripId && r.userId === userId);
+  }
+
+  async findAcceptedTripsForUser(userId: string): Promise<Array<{ tripId: string; ownerName: string; ownerEmail: string }>> {
+    const result: Array<{ tripId: string; ownerName: string; ownerEmail: string }> = [];
+    for (const r of this.rows.filter(x => x.userId === userId && x.acceptedAt !== null)) {
+      const trip = await this.trips.findById(r.tripId);
+      const owner = trip ? await this.users.findById(trip.ownerId) : null;
+      result.push({ tripId: r.tripId, ownerName: owner?.name ?? '', ownerEmail: owner?.email ?? '' });
+    }
+    return result;
+  }
+
+  async listPendingForUser(userId: string): Promise<PendingCollaboratorInvite[]> {
+    const result: PendingCollaboratorInvite[] = [];
+    for (const r of this.rows.filter(x => x.userId === userId && x.acceptedAt === null)) {
+      const trip = await this.trips.findById(r.tripId);
+      const owner = trip ? await this.users.findById(trip.ownerId) : null;
+      result.push({ tripId: r.tripId, tripTitle: trip?.title ?? '', ownerName: owner?.name ?? '', invitedAt: r.invitedAt });
+    }
+    return result;
   }
 }

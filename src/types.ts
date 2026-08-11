@@ -63,6 +63,9 @@ export interface Trip {
   createdAt: string;
   shareId?: string;
   itineraryExportedAt?: string;
+  isCollaborator?: boolean;   // true when this trip appears because the caller is an accepted collaborator, not the owner
+  ownerName?: string;         // present only alongside isCollaborator
+  ownerEmail?: string;        // present only alongside isCollaborator
 }
 
 export interface SharedTripPayload {
@@ -78,6 +81,21 @@ export interface SharedTripPayload {
   tripId:           string;   // same as planId — internal UUID used by favorites
   favoriteCount?:   number;
   isFavoritedByMe?: boolean;
+}
+
+export interface CollaboratorRecord {
+  userId:     string;
+  name:       string;
+  email:      string;
+  invitedAt:  string;   // ISO-8601
+  acceptedAt: string | null;
+}
+
+export interface PendingCollaboratorInvite {
+  tripId:     string;
+  tripTitle:  string;
+  ownerName:  string;
+  invitedAt:  string;   // ISO-8601
 }
 
 export interface FavoriteToggleResult {
@@ -96,7 +114,7 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted';
 
 export interface NotificationRecord {
   notificationId: string;
@@ -270,6 +288,8 @@ declare global {
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
       sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
+      invitedUser?: User;                // set by resolve-invitee.middleware.ts
+      collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
     }
   }
 }
