@@ -47,3 +47,15 @@ export function notificationStatusKey(userId: string): string {
 // it's only a safety net for a missed invalidation. Set well above the 60 s poll interval
 // so normal continuous polling never expires mid-session; 90 s would miss on every other poll.
 export const NOTIFICATION_STATUS_CACHE_TTL = 600;
+
+/**
+ * Redis key for "has this identity seen this highlight tour". identity is
+ * `u:{userId}` for a logged-in caller or `ip:{req.ip}` for an anonymous one
+ * (see src/lib/highlight-identity.ts). Deliberately no TTL / no `EX` on the
+ * SET that uses this key — unlike every other Redis key in this file, a
+ * highlight "seen" flag is meant to be permanent (seen once, never shown
+ * again), not ephemeral.
+ */
+export function highlightSeenKey(highlightType: string, identity: string): string {
+  return `highlight:${highlightType}:${identity}`;
+}
