@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import * as bcrypt from 'bcryptjs';
-import { StubUserRepository } from './helpers/stubs';
+import { StubUserRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
@@ -67,7 +67,7 @@ function buildApp() {
   const stub = new StubUserRepository([testUser]);
   const app  = express();
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(stub)));
+  app.use('/auth', createAuthRouter(new UserController(stub), new StubHighlightRepository()));
   app.use(errorHandler);
   return app;
 }
@@ -125,7 +125,7 @@ describe('POST /auth/request-profile-otp', () => {
     await stub.create({ name: 'Other', email: 'taken@example.com', passwordHash: 'x' });
     const app = express();
     app.use(express.json());
-    app.use('/auth', createAuthRouter(new UserController(stub)));
+    app.use('/auth', createAuthRouter(new UserController(stub), new StubHighlightRepository()));
     app.use(errorHandler);
 
     const res = await request(app)
@@ -226,7 +226,7 @@ describe('PUT /auth/profile — email change', () => {
     await stub.create({ name: 'Other', email: 'taken@example.com', passwordHash: 'x' });
     const app = express();
     app.use(express.json());
-    app.use('/auth', createAuthRouter(new UserController(stub)));
+    app.use('/auth', createAuthRouter(new UserController(stub), new StubHighlightRepository()));
     app.use(errorHandler);
 
     const res = await request(app)

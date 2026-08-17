@@ -57,7 +57,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
 
-app.use('/auth',       createAuthRouter(userController));
+app.use('/auth',       createAuthRouter(userController, highlightRepo));
 app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',

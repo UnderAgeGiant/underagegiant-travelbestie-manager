@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubCommentRepository } from './helpers/stubs';
+import { StubUserRepository, StubCommentRepository, StubHighlightRepository } from './helpers/stubs';
 import { CommentController } from '../src/controllers/comment.controller';
 import { UserController } from '../src/controllers/user.controller';
 import { createCommentsRouter } from '../src/routes/comments.routes';
@@ -30,7 +30,7 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 function buildApp() {
   const app = express();
   app.use(express.json());
-  app.use('/auth',     createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth',     createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/comments', createCommentsRouter(new CommentController(new StubCommentRepository())));
   app.use(errorHandler);
   return app;

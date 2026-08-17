@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubNotificationRepository } from './helpers/stubs';
+import { StubUserRepository, StubNotificationRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createNotificationsRouter } from '../src/routes/notifications.routes';
@@ -30,7 +30,7 @@ function buildApp() {
   const notificationRepo = new StubNotificationRepository();
   const app = express();
   app.use(express.json());
-  app.use('/auth',          createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth',          createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/notifications', createNotificationsRouter(notificationRepo));
   app.use(errorHandler);
   return { app, notificationRepo };

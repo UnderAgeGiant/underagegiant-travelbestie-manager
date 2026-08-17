@@ -2,6 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import {
   StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository, StubNotificationRepository,
+  StubHighlightRepository,
 } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
@@ -43,7 +44,7 @@ function buildApp(notificationRepo = new StubNotificationRepository()) {
   const purchaseRepo = new StubKarmaPurchaseRepository();
   const app = express();
   app.use(express.json());
-  app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/karma', createKarmaRouter(
     new KarmaController(new StubKarmaRepository()),
     new KarmaPurchaseController(purchaseRepo),

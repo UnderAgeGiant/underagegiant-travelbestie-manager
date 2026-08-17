@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository } from './helpers/stubs';
+import { StubUserRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
@@ -44,7 +44,7 @@ const { invalidateUserSessions: mockInvalidate } = jest.requireMock('../src/lib/
 function buildApp(repo = new StubUserRepository()) {
   const app = express();
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(repo)));
+  app.use('/auth', createAuthRouter(new UserController(repo), new StubHighlightRepository()));
   app.use(errorHandler);
   return app;
 }

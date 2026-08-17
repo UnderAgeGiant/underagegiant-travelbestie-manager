@@ -59,3 +59,26 @@ export const NOTIFICATION_STATUS_CACHE_TTL = 600;
 export function highlightSeenKey(highlightType: string, identity: string): string {
   return `highlight:${highlightType}:${identity}`;
 }
+
+/**
+ * Every highlight type a given identity (e.g. `a:{anonymousId}`) has been marked "seen"
+ * for. Used only at login/register time to migrate an anonymous visitor's seen-state onto
+ * their new `u:{userId}` identity (see migrate-anonymous-highlights.middleware.ts) — not a
+ * hot path, so a cursor-based SCAN (non-blocking, unlike KEYS) is worth the extra
+ * round-trips even though the `highlight:*:{identity}` pattern can't use a key-space
+ * prefix shortcut (the wildcard sits before the fixed suffix, not after it).
+ */
+export async function findHighlightTypesFor(identity: string): Promise<string[]> {
+  const pattern = `highlight:*:${identity}`;
+  const suffixLength = `:${identity}`.length;
+  const types = new Set<string>();
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+    cursor = next;
+    for (const key of keys) {
+      types.add(key.slice('highlight:'.length, key.length - suffixLength));
+    }
+  } while (cursor !== '0');
+  return [...types];
+}

@@ -3,6 +3,7 @@ import express from 'express';
 import {
   StubUserRepository,
   StubKarmaRepository,
+  StubHighlightRepository,
 } from './helpers/stubs';
 import { UserController }  from '../src/controllers/user.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
@@ -49,7 +50,7 @@ function buildApp() {
   const karmaRepo = new StubKarmaRepository(100);
   const app = express();
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/ai',   createAiRouter(new AiController(), new KarmaController(karmaRepo)));
   app.use(errorHandler);
   return { app, karmaRepo };

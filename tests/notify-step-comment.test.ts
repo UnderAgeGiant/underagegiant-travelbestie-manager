@@ -2,6 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import {
   StubUserRepository, StubStepCommentRepository, StubKarmaRepository, StubNotificationRepository,
+  StubHighlightRepository,
 } from './helpers/stubs';
 import { StepCommentController } from '../src/controllers/step-comment.controller';
 import { UserController } from '../src/controllers/user.controller';
@@ -51,7 +52,7 @@ function buildApp(notificationRepo = new StubNotificationRepository()) {
   const stepCommentRepo = new StubStepCommentRepository();
   const app = express();
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/shared/:shareId/comments',
     createSharedCommentsRouter(
       mockPool,

@@ -28,6 +28,7 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 
 const mockRedisGet = jest.fn<Promise<string | null>, [string]>();
 const mockRedisSet = jest.fn().mockResolvedValue('OK');
+const mockFindHighlightTypesFor = jest.fn<Promise<string[]>, [string]>().mockResolvedValue([]);
 
 jest.mock('../src/lib/redis', () => ({
   redis: {
@@ -36,12 +37,13 @@ jest.mock('../src/lib/redis', () => ({
     on: jest.fn(),
   },
   highlightSeenKey: (type: string, identity: string) => `highlight:${type}:${identity}`,
+  findHighlightTypesFor: (identity: string) => mockFindHighlightTypesFor(identity),
 }));
 
 function buildApp(highlightRepo: StubHighlightRepository) {
   const app = express();
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), highlightRepo));
   app.use('/highlights', createHighlightsRouter(highlightRepo));
   app.use(errorHandler);
   return app;
@@ -55,6 +57,7 @@ async function getToken(app: express.Express, email = 'ana@test.com'): Promise<s
 beforeEach(() => {
   mockRedisGet.mockReset();
   mockRedisSet.mockReset().mockResolvedValue('OK');
+  mockFindHighlightTypesFor.mockReset().mockResolvedValue([]);
 });
 
 describe('Highlights module', () => {
@@ -185,5 +188,64 @@ describe('Highlights module', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(204);
     expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+});
+
+describe('Anonymous → logged-in highlight migration', () => {
+  it('POST /auth/register migrates every type the X-Anonymous-Id had seen onto the new user, in both Redis and the DB', async () => {
+    const anonId = '11111111-2222-4333-8444-555555555555';
+    mockFindHighlightTypesFor.mockResolvedValue(['landing_welcome']);
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', anonId)
+      .send({ name: 'Ana', email: 'migrate-register@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    const decoded = JSON.parse(Buffer.from(res.body.token.split('.')[1], 'base64').toString());
+
+    expect(mockFindHighlightTypesFor).toHaveBeenCalledWith(`a:${anonId}`);
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1');
+    expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+
+  it('POST /auth/login also migrates — same "essentially the same user" flow for a returning visitor', async () => {
+    const anonId = '22222222-3333-4444-8888-999999999999';
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+    // Register first (no anon id — this account already exists), then log back in carrying one.
+    await request(app).post('/auth/register').send({ name: 'Bo', email: 'migrate-login@test.com', password: 'secret123', otp: '123456' });
+
+    mockFindHighlightTypesFor.mockResolvedValue(['landing_welcome']);
+    const res = await request(app)
+      .post('/auth/login')
+      .set('X-Anonymous-Id', anonId)
+      .send({ email: 'migrate-login@test.com', password: 'secret123' });
+    expect(res.status).toBe(200);
+    const decoded = JSON.parse(Buffer.from(res.body.token.split('.')[1], 'base64').toString());
+
+    expect(mockFindHighlightTypesFor).toHaveBeenCalledWith(`a:${anonId}`);
+    expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+
+  it('POST /auth/register: no X-Anonymous-Id header means no migration attempt at all', async () => {
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+    await request(app).post('/auth/register').send({ name: 'Cara', email: 'no-anon-id@test.com', password: 'secret123', otp: '123456' });
+    expect(mockFindHighlightTypesFor).not.toHaveBeenCalled();
+  });
+
+  it('POST /auth/register: a migration failure is non-fatal — registration still succeeds', async () => {
+    mockFindHighlightTypesFor.mockRejectedValue(new Error('Redis scan failed'));
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', '11111111-2222-4333-8444-555555555555')
+      .send({ name: 'Dee', email: 'migration-fails@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeDefined();
   });
 });
