@@ -26,18 +26,24 @@ jest.mock('../src/lib/refresh-tokens', () => ({
   invalidateUserSessions: jest.fn().mockResolvedValue(undefined),
 }));
 
+const TEST_TTL = 86400;
+
 const mockRedisGet = jest.fn<Promise<string | null>, [string]>();
 const mockRedisSet = jest.fn().mockResolvedValue('OK');
+const mockRedisDel = jest.fn().mockResolvedValue(1);
 const mockFindHighlightTypesFor = jest.fn<Promise<string[]>, [string]>().mockResolvedValue([]);
 
 jest.mock('../src/lib/redis', () => ({
   redis: {
     get: (key: string) => mockRedisGet(key),
     set: (...args: any[]) => mockRedisSet(...args),
+    del: (...args: any[]) => mockRedisDel(...args),
     on: jest.fn(),
   },
   highlightSeenKey: (type: string, identity: string) => `highlight:${type}:${identity}`,
+  markHighlightSeenInRedis: (key: string) => mockRedisSet(key, '1', 'EX', 86400),
   findHighlightTypesFor: (identity: string) => mockFindHighlightTypesFor(identity),
+  HIGHLIGHT_SEEN_TTL_SECONDS: 86400,
 }));
 
 function buildApp(highlightRepo: StubHighlightRepository) {
@@ -57,6 +63,7 @@ async function getToken(app: express.Express, email = 'ana@test.com'): Promise<s
 beforeEach(() => {
   mockRedisGet.mockReset();
   mockRedisSet.mockReset().mockResolvedValue('OK');
+  mockRedisDel.mockReset().mockResolvedValue(1);
   mockFindHighlightTypesFor.mockReset().mockResolvedValue([]);
 });
 
@@ -97,7 +104,7 @@ describe('Highlights module', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ seen: true });
-    expect(mockRedisSet).toHaveBeenCalledWith('highlight:landing_welcome:u:' + decoded.userId, '1');
+    expect(mockRedisSet).toHaveBeenCalledWith('highlight:landing_welcome:u:' + decoded.userId, '1', 'EX', TEST_TTL);
   });
 
   it('GET status: logged-in caller, Redis miss, DB says not seen → { seen: false }', async () => {
@@ -115,7 +122,7 @@ describe('Highlights module', () => {
     const app = buildApp(new StubHighlightRepository());
     const res = await request(app).post('/highlights/landing_welcome/seen');
     expect(res.status).toBe(204);
-    expect(mockRedisSet).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'), '1');
+    expect(mockRedisSet).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'), '1', 'EX', TEST_TTL);
   });
 
   it('GET status: anonymous caller with a valid X-Anonymous-Id uses the `a:` identity, not IP', async () => {
@@ -136,7 +143,7 @@ describe('Highlights module', () => {
       .post('/highlights/landing_welcome/seen')
       .set('X-Anonymous-Id', anonId);
     expect(res.status).toBe(204);
-    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}`, '1');
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}`, '1', 'EX', TEST_TTL);
   });
 
   it('GET status: a malformed X-Anonymous-Id is ignored and falls back to IP', async () => {
@@ -172,7 +179,7 @@ describe('Highlights module', () => {
       .post('/highlights/landing_welcome/seen')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(204);
-    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1');
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1', 'EX', TEST_TTL);
     expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
   });
 
@@ -206,8 +213,21 @@ describe('Anonymous → logged-in highlight migration', () => {
     const decoded = JSON.parse(Buffer.from(res.body.token.split('.')[1], 'base64').toString());
 
     expect(mockFindHighlightTypesFor).toHaveBeenCalledWith(`a:${anonId}`);
-    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1');
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1', 'EX', TEST_TTL);
     expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+
+  it('POST /auth/register: migration deletes the old a:{anonymousId} key once it lands on u:{userId} — no leftover duplicate', async () => {
+    const anonId = '33333333-4444-5555-6666-777777777777';
+    mockFindHighlightTypesFor.mockResolvedValue(['landing_welcome']);
+    const app = buildApp(new StubHighlightRepository());
+
+    await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', anonId)
+      .send({ name: 'Fin', email: 'migrate-dedupe@test.com', password: 'secret123', otp: '123456' });
+
+    expect(mockRedisDel).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}`);
   });
 
   it('POST /auth/login also migrates — same "essentially the same user" flow for a returning visitor', async () => {

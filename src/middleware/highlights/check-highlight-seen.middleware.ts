@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { redis, highlightSeenKey } from '../../lib/redis';
+import { redis, highlightSeenKey, markHighlightSeenInRedis } from '../../lib/redis';
 import { highlightIdentity } from '../../lib/highlight-identity';
 import { IHighlightRepository } from '../../repositories/interfaces/highlight.repository.interface';
 import { logger } from '../../lib/logger';
@@ -28,7 +28,7 @@ export function makeCheckHighlightSeen(repo: IHighlightRepository) {
     try {
       const seen = await repo.hasSeen(req.user.userId, type);
       if (seen) {
-        try { await redis.set(key, '1'); } catch { /* non-fatal — DB remains authoritative */ }
+        try { await markHighlightSeenInRedis(key); } catch { /* non-fatal — DB remains authoritative */ }
       }
       res.status(200).json({ seen });
     } catch (err) {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { redis, highlightSeenKey } from '../../lib/redis';
+import { highlightSeenKey, markHighlightSeenInRedis } from '../../lib/redis';
 import { highlightIdentity } from '../../lib/highlight-identity';
 import { IHighlightRepository } from '../../repositories/interfaces/highlight.repository.interface';
 import { logger } from '../../lib/logger';
@@ -10,7 +10,7 @@ export function makeMarkHighlightSeen(repo: IHighlightRepository) {
     const identity = highlightIdentity(req);
 
     try {
-      await redis.set(highlightSeenKey(type, identity), '1');
+      await markHighlightSeenInRedis(highlightSeenKey(type, identity));
     } catch (err) {
       logger.warn({ flowId: req.flowId, msg: 'Redis unavailable in markHighlightSeen; continuing', err });
     }
@@ -19,7 +19,7 @@ export function makeMarkHighlightSeen(repo: IHighlightRepository) {
       try {
         await repo.markSeen(req.user.userId, type);
       } catch (err) {
-        logger.warn({ flowId: req.flowId, msg: 'DB write failed in markHighlightSeen; Redis/cookie still remember it', err });
+        logger.warn({ flowId: req.flowId, msg: 'DB write failed in markHighlightSeen; Redis still remembers it for its own TTL', err });
       }
     }
 

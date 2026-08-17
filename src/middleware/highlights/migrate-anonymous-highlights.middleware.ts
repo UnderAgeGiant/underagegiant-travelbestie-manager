@@ -31,13 +31,21 @@ export function makeMigrateAnonymousHighlights(repo: IHighlightRepository) {
     // neutralizes via `jest.mock('../src/middleware/rate-limit.middleware', ...)`, nothing
     // mocks this path. Loading the module lazily, only once a request actually needs it,
     // keeps that connection attempt out of every unrelated test/request entirely.
-    const { redis, highlightSeenKey, findHighlightTypesFor } = require('../../lib/redis') as typeof import('../../lib/redis');
+    const { redis, highlightSeenKey, markHighlightSeenInRedis, findHighlightTypesFor } =
+      require('../../lib/redis') as typeof import('../../lib/redis');
 
     try {
       const types = await findHighlightTypesFor(`a:${anonymousId}`);
       for (const type of types) {
         try {
-          await redis.set(highlightSeenKey(type, `u:${userId}`), '1');
+          // Write the new u:{userId} key, then drop the old a:{anonymousId} one — once
+          // migrated it's pure duplication, since a logged-in request never looks at the
+          // anonymous identity again (highlightIdentity() prioritizes req.user). Both keys
+          // now carry the same TTL anyway, so leaving it would just be redundant storage
+          // for that TTL window, not a correctness issue — but there's no reason to pay
+          // even that.
+          await markHighlightSeenInRedis(highlightSeenKey(type, `u:${userId}`));
+          await redis.del(highlightSeenKey(type, `a:${anonymousId}`));
         } catch (err) {
           logger.warn({ flowId: req.flowId, msg: 'Redis write failed migrating anonymous highlight', type, err });
         }

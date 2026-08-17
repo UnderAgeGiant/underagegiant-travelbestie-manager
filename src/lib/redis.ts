@@ -49,15 +49,27 @@ export function notificationStatusKey(userId: string): string {
 export const NOTIFICATION_STATUS_CACHE_TTL = 600;
 
 /**
- * Redis key for "has this identity seen this highlight tour". identity is
- * `u:{userId}` for a logged-in caller or `ip:{req.ip}` for an anonymous one
- * (see src/lib/highlight-identity.ts). Deliberately no TTL / no `EX` on the
- * SET that uses this key — unlike every other Redis key in this file, a
- * highlight "seen" flag is meant to be permanent (seen once, never shown
- * again), not ephemeral.
+ * Redis key for "has this identity seen this highlight tour". identity is `u:{userId}` for
+ * a logged-in caller, `a:{anonymousId}` for an anonymous one carrying a client-generated
+ * id, or `ip:{req.ip}` as the last resort (see src/lib/highlight-identity.ts).
  */
 export function highlightSeenKey(highlightType: string, identity: string): string {
   return `highlight:${highlightType}:${identity}`;
+}
+
+// Mirrors the login session's own lifetime (see REFRESH_TTL in lib/refresh-tokens.ts,
+// 86400s/1 day) so a highlight "seen" flag in Redis never outlives the session it was
+// recorded during — Postgres (PgHighlightRepository) is the actually-permanent record for
+// logged-in users; this is only ever the fast-path cache in front of it (or, for an
+// anonymous/IP identity, the only record there is at all). Independently configurable
+// rather than reusing REFRESH_TTL directly, since the two are conceptually separate knobs.
+export const HIGHLIGHT_SEEN_TTL_SECONDS = Number(process.env.HIGHLIGHT_SEEN_TTL_SECONDS ?? 86400);
+
+/** Sets the "seen" flag at `key` (see highlightSeenKey), expiring after
+ *  HIGHLIGHT_SEEN_TTL_SECONDS. The one place that issues the SET for every highlights
+ *  code path, so the TTL can't drift out of sync between them. */
+export async function markHighlightSeenInRedis(key: string): Promise<void> {
+  await redis.set(key, '1', 'EX', HIGHLIGHT_SEEN_TTL_SECONDS);
 }
 
 /**
