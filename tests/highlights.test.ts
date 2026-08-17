@@ -115,6 +115,50 @@ describe('Highlights module', () => {
     expect(mockRedisSet).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'), '1');
   });
 
+  it('GET status: anonymous caller with a valid X-Anonymous-Id uses the `a:` identity, not IP', async () => {
+    mockRedisGet.mockResolvedValue(null);
+    const app = buildApp(new StubHighlightRepository());
+    const anonId = '11111111-2222-4333-8444-555555555555';
+    const res = await request(app)
+      .get('/highlights/landing_welcome/status')
+      .set('X-Anonymous-Id', anonId);
+    expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}`);
+  });
+
+  it('POST seen: anonymous caller with a valid X-Anonymous-Id writes Redis under the `a:` identity', async () => {
+    const app = buildApp(new StubHighlightRepository());
+    const anonId = '11111111-2222-4333-8444-555555555555';
+    const res = await request(app)
+      .post('/highlights/landing_welcome/seen')
+      .set('X-Anonymous-Id', anonId);
+    expect(res.status).toBe(204);
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}`, '1');
+  });
+
+  it('GET status: a malformed X-Anonymous-Id is ignored and falls back to IP', async () => {
+    mockRedisGet.mockResolvedValue(null);
+    const app = buildApp(new StubHighlightRepository());
+    const res = await request(app)
+      .get('/highlights/landing_welcome/status')
+      .set('X-Anonymous-Id', 'not-a-uuid');
+    expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'));
+  });
+
+  it('GET status: a logged-in caller uses `u:` identity even if X-Anonymous-Id is also sent', async () => {
+    mockRedisGet.mockResolvedValue(null);
+    const app = buildApp(new StubHighlightRepository());
+    const token = await getToken(app);
+    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    const res = await request(app)
+      .get('/highlights/landing_welcome/status')
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Anonymous-Id', '11111111-2222-4333-8444-555555555555');
+    expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`);
+  });
+
   it('POST seen: logged-in caller writes Redis AND the DB', async () => {
     const repo = new StubHighlightRepository();
     const app = buildApp(repo);
