@@ -1,23 +1,8 @@
 import { PlanSessionOptions, TripSuggestion } from '../types';
+import { levenshtein } from './levenshtein';
 
 export const CHANGE_THRESHOLD = 0.20;
 export const FREE_CHANGE_LIMIT = 3;
-
-/** Normalized Levenshtein distance (O(m*n) time, O(n) space). */
-function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
-  const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
-  for (let i = 1; i <= m; i++) {
-    let prev = dp[0];
-    dp[0] = i;
-    for (let j = 1; j <= n; j++) {
-      const temp = dp[j];
-      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
-      prev = temp;
-    }
-  }
-  return dp[n];
-}
 
 /**
  * Produces a canonical, order-insensitive string from a PlanSessionOptions.
