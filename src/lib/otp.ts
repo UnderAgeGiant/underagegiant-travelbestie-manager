@@ -2,8 +2,11 @@ import { randomInt } from 'crypto';
 import { redis } from './redis';
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
-export function otpKey(email: string): string {
-  return `otp:register:${email.toLowerCase()}`;
+
+export type OtpScope = 'register' | 'profile' | 'reset';
+
+function otpKeyFor(scope: OtpScope, email: string): string {
+  return `otp:${scope}:${email.toLowerCase()}`;
 }
 
 export function generateOtpCode(): string {
@@ -11,52 +14,16 @@ export function generateOtpCode(): string {
   return randomInt(100000, 1000000).toString();
 }
 
-export async function storeOtp(email: string, code: string): Promise<void> {
-  await redis.set(otpKey(email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
+export async function storeOtpFor(scope: OtpScope, email: string, code: string): Promise<void> {
+  await redis.set(otpKeyFor(scope, email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
 }
 
-export async function getStoredOtpCode(email: string): Promise<string | null> {
-  const raw = await redis.get(otpKey(email));
+export async function getStoredOtpCodeFor(scope: OtpScope, email: string): Promise<string | null> {
+  const raw = await redis.get(otpKeyFor(scope, email));
   if (!raw) return null;
   return (JSON.parse(raw) as { code: string }).code;
 }
 
-export async function deleteOtp(email: string): Promise<void> {
-  await redis.del(otpKey(email));
-}
-
-export function profileOtpKey(email: string): string {
-  return `otp:profile:${email.toLowerCase()}`;
-}
-
-export async function storeProfileOtp(email: string, code: string): Promise<void> {
-  await redis.set(profileOtpKey(email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
-}
-
-export async function getStoredProfileOtpCode(email: string): Promise<string | null> {
-  const raw = await redis.get(profileOtpKey(email));
-  if (!raw) return null;
-  return (JSON.parse(raw) as { code: string }).code;
-}
-
-export async function deleteProfileOtp(email: string): Promise<void> {
-  await redis.del(profileOtpKey(email));
-}
-
-export function resetOtpKey(email: string): string {
-  return `otp:reset:${email.toLowerCase()}`;
-}
-
-export async function storeResetOtp(email: string, code: string): Promise<void> {
-  await redis.set(resetOtpKey(email), JSON.stringify({ code }), 'EX', OTP_TTL_SECONDS);
-}
-
-export async function getStoredResetOtpCode(email: string): Promise<string | null> {
-  const raw = await redis.get(resetOtpKey(email));
-  if (!raw) return null;
-  return (JSON.parse(raw) as { code: string }).code;
-}
-
-export async function deleteResetOtp(email: string): Promise<void> {
-  await redis.del(resetOtpKey(email));
+export async function deleteOtpFor(scope: OtpScope, email: string): Promise<void> {
+  await redis.del(otpKeyFor(scope, email));
 }

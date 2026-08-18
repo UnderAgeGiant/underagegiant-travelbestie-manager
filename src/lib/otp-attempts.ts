@@ -1,9 +1,8 @@
 import { redis } from './redis';
+import { OtpScope } from './otp';
 
 export const MAX_OTP_ATTEMPTS = 5;
 const ATTEMPT_TTL = 900; // 15 minutes
-
-type OtpScope = 'register' | 'profile' | 'reset';
 
 function attemptsKey(scope: OtpScope, email: string): string {
   return `otp:attempts:${scope}:${email.toLowerCase()}`;

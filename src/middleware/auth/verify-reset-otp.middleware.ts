@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getStoredResetOtpCode, generateOtpCode, storeResetOtp, deleteResetOtp } from '../../lib/otp';
+import { getStoredOtpCodeFor, generateOtpCode, storeOtpFor, deleteOtpFor } from '../../lib/otp';
 import { registerFailedAttempt, clearAttempts } from '../../lib/otp-attempts';
 import { sendOtpEmail } from '../../lib/email';
 import { logger } from '../../lib/logger';
@@ -16,7 +16,7 @@ export async function verifyResetOtpMiddleware(
   }
 
   try {
-    const storedCode = await getStoredResetOtpCode(email);
+    const storedCode = await getStoredOtpCodeFor('reset', email);
     if (!storedCode) {
       res.status(400).json({ error: 'Código expirado o no solicitado. Solicita un nuevo código.' });
       return;
@@ -29,13 +29,13 @@ export async function verifyResetOtpMiddleware(
         return;
       }
       const newCode = generateOtpCode();
-      await storeResetOtp(email, newCode);
+      await storeOtpFor('reset', email, newCode);
       await sendOtpEmail(email, newCode);
       logger.info({ msg: 'Password reset OTP mismatch — renewed and sent', flowId: req.flowId, email });
       res.status(400).json({ error: 'Código incorrecto. Se ha enviado un nuevo código a tu correo.' });
       return;
     }
-    await deleteResetOtp(email);
+    await deleteOtpFor('reset', email);
     await clearAttempts('reset', email);
     next();
   } catch (err) {
