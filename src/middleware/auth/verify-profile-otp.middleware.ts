@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getStoredProfileOtpCode, generateOtpCode, storeProfileOtp, deleteProfileOtp } from '../../lib/otp';
+import { getStoredOtpCodeFor, generateOtpCode, storeOtpFor, deleteOtpFor } from '../../lib/otp';
 import { sendOtpEmail } from '../../lib/email';
 import { logger } from '../../lib/logger';
 
@@ -17,20 +17,20 @@ export async function verifyProfileOtpMiddleware(
   }
 
   try {
-    const storedCode = await getStoredProfileOtpCode(newEmail);
+    const storedCode = await getStoredOtpCodeFor('profile', newEmail);
     if (!storedCode) {
       res.status(400).json({ error: 'Código expirado o no solicitado. Solicita un nuevo código.' });
       return;
     }
     if (storedCode !== otp) {
       const newCode = generateOtpCode();
-      await storeProfileOtp(newEmail, newCode);
+      await storeOtpFor('profile', newEmail, newCode);
       await sendOtpEmail(newEmail, newCode);
       logger.info({ msg: 'Profile OTP mismatch — renewed and sent', flowId: req.flowId, newEmail });
       res.status(400).json({ error: 'Código incorrecto. Se ha enviado un nuevo código a tu correo.' });
       return;
     }
-    await deleteProfileOtp(newEmail);
+    await deleteOtpFor('profile', newEmail);
     next();
   } catch (err) {
     logger.error({ msg: 'Profile OTP verification error', flowId: req.flowId, newEmail, err });

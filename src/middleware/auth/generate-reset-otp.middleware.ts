@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { generateOtpCode, storeResetOtp } from '../../lib/otp';
+import { generateOtpCode, storeOtpFor } from '../../lib/otp';
 import { sendOtpEmail } from '../../lib/email';
 import { logger } from '../../lib/logger';
 
@@ -20,7 +20,7 @@ export async function generateResetOtpMiddleware(
   const email = req.foundUser.email.toLowerCase();
   const code = generateOtpCode();
   try {
-    await storeResetOtp(email, code);
+    await storeOtpFor('reset', email, code);
     await sendOtpEmail(email, code);
     logger.info({ msg: 'Password reset OTP generated and sent', flowId: req.flowId, email });
   } catch (err) {
