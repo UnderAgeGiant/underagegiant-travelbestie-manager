@@ -10,6 +10,7 @@ import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
 import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
+import { IHighlightRepository } from '../../src/repositories/interfaces/highlight.repository.interface';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -272,6 +273,18 @@ export class StubFavoriteRepository implements IFavoriteRepository {
     const favoriteCount   = this.rows.filter(r => r.tripId === tripId).length;
     const isFavoritedByMe = !!userId && this.rows.some(r => r.tripId === tripId && r.userId === userId);
     return { favoriteCount, isFavoritedByMe };
+  }
+}
+
+export class StubHighlightRepository implements IHighlightRepository {
+  private seen = new Set<string>(); // `${userId}:${highlightType}`
+
+  async hasSeen(userId: string, highlightType: string): Promise<boolean> {
+    return this.seen.has(`${userId}:${highlightType}`);
+  }
+
+  async markSeen(userId: string, highlightType: string): Promise<void> {
+    this.seen.add(`${userId}:${highlightType}`);
   }
 }
 

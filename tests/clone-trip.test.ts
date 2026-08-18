@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { StubUserRepository, StubTripRepository, StubKarmaRepository, StubFavoriteRepository, StubNotificationRepository, StubCollaboratorRepository } from './helpers/stubs';
+import { StubUserRepository, StubTripRepository, StubKarmaRepository, StubFavoriteRepository, StubNotificationRepository, StubCollaboratorRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { TripController } from '../src/controllers/trip.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
@@ -39,7 +39,7 @@ function buildApp() {
   const karmaCtrl = new KarmaController(karmaRepo);
   const app = express();
   app.use(express.json());
-  app.use('/auth',   createAuthRouter(new UserController(users)));
+  app.use('/auth',   createAuthRouter(new UserController(users), new StubHighlightRepository()));
   app.use('/trips',  createTripsRouter(
     tripCtrl, karmaCtrl, new CollaboratorController(collaborators), collaborators, users, trips, new StubNotificationRepository(),
   ));

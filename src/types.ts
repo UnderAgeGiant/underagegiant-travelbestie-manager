@@ -103,6 +103,10 @@ export interface FavoriteToggleResult {
   favoriteCount: number;
 }
 
+export interface HighlightStatusResult {
+  seen: boolean;
+}
+
 export interface FavoritedTrip extends SharedTripPayload {
   favoritedAt: string;   // ISO-8601
 }

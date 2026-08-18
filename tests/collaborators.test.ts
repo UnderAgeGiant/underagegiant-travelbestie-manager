@@ -3,6 +3,7 @@ import express from 'express';
 import {
   StubUserRepository, StubTripRepository, StubKarmaRepository,
   StubNotificationRepository, StubCollaboratorRepository,
+  StubHighlightRepository,
 } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { TripController } from '../src/controllers/trip.controller';
@@ -45,7 +46,7 @@ function buildApp() {
 
   const app = express();
   app.use(express.json());
-  app.use('/auth',  createAuthRouter(new UserController(users)));
+  app.use('/auth',  createAuthRouter(new UserController(users), new StubHighlightRepository()));
   app.use('/trips', createTripsRouter(
     new TripController(trips),
     new KarmaController(karma),

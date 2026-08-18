@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { StubUserRepository } from './helpers/stubs';
+import { StubUserRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
@@ -33,7 +33,7 @@ function buildApp() {
   const app = express();
   app.use(cookieParser());
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository())));
+  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use(errorHandler);
   return app;
 }

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
+import { IHighlightRepository } from '../repositories/interfaces/highlight.repository.interface';
+import { makeMigrateAnonymousHighlights } from '../middleware/highlights/migrate-anonymous-highlights.middleware';
 import { decryptPayloadMiddleware } from '../middleware/auth/decrypt-payload.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
 import {
@@ -29,8 +31,9 @@ import { signRefreshedTokenMiddleware }    from '../middleware/auth/sign-refresh
 import { revokeRefreshTokenMiddleware }    from '../middleware/auth/revoke-refresh-token.middleware';
 import { invalidateSessionsMiddleware }    from '../middleware/auth/invalidate-sessions.middleware';
 
-export function createAuthRouter(user: UserController): Router {
+export function createAuthRouter(user: UserController, highlightRepo: IHighlightRepository): Router {
   const router = Router();
+  const migrateAnonymousHighlights = makeMigrateAnonymousHighlights(highlightRepo);
 
   router.post('/request-otp',
     rateLimitMiddleware({ keyPrefix: 'rl:req-otp', windowSeconds: 900, maxRequests: 5 }),
@@ -52,6 +55,7 @@ export function createAuthRouter(user: UserController): Router {
     user.create,
     sendWelcomeEmailMiddleware,
     signTokenMiddleware,
+    migrateAnonymousHighlights,
     logCtaEvent('cta_register', req => ({ email: req.foundUser?.email })),
     respond(201)
   );
@@ -68,6 +72,7 @@ export function createAuthRouter(user: UserController): Router {
     user.findByEmail,
     verifyPasswordMiddleware,
     signTokenMiddleware,
+    migrateAnonymousHighlights,
     logCtaEvent('cta_login', req => ({ email: req.foundUser?.email })),
     respond(200)
   );
