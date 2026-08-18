@@ -2,7 +2,6 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
 const KARMA_COST_TRIP           = 1;
-const KARMA_COST_SHARE          = 1;
 const KARMA_COST_AI_PLAN        = 1;
 const KARMA_COST_AI_SUGGEST     = 9;
 const KARMA_COST_CITY_SUGGEST   = 2;
@@ -43,47 +42,25 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
-  spendForAiSuggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  spendFor = (
+    amount: number,
+    reason: string,
+    getRefId: (req: Request) => string = req => req.flowId,
+  ): RequestHandler => async (req, _res, next): Promise<void> => {
     try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_AI_SUGGEST, 'ai_suggest', req.flowId);
+      await this.karma.spendAmount(req.user!.userId, amount, reason, getRefId(req));
       next();
     } catch (err) { next(err); }
   };
 
-  spendForAiPlan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_AI_PLAN, 'ai_plan', req.flowId);
-      next();
-    } catch (err) { next(err); }
-  };
-
-  spendForCitySuggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_CITY_SUGGEST, 'ai_city_suggest', req.flowId);
-      next();
-    } catch (err) { next(err); }
-  };
-
-  spendForCompanionBoost = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_COMPANION_BOOST, 'companion_boost', req.flowId);
-      next();
-    } catch (err) { next(err); }
-  };
-
-  spendForShare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_SHARE, 'trip_shared', req.trip!.shareId!);
-      next();
-    } catch (err) { next(err); }
-  };
+  spendForAiSuggest      = this.spendFor(KARMA_COST_AI_SUGGEST, 'ai_suggest');
+  spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan');
+  spendForCitySuggest    = this.spendFor(KARMA_COST_CITY_SUGGEST, 'ai_city_suggest');
+  spendForCompanionBoost = this.spendFor(KARMA_COST_COMPANION_BOOST, 'companion_boost');
 
   requireForCollaboratorInvite = this.requireKarma(KARMA_COST_COLLABORATOR_INVITE);
 
-  spendForCollaboratorInvite = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      await this.karma.spendAmount(req.user!.userId, KARMA_COST_COLLABORATOR_INVITE, 'collaborator_invite', req.trip!.id);
-      next();
-    } catch (err) { next(err); }
-  };
+  spendForCollaboratorInvite = this.spendFor(
+    KARMA_COST_COLLABORATOR_INVITE, 'collaborator_invite', req => req.trip!.id,
+  );
 }
