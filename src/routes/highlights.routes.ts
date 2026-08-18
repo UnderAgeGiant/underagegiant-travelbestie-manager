@@ -4,6 +4,7 @@ import { optionalAuth } from '../middleware/auth/optional-auth.middleware';
 import { validateHighlightType } from '../middleware/highlights/validate-highlight-type.middleware';
 import { makeCheckHighlightSeen } from '../middleware/highlights/check-highlight-seen.middleware';
 import { makeMarkHighlightSeen } from '../middleware/highlights/mark-highlight-seen.middleware';
+import { makeMarkHighlightDismissed } from '../middleware/highlights/mark-highlight-dismissed.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { highlightIdentity } from '../lib/highlight-identity';
 import { respond } from '../middleware/respond.middleware';
@@ -13,6 +14,7 @@ export function createHighlightsRouter(repo: IHighlightRepository): Router {
   const router = Router();
   const checkHighlightSeen = makeCheckHighlightSeen(repo);
   const markHighlightSeen  = makeMarkHighlightSeen(repo);
+  const markHighlightDismissed = makeMarkHighlightDismissed(repo);
 
   router.get('/:type/status',
     validateHighlightType,
@@ -27,6 +29,15 @@ export function createHighlightsRouter(repo: IHighlightRepository): Router {
     rateLimitMiddleware({ keyPrefix: 'rl:highlight-seen', windowSeconds: 60, maxRequests: 30, getKey: highlightIdentity }),
     markHighlightSeen,
     logCtaEvent('cta_highlight_seen', req => ({ type: req.params.type, anonymous: !req.user })),
+    respond(204),
+  );
+
+  router.post('/:type/dismiss',
+    validateHighlightType,
+    optionalAuth,
+    rateLimitMiddleware({ keyPrefix: 'rl:highlight-dismiss', windowSeconds: 60, maxRequests: 30, getKey: highlightIdentity }),
+    markHighlightDismissed,
+    logCtaEvent('cta_highlight_dismissed', req => ({ type: req.params.type, anonymous: !req.user })),
     respond(204),
   );
 

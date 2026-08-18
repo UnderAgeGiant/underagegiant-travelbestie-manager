@@ -32,6 +32,9 @@ const mockRedisGet = jest.fn<Promise<string | null>, [string]>();
 const mockRedisSet = jest.fn().mockResolvedValue('OK');
 const mockRedisDel = jest.fn().mockResolvedValue(1);
 const mockFindHighlightTypesFor = jest.fn<Promise<string[]>, [string]>().mockResolvedValue([]);
+const mockIncrementDismissCount = jest.fn<Promise<number>, [string]>();
+const mockFindHighlightDismissCountsFor = jest.fn<Promise<Array<{ type: string; count: number }>>, [string]>().mockResolvedValue([]);
+const mockAddToHighlightDismissCount = jest.fn<Promise<number>, [string, number]>();
 
 jest.mock('../src/lib/redis', () => ({
   redis: {
@@ -41,9 +44,14 @@ jest.mock('../src/lib/redis', () => ({
     on: jest.fn(),
   },
   highlightSeenKey: (type: string, identity: string) => `highlight:${type}:${identity}`,
+  highlightDismissKey: (type: string, identity: string) => `highlight:${type}:${identity}:dismissed`,
   markHighlightSeenInRedis: (key: string) => mockRedisSet(key, '1', 'EX', 86400),
+  incrementHighlightDismissCount: (key: string) => mockIncrementDismissCount(key),
   findHighlightTypesFor: (identity: string) => mockFindHighlightTypesFor(identity),
+  findHighlightDismissCountsFor: (identity: string) => mockFindHighlightDismissCountsFor(identity),
+  addToHighlightDismissCount: (key: string, by: number) => mockAddToHighlightDismissCount(key, by),
   HIGHLIGHT_SEEN_TTL_SECONDS: 86400,
+  HIGHLIGHT_DISMISS_LIMIT: 3,
 }));
 
 function buildApp(highlightRepo: StubHighlightRepository) {
@@ -65,6 +73,9 @@ beforeEach(() => {
   mockRedisSet.mockReset().mockResolvedValue('OK');
   mockRedisDel.mockReset().mockResolvedValue(1);
   mockFindHighlightTypesFor.mockReset().mockResolvedValue([]);
+  mockIncrementDismissCount.mockReset().mockResolvedValue(1);
+  mockFindHighlightDismissCountsFor.mockReset().mockResolvedValue([]);
+  mockAddToHighlightDismissCount.mockReset();
 });
 
 describe('Highlights module', () => {
@@ -267,5 +278,118 @@ describe('Anonymous → logged-in highlight migration', () => {
       .send({ name: 'Dee', email: 'migration-fails@test.com', password: 'secret123', otp: '123456' });
     expect(res.status).toBe(201);
     expect(res.body.token).toBeDefined();
+  });
+
+  it('POST /auth/register: below-limit dismiss count carries over onto the new u:{userId} counter, without escalating', async () => {
+    const anonId = '44444444-5555-6666-7777-888888888888';
+    mockFindHighlightDismissCountsFor.mockResolvedValue([{ type: 'landing_welcome', count: 2 }]);
+    mockAddToHighlightDismissCount.mockResolvedValue(2); // nothing pre-existing under the new account
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', anonId)
+      .send({ name: 'Gia', email: 'migrate-dismiss-below@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    const decoded = JSON.parse(Buffer.from(res.body.token.split('.')[1], 'base64').toString());
+
+    expect(mockFindHighlightDismissCountsFor).toHaveBeenCalledWith(`a:${anonId}`);
+    expect(mockAddToHighlightDismissCount).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}:dismissed`, 2);
+    expect(mockRedisDel).toHaveBeenCalledWith(`highlight:landing_welcome:a:${anonId}:dismissed`);
+    // Below the limit — must not escalate to "seen".
+    expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(false);
+  });
+
+  it('POST /auth/register: a migrated dismiss count that reaches the limit escalates to seen in BOTH Redis and the DB', async () => {
+    const anonId = '55555555-6666-7777-8888-999999999999';
+    mockFindHighlightDismissCountsFor.mockResolvedValue([{ type: 'landing_welcome', count: 2 }]);
+    mockAddToHighlightDismissCount.mockResolvedValue(3); // 1 already under the new account + 2 migrated = 3
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', anonId)
+      .send({ name: 'Hal', email: 'migrate-dismiss-limit@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    const decoded = JSON.parse(Buffer.from(res.body.token.split('.')[1], 'base64').toString());
+
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1', 'EX', TEST_TTL);
+    expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+
+  it('POST /auth/register: no dismiss counts found means no dismiss-count migration attempt', async () => {
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+    await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', '66666666-7777-8888-9999-000000000000')
+      .send({ name: 'Ivo', email: 'no-dismiss-counts@test.com', password: 'secret123', otp: '123456' });
+    expect(mockAddToHighlightDismissCount).not.toHaveBeenCalled();
+  });
+
+  it('POST /auth/register: a dismiss-count migration failure is non-fatal — registration still succeeds', async () => {
+    mockFindHighlightDismissCountsFor.mockRejectedValue(new Error('Redis scan failed'));
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Anonymous-Id', '77777777-8888-9999-0000-111111111111')
+      .send({ name: 'Joy', email: 'dismiss-migration-fails@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeDefined();
+  });
+});
+
+describe('POST /highlights/:type/dismiss', () => {
+  it('returns 400 for a malformed type', async () => {
+    const app = buildApp(new StubHighlightRepository());
+    const res = await request(app).post('/highlights/Not-Valid!/dismiss');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_HIGHLIGHT_TYPE');
+  });
+
+  it('below the limit (anonymous, IP identity): increments the counter but does not mark seen', async () => {
+    mockIncrementDismissCount.mockResolvedValue(2); // 2nd dismissal, still under the limit of 3
+    const app = buildApp(new StubHighlightRepository());
+
+    const res = await request(app).post('/highlights/landing_welcome/dismiss');
+    expect(res.status).toBe(204);
+    expect(mockIncrementDismissCount).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'));
+    expect(mockRedisSet).not.toHaveBeenCalled(); // never escalated to "seen"
+  });
+
+  it('at the limit (3rd dismissal): escalates to seen in Redis', async () => {
+    mockIncrementDismissCount.mockResolvedValue(3);
+    const app = buildApp(new StubHighlightRepository());
+
+    const res = await request(app).post('/highlights/landing_welcome/dismiss');
+    expect(res.status).toBe(204);
+    expect(mockRedisSet).toHaveBeenCalledWith(expect.stringContaining('highlight:landing_welcome:ip:'), '1', 'EX', TEST_TTL);
+  });
+
+  it('at the limit, logged-in caller: escalates to seen in BOTH Redis and the DB', async () => {
+    mockIncrementDismissCount.mockResolvedValue(3);
+    const repo = new StubHighlightRepository();
+    const app = buildApp(repo);
+    const token = await getToken(app);
+    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const res = await request(app)
+      .post('/highlights/landing_welcome/dismiss')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(204);
+    expect(mockRedisSet).toHaveBeenCalledWith(`highlight:landing_welcome:u:${decoded.userId}`, '1', 'EX', TEST_TTL);
+    expect(await repo.hasSeen(decoded.userId, 'landing_welcome')).toBe(true);
+  });
+
+  it('a Redis failure incrementing the counter is non-fatal', async () => {
+    mockIncrementDismissCount.mockRejectedValue(new Error('Redis down'));
+    const app = buildApp(new StubHighlightRepository());
+
+    const res = await request(app).post('/highlights/landing_welcome/dismiss');
+    expect(res.status).toBe(204);
   });
 });

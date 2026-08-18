@@ -9,9 +9,11 @@ import { logger } from '../../lib/logger';
  * per the product ask, "essentially the same user" — so on their very first authenticated
  * request we fold whatever their X-Anonymous-Id identity had marked seen in Redis onto
  * their new u:{userId} identity, in BOTH Redis (fast path for future status checks) and
- * Postgres (source of truth for logged-in users — see PgHighlightRepository). Silent no-op
- * when there's no X-Anonymous-Id header (older client, storage unavailable, etc.) or
- * nothing was ever marked seen under it.
+ * Postgres (source of truth for logged-in users — see PgHighlightRepository). Also folds
+ * over any in-progress (not-yet-escalated) dismiss count, so switching identity mid-way
+ * through HIGHLIGHT_DISMISS_LIMIT doesn't hand the visitor a fresh set of chances — see
+ * findHighlightDismissCountsFor's doc comment. Silent no-op when there's no X-Anonymous-Id
+ * header (older client, storage unavailable, etc.) or nothing was ever recorded under it.
  *
  * Non-fatal by design, same as every other highlight middleware: a failure here must never
  * block or fail a login/register response — worst case the visitor just sees a highlight
@@ -31,8 +33,11 @@ export function makeMigrateAnonymousHighlights(repo: IHighlightRepository) {
     // neutralizes via `jest.mock('../src/middleware/rate-limit.middleware', ...)`, nothing
     // mocks this path. Loading the module lazily, only once a request actually needs it,
     // keeps that connection attempt out of every unrelated test/request entirely.
-    const { redis, highlightSeenKey, markHighlightSeenInRedis, findHighlightTypesFor } =
-      require('../../lib/redis') as typeof import('../../lib/redis');
+    const {
+      redis, highlightSeenKey, highlightDismissKey, markHighlightSeenInRedis,
+      findHighlightTypesFor, findHighlightDismissCountsFor, addToHighlightDismissCount,
+      HIGHLIGHT_DISMISS_LIMIT,
+    } = require('../../lib/redis') as typeof import('../../lib/redis');
 
     try {
       const types = await findHighlightTypesFor(`a:${anonymousId}`);
@@ -57,6 +62,37 @@ export function makeMigrateAnonymousHighlights(repo: IHighlightRepository) {
       }
     } catch (err) {
       logger.warn({ flowId: req.flowId, msg: 'Redis scan failed migrating anonymous highlights', err });
+    }
+
+    try {
+      const dismissals = await findHighlightDismissCountsFor(`a:${anonymousId}`);
+      for (const { type, count } of dismissals) {
+        let newCount: number | null = null;
+        try {
+          newCount = await addToHighlightDismissCount(highlightDismissKey(type, `u:${userId}`), count);
+          await redis.del(highlightDismissKey(type, `a:${anonymousId}`));
+        } catch (err) {
+          logger.warn({ flowId: req.flowId, msg: 'Redis write failed migrating anonymous highlight dismiss count', type, err });
+        }
+
+        // Carrying the count forward can itself cross the limit (e.g. 2 anonymous
+        // dismissals + an existing 1 under the new account) — escalate exactly like a live
+        // dismissal would, same two-write pattern as mark-highlight-dismissed.middleware.ts.
+        if (newCount !== null && newCount >= HIGHLIGHT_DISMISS_LIMIT) {
+          try {
+            await markHighlightSeenInRedis(highlightSeenKey(type, `u:${userId}`));
+          } catch (err) {
+            logger.warn({ flowId: req.flowId, msg: 'Redis write failed escalating migrated dismiss count to seen', type, err });
+          }
+          try {
+            await repo.markSeen(userId, type);
+          } catch (err) {
+            logger.warn({ flowId: req.flowId, msg: 'DB write failed escalating migrated dismiss count to seen', type, err });
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn({ flowId: req.flowId, msg: 'Redis scan failed migrating anonymous highlight dismiss counts', err });
     }
 
     next();
