@@ -55,6 +55,7 @@ describe('GET /featured', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].tripName).toBe('Rome');
+    expect(res.body[0].ownerEmail).toBeUndefined();
   });
 
   it('skips share IDs that do not exist in the DB', async () => {

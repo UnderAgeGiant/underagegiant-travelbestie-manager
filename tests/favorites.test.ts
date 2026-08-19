@@ -191,6 +191,8 @@ describe('GET /shared/:shareId — favorite meta', () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.favoriteCount).toBe('number');
     expect(res.body.isFavoritedByMe).toBe(false);
+    expect(res.body.ownerEmail).toBeUndefined();
+    expect(res.body.ownerId).toBeUndefined();
   });
 
   it('9 — valid auth, user has NOT favourited → isFavoritedByMe:false', async () => {
