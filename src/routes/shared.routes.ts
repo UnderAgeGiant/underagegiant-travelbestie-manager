@@ -10,6 +10,7 @@ import { buildTripResponse } from '../middleware/trips/build-trip-response.middl
 import { makeFavoriteToggle } from '../middleware/favorites/favorite.toggle.middleware';
 import { makeAttachFavoriteMeta } from '../middleware/favorites/attach-favorite-meta.middleware';
 import { captureSharedTripMeta } from '../middleware/notifications/capture-shared-trip-meta.middleware';
+import { stripOwnerPii } from '../middleware/trips/strip-owner-pii.middleware';
 import { makeNotifyFavorite } from '../middleware/notifications/notify-favorite.middleware';
 import { makeNotifyClone } from '../middleware/notifications/notify-clone.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
@@ -31,6 +32,7 @@ export function createSharedRouter(
   router.get('/',
     rateLimitMiddleware({ keyPrefix: 'rl:shared:search', windowSeconds: 60, maxRequests: 30 }),
     trip.searchShared,
+    stripOwnerPii,
     respond(200),
   );
 
@@ -39,6 +41,7 @@ export function createSharedRouter(
     optionalAuth,
     trip.findByShareId,
     attachFavoriteMeta,
+    stripOwnerPii,
     respond(200),
   );
 

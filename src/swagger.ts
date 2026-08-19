@@ -675,7 +675,7 @@ Changing the password invalidates all existing refresh tokens via session versio
       get: {
         tags: ['Shared Trips'],
         summary: 'Search public shared trips',
-        description: 'ILIKE search on trip title and owner name. Returns up to 5 results. Rate-limited to 30 req / min.',
+        description: 'ILIKE search on trip title and owner name. Returns up to 5 results. Rate-limited to 30 req / min. ownerEmail/internal ownerId are never included in the response.',
         parameters: [
           { name: 'q', in: 'query', required: true, schema: { type: 'string', example: 'Europa' }, description: 'Search query' },
         ],
@@ -693,8 +693,7 @@ Changing the password invalidates all existing refresh tokens via session versio
       get: {
         tags: ['Shared Trips'],
         summary: 'Get a single shared trip',
-        description: 'Returns the full trip payload including `planId`, `favoriteCount`, and (if authenticated) `isFavoritedByMe`. Rate-limited to 60 req / min.',
-        security: [{ bearerAuth: [] }],
+        description: 'Public, unauthenticated endpoint — returns the full trip payload including `planId` and `favoriteCount`. `isFavoritedByMe` reflects the caller\'s own state when a valid bearer token is supplied, but a token is never required. `ownerEmail`/internal `ownerId` are never included in the response. Rate-limited to 60 req / min.',
         parameters: [{ name: 'shareId', in: 'path', required: true, schema: { type: 'string', example: 'abc123' } }],
         responses: {
           '200': {
@@ -1176,7 +1175,7 @@ Pass the \`planSessionId\` returned from \`/ai/suggest\` (or a generated UUID) t
       get: {
         tags: ['Landing'],
         summary: 'Featured trips',
-        description: 'Returns trips from `FEATURED_TRIP_IDS` env var. Redis-cached for 24 hours. Returns `[]` if the env var is unset.',
+        description: 'Returns trips from `FEATURED_TRIP_IDS` env var. Redis-cached for 24 hours. Returns `[]` if the env var is unset. ownerEmail/internal ownerId are never included in the response.',
         responses: {
           '200': {
             description: 'Featured shared trips',

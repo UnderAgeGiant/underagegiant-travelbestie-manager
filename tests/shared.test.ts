@@ -9,6 +9,7 @@ import { createAuthRouter } from '../src/routes/auth.routes';
 import { createTripsRouter } from '../src/routes/trips.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 import { respond } from '../src/middleware/respond.middleware';
+import { stripOwnerPii } from '../src/middleware/trips/strip-owner-pii.middleware';
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -43,8 +44,8 @@ function buildApp(karmaScore = 100, tripRepo = new StubTripRepository()) {
   app.use('/trips', createTripsRouter(
     tripController, karmaController, new CollaboratorController(collaboratorRepo), collaboratorRepo, userRepo, tripRepo, new StubNotificationRepository(),
   ));
-  app.get('/shared',          tripController.searchShared, respond(200));
-  app.get('/shared/:shareId', tripController.findByShareId, respond(200));
+  app.get('/shared',          tripController.searchShared, stripOwnerPii, respond(200));
+  app.get('/shared/:shareId', tripController.findByShareId, stripOwnerPii, respond(200));
   app.use(errorHandler);
 
   return { app, tripRepo };
@@ -85,7 +86,9 @@ describe('GET /shared/:shareId', () => {
     expect(res.body.id).toBe(shareId);
     expect(res.body.planId).toBe(tripId);
     expect(res.body.tripName).toBe('Europe 2026');
-    expect(res.body.ownerEmail).toBeDefined();
+    expect(res.body.ownerEmail).toBeUndefined();
+    expect(res.body.ownerId).toBeUndefined();
+    expect(res.body.ownerName).toBeDefined();
     expect(Array.isArray(res.body.stops)).toBe(true);
     expect(Array.isArray(res.body.transits)).toBe(true);
   });
@@ -112,6 +115,8 @@ describe('GET /shared?q=', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].tripName).toBe('Europe 2026');
     expect(res.body[0].planId).toBe(tripId);
+    expect(res.body[0].ownerEmail).toBeUndefined();
+    expect(res.body[0].ownerName).toBeDefined();
   });
 
   it('returns empty array for blank query', async () => {
