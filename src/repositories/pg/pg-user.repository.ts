@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { IUserRepository } from '../interfaces/user.repository';
 import { User } from '../../types';
 
-const INITIAL_KARMA = 3;
+const INITIAL_KARMA = 10;
 
 export class PgUserRepository implements IUserRepository {
   constructor(private readonly pool: Pool) {}

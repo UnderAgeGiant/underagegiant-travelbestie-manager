@@ -334,7 +334,7 @@ The \`changeInfo\` field in \`/ai/plan\` responses tracks usage.
       post: {
         tags: ['Auth'],
         summary: 'Register a new user',
-        description: 'RSA-OAEP-decrypts the payload, verifies OTP, creates the user (karma = 3), and returns tokens. Rate-limited to 10 req / 15 min per IP.',
+        description: 'RSA-OAEP-decrypts the payload, verifies OTP, creates the user (karma = 10), and returns tokens. Rate-limited to 10 req / 15 min per IP.',
         requestBody: {
           required: true,
           content: {
