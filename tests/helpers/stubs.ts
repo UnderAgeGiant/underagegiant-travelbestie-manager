@@ -5,12 +5,13 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
 import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
 import { IHighlightRepository } from '../../src/repositories/interfaces/highlight.repository.interface';
+import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-plan-request.repository';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -320,6 +321,53 @@ export class StubNotificationRepository implements INotificationRepository {
   async setMuted(userId: string, muted: boolean): Promise<void> {
     if (muted) this.mutedUsers.add(userId);
     else this.mutedUsers.delete(userId);
+  }
+}
+
+export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
+  private rows = new Map<string, AiPlanRequestRecord>();
+
+  async insert(data: {
+    userId: string;
+    planSessionId: string;
+    karmaCharged: number;
+    requestParams: AiPlanRequestParams;
+  }): Promise<AiPlanRequestRecord> {
+    const record: AiPlanRequestRecord = {
+      requestId: randomUUID(),
+      userId: data.userId,
+      planSessionId: data.planSessionId,
+      status: 'pending',
+      karmaCharged: data.karmaCharged,
+      requestParams: data.requestParams,
+      createdAt: new Date().toISOString(),
+    };
+    this.rows.set(record.requestId, record);
+    return { ...record };
+  }
+
+  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo): Promise<void> {
+    const row = this.rows.get(requestId);
+    if (!row) return;
+    this.rows.set(requestId, { ...row, status: 'completed', result, changeInfo, completedAt: new Date().toISOString() });
+  }
+
+  async markFailed(requestId: string, errorMessage: string): Promise<void> {
+    const row = this.rows.get(requestId);
+    if (!row) return;
+    this.rows.set(requestId, { ...row, status: 'failed', errorMessage, completedAt: new Date().toISOString() });
+  }
+
+  async findById(requestId: string): Promise<AiPlanRequestRecord | null> {
+    const row = this.rows.get(requestId);
+    return row ? { ...row } : null;
+  }
+
+  async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
+    return [...this.rows.values()]
+      .filter(r => r.userId === userId && r.status !== 'pending')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(r => ({ ...r }));
   }
 }
 

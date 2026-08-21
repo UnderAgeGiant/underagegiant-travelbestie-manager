@@ -118,7 +118,7 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed';
 
 export interface NotificationRecord {
   notificationId: string;
@@ -262,6 +262,33 @@ export type PlanChangeResult =
       originalOptions: PlanSessionOptions;
     };
 
+// ── AI Plan Timeout Resilience & History ───────────────────────────────────
+
+export type AiPlanRequestStatus = 'pending' | 'completed' | 'failed';
+
+/** Exactly what the user submitted to generate this plan — echoed back on the history page. cityCatalog is deliberately excluded (transport-only, not a "parameter the user chose"). */
+export interface AiPlanRequestParams {
+  selectedOption: TripSuggestion;
+  preferences:    string;
+  duration?:      number;
+  budget?:        string;
+  startDate?:     string;
+}
+
+export interface AiPlanRequestRecord {
+  requestId:      string;
+  userId:         string;
+  planSessionId:  string;
+  status:         AiPlanRequestStatus;
+  karmaCharged:   number;
+  requestParams:  AiPlanRequestParams;
+  result?:        PlanTripResponse;
+  changeInfo?:    PlanChangeInfo;
+  errorMessage?:  string;
+  createdAt:      string;
+  completedAt?:   string;
+}
+
 export interface StepComment {
   id:         string;
   stepKey:    string;
@@ -294,6 +321,7 @@ declare global {
       sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
       invitedUser?: User;                // set by resolve-invitee.middleware.ts
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
+      aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
     }
   }
 }
