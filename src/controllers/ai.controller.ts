@@ -110,36 +110,39 @@ export class AiController {
     } catch (err) { next(err); }
   };
 
-  plan = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = req.body as AiPlanBody;
+  /**
+   * Calls DeepSeek to generate a full itinerary plan. Pure — no Express req/res.
+   * Extracted from the old Express-middleware `plan` method so the background
+   * AI plan job (src/lib/ai-plan-job.ts) can call it directly; POST /ai/plan's
+   * route chain no longer calls this as middleware (see kickoff-ai-plan.middleware.ts).
+   */
+  generatePlan = async (body: AiPlanBody): Promise<PlanTripResponse> => {
+    const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = body;
 
-      const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.plan.system, { catalogBlock: buildCatalogBlock(cityCatalog) });
+    const prompts = loadPrompts();
+    const systemPrompt = fillTemplate(prompts.plan.system, { catalogBlock: buildCatalogBlock(cityCatalog) });
 
-      const userMessage = fillTemplate(prompts.plan.userTemplate, {
-        selectedOptionTitle:      selectedOption.title,
-        selectedOptionSummary:    selectedOption.summary,
-        selectedOptionHighlights: selectedOption.highlights.join(', '),
-        preferences,
-        duration:  duration != null ? String(duration) : 'not specified',
-        budget:    budget ?? 'not specified',
-        startDate: startDate ?? 'not specified',
-      });
+    const userMessage = fillTemplate(prompts.plan.userTemplate, {
+      selectedOptionTitle:      selectedOption.title,
+      selectedOptionSummary:    selectedOption.summary,
+      selectedOptionHighlights: selectedOption.highlights.join(', '),
+      preferences,
+      duration:  duration != null ? String(duration) : 'not specified',
+      budget:    budget ?? 'not specified',
+      startDate: startDate ?? 'not specified',
+    });
 
-      const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userMessage },
-        ],
-      });
+    const completion = await deepseekClient.chat.completions.create({
+      model: 'deepseek-v4-flash',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage },
+      ],
+    });
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      req.result = JSON.parse(raw) as PlanTripResponse;
-      next();
-    } catch (err) { next(err); }
+    const raw = completion.choices[0].message.content ?? '{}';
+    return JSON.parse(raw) as PlanTripResponse;
   };
 
   suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
