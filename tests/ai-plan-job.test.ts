@@ -4,6 +4,8 @@ import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepos
 import { PlanChangeResult } from '../src/types';
 import { AiPlanBody } from '../src/schemas/ai.schemas';
 
+jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
+
 jest.mock('../src/lib/redis', () => ({
   redis: { set: jest.fn().mockResolvedValue('OK'), get: jest.fn().mockResolvedValue(null) },
   planSessionKey: (userId: string, sessionId: string) => `plan:${userId}:${sessionId}`,
