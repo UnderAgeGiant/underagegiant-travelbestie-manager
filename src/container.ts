@@ -9,6 +9,7 @@ import { PgStatsRepository }         from './repositories/pg/pg-stats.repository
 import { PgFavoriteRepository }      from './repositories/pg/pg-favorite.repository';
 import { PgNotificationRepository }  from './repositories/pg/pg-notification.repository';
 import { PgCollaboratorRepository }  from './repositories/pg/pg-collaborator.repository';
+import { PgAiPlanRequestRepository }  from './repositories/pg/pg-ai-plan-request.repository';
 import { PgHighlightRepository }     from './repositories/pg/pg-highlight.repository';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
@@ -26,6 +27,7 @@ export { pool };
 export const favoriteRepository      = new PgFavoriteRepository(pool);
 export const highlightRepo           = new PgHighlightRepository(pool);
 export const notificationRepo        = new PgNotificationRepository(pool);
+export const aiPlanRequestRepo       = new PgAiPlanRequestRepository(pool);
 export const karmaRepo               = new PgKarmaRepository(pool);
 export const karmaPurchaseRepo       = new PgKarmaPurchaseRepository(pool);
 export const stepCommentRepo         = new PgStepCommentRepository(pool);
