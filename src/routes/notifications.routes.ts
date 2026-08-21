@@ -19,28 +19,28 @@ export function createNotificationsRouter(notificationRepo: INotificationReposit
 
   router.get('/',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-list', windowSeconds: 60, maxRequests: 20, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-list', windowSeconds: 60, maxRequests: 60, getKey: byUser }),
     makeListNotifications(notificationRepo),
     respond(200),
   );
 
   router.get('/status',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-status', windowSeconds: 60, maxRequests: 30, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-status', windowSeconds: 60, maxRequests: 120, getKey: byUser }),
     makeNotificationStatus(notificationRepo),
     respond(200),
   );
 
   router.post('/read',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-read', windowSeconds: 60, maxRequests: 20, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-read', windowSeconds: 60, maxRequests: 60, getKey: byUser }),
     makeMarkAllRead(notificationRepo),
     respond(204),
   );
 
   router.put('/mute',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-mute', windowSeconds: 60, maxRequests: 10, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-mute', windowSeconds: 60, maxRequests: 30, getKey: byUser }),
     validateBody(muteSchema),
     makeSetMute(notificationRepo),
     respond(200),
