@@ -51,7 +51,7 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
       userId,
       type:  'ai_plan_ready',
       title: '🐾 Tu plan está listo',
-      body:  `Tu plan "${result.title}" ya está listo. Revísalo en Mis Planes IA.`,
+      body:  `Tu plan "${result.title}" ya está listo. Revísalo en Planes IA Pendientes.`,
       url:   '/',
     });
   } catch (err) {
