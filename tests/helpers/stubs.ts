@@ -365,9 +365,21 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
 
   async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
     return [...this.rows.values()]
-      .filter(r => r.userId === userId && r.status !== 'pending')
+      .filter(r => r.userId === userId && r.status !== 'pending' && !r.discardedAt)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map(r => ({ ...r }));
+  }
+
+  async delete(requestId: string, userId: string): Promise<void> {
+    const row = this.rows.get(requestId);
+    if (row && row.userId === userId) this.rows.delete(requestId);
+  }
+
+  async discard(requestId: string, userId: string): Promise<void> {
+    const row = this.rows.get(requestId);
+    if (row && row.userId === userId) {
+      this.rows.set(requestId, { ...row, discardedAt: new Date().toISOString() });
+    }
   }
 }
 

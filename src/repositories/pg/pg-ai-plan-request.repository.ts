@@ -6,7 +6,7 @@ const SELECT_COLUMNS = `
   request_id AS "requestId", user_id AS "userId", plan_session_id AS "planSessionId",
   status, karma_charged AS "karmaCharged", request_params AS "requestParams",
   result, change_info AS "changeInfo", error_message AS "errorMessage",
-  created_at AS "createdAt", completed_at AS "completedAt"
+  created_at AS "createdAt", completed_at AS "completedAt", discarded_at AS "discardedAt"
 `;
 
 interface Row {
@@ -21,6 +21,7 @@ interface Row {
   errorMessage: string | null;
   createdAt: Date | string;
   completedAt: Date | string | null;
+  discardedAt: Date | string | null;
 }
 
 function mapRow(row: Row): AiPlanRequestRecord {
@@ -36,6 +37,7 @@ function mapRow(row: Row): AiPlanRequestRecord {
     errorMessage:  row.errorMessage ?? undefined,
     createdAt:     row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     completedAt:   row.completedAt instanceof Date ? row.completedAt.toISOString() : row.completedAt ?? undefined,
+    discardedAt:   row.discardedAt instanceof Date ? row.discardedAt.toISOString() : row.discardedAt ?? undefined,
   };
 }
 
@@ -86,10 +88,24 @@ export class PgAiPlanRequestRepository implements IAiPlanRequestRepository {
   async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
     const { rows } = await this.pool.query(
       `SELECT ${SELECT_COLUMNS} FROM ai_plan_requests
-       WHERE user_id = $1 AND status IN ('completed', 'failed')
+       WHERE user_id = $1 AND status IN ('completed', 'failed') AND discarded_at IS NULL
        ORDER BY created_at DESC`,
       [userId],
     );
     return rows.map(r => mapRow(r as Row));
+  }
+
+  async delete(requestId: string, userId: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM ai_plan_requests WHERE request_id = $1 AND user_id = $2`,
+      [requestId, userId],
+    );
+  }
+
+  async discard(requestId: string, userId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE ai_plan_requests SET discarded_at = now() WHERE request_id = $1 AND user_id = $2`,
+      [requestId, userId],
+    );
   }
 }

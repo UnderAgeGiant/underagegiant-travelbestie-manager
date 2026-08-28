@@ -287,6 +287,7 @@ export interface AiPlanRequestRecord {
   errorMessage?:  string;
   createdAt:      string;
   completedAt?:   string;
+  discardedAt?:   string;
 }
 
 export interface StepComment {
