@@ -14,6 +14,12 @@ import { respond } from '../middleware/respond.middleware';
 // behind shared NAT whose combined polling exceeds the limit.
 const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown';
 
+// Limits below were widened twice (list/read 20->60->150, status 30->120->300,
+// mute 10->30->90) after users were still hitting 429s on GET /notifications/status
+// during completely regular use (a single AI-planning session with a couple of tabs
+// open). Frontend polls /status once every 60s per tab (NotificationService.
+// POLL_INTERVAL_MS), so 300/60s gives headroom for 5 simultaneous tabs/devices with
+// margin to spare — normal use should never legitimately 429 at this level.
 export function createNotificationsRouter(notificationRepo: INotificationRepository): Router {
   const router = Router();
 
