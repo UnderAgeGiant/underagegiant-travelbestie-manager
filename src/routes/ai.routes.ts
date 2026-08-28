@@ -17,6 +17,7 @@ import { makeFindAiPlanRequest }        from '../middleware/ai/find-ai-plan-requ
 import { checkAiPlanRequestOwnership }  from '../middleware/ai/check-ai-plan-request-ownership.middleware';
 import { aiPlanStatusResponse }         from '../middleware/ai/ai-plan-status-response.middleware';
 import { makeListAiPlanHistory }        from '../middleware/ai/list-ai-plan-history.middleware';
+import { makeDeleteAiPlanRequest }      from '../middleware/ai/delete-ai-plan-request.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { rollCompanionSuggestion } from '../middleware/ai/roll-companion-suggestion.middleware';
 import { COMPANION_SUGGEST_RATE_LIMIT } from '../lib/companion-suggest';
@@ -76,6 +77,18 @@ export function createAiRouter(
     checkAiPlanRequestOwnership,       // 404 if missing or not owned by the caller
     aiPlanStatusResponse,
     respond(200),
+  );
+
+  // Deletes (completed rows) or soft-deletes (failed rows — see Task 26) one
+  // ai_plan_requests row — called automatically by the frontend right after
+  // AiPlanningComponent.save() persists a plan, and manually via the
+  // "Descartar" button on a failed card (which can never be saved). Reuses
+  // the same find/ownership pair as the status route above.
+  router.delete('/plan/:requestId',
+    makeFindAiPlanRequest(aiPlanRequests),
+    checkAiPlanRequestOwnership,
+    makeDeleteAiPlanRequest(aiPlanRequests),
+    respond(204),
   );
 
   const requireKarmaForCitySuggestIfNeeded: RequestHandler = (req, res, next) => {
