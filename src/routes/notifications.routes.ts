@@ -14,33 +14,39 @@ import { respond } from '../middleware/respond.middleware';
 // behind shared NAT whose combined polling exceeds the limit.
 const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown';
 
+// Limits below were widened twice (list/read 20->60->150, status 30->120->300,
+// mute 10->30->90) after users were still hitting 429s on GET /notifications/status
+// during completely regular use (a single AI-planning session with a couple of tabs
+// open). Frontend polls /status once every 60s per tab (NotificationService.
+// POLL_INTERVAL_MS), so 300/60s gives headroom for 5 simultaneous tabs/devices with
+// margin to spare — normal use should never legitimately 429 at this level.
 export function createNotificationsRouter(notificationRepo: INotificationRepository): Router {
   const router = Router();
 
   router.get('/',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-list', windowSeconds: 60, maxRequests: 20, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-list', windowSeconds: 60, maxRequests: 150, getKey: byUser }),
     makeListNotifications(notificationRepo),
     respond(200),
   );
 
   router.get('/status',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-status', windowSeconds: 60, maxRequests: 30, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-status', windowSeconds: 60, maxRequests: 300, getKey: byUser }),
     makeNotificationStatus(notificationRepo),
     respond(200),
   );
 
   router.post('/read',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-read', windowSeconds: 60, maxRequests: 20, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-read', windowSeconds: 60, maxRequests: 150, getKey: byUser }),
     makeMarkAllRead(notificationRepo),
     respond(204),
   );
 
   router.put('/mute',
     requireAuth,
-    rateLimitMiddleware({ keyPrefix: 'rl:notif-mute', windowSeconds: 60, maxRequests: 10, getKey: byUser }),
+    rateLimitMiddleware({ keyPrefix: 'rl:notif-mute', windowSeconds: 60, maxRequests: 90, getKey: byUser }),
     validateBody(muteSchema),
     makeSetMute(notificationRepo),
     respond(200),

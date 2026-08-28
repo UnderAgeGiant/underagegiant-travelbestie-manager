@@ -16,9 +16,13 @@ export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
     const key = `${keyPrefix}:${identifier}`;
     try {
       const count = await redis.incr(key);
-      if (count === 1) {
-        await redis.expire(key, windowSeconds);
-      }
+      // NX = only apply if the key has no TTL yet. Re-issuing this on every
+      // request (not just when count === 1) makes it self-healing: if a prior
+      // request's INCR succeeded but a transient Redis failure dropped its
+      // EXPIRE call, the key would otherwise persist forever and count()
+      // would climb past maxRequests permanently, 429ing that caller for
+      // good. The next request's NX expire closes that window immediately.
+      await redis.expire(key, windowSeconds, 'NX');
       if (count > maxRequests) {
         respondError(req, res, 429, { error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.' });
         return;
