@@ -1,6 +1,9 @@
 import { Router, RequestHandler } from 'express';
 import { AiController }    from '../controllers/ai.controller';
 import { KarmaController } from '../controllers/karma.controller';
+import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
+import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
+import { INotificationRepository } from '../repositories/interfaces/notification.repository';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
 import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
@@ -8,15 +11,25 @@ import type { AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/
 import type { CompanionSuggestion } from '../types';
 import { respond }         from '../middleware/respond.middleware';
 import { checkPlanChange }              from '../middleware/ai/check-plan-change.middleware';
-import { storePlanSession }             from '../middleware/ai/store-plan-session.middleware';
-import { appendPlanChangeInfo }         from '../middleware/ai/append-plan-change-info.middleware';
 import { createChargeAiPlanMiddleware } from '../middleware/ai/charge-ai-plan.middleware';
+import { createKickoffAiPlanMiddleware } from '../middleware/ai/kickoff-ai-plan.middleware';
+import { makeFindAiPlanRequest }        from '../middleware/ai/find-ai-plan-request.middleware';
+import { checkAiPlanRequestOwnership }  from '../middleware/ai/check-ai-plan-request-ownership.middleware';
+import { aiPlanStatusResponse }         from '../middleware/ai/ai-plan-status-response.middleware';
+import { makeListAiPlanHistory }        from '../middleware/ai/list-ai-plan-history.middleware';
+import { makeDeleteAiPlanRequest }      from '../middleware/ai/delete-ai-plan-request.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { rollCompanionSuggestion } from '../middleware/ai/roll-companion-suggestion.middleware';
 import { COMPANION_SUGGEST_RATE_LIMIT } from '../lib/companion-suggest';
 import { logCtaEvent } from '../lib/log-event';
 
-export function createAiRouter(ai: AiController, karma: KarmaController): Router {
+export function createAiRouter(
+  ai:            AiController,
+  karma:         KarmaController,
+  karmaRepo:     IKarmaRepository,
+  aiPlanRequests: IAiPlanRequestRepository,
+  notifications: INotificationRepository,
+): Router {
   const router = Router();
 
   router.use(requireAuth);
@@ -37,16 +50,45 @@ export function createAiRouter(ai: AiController, karma: KarmaController): Router
     return karma.requireKarma(1)(req, res, next);
   };
 
+  const kickoffAiPlan = createKickoffAiPlanMiddleware(ai, karmaRepo, aiPlanRequests, notifications);
+
+  // Fast phase only — the actual DeepSeek call runs in the background (see
+  // kickoff-ai-plan.middleware.ts / src/lib/ai-plan-job.ts). Responds 202 with
+  // just a requestId; the frontend polls the /status route below.
   router.post('/plan',
     validateBody(aiPlanSchema),
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
     requireKarmaForAiPlanIfNeeded,     // 402 if insufficient karma (skipped for free_change)
     chargeAiPlanIfNeeded,              // deducts 1 karma unless free_change
-    ai.plan,                           // calls DeepSeek, sets req.result
-    storePlanSession,                  // writes/updates Redis session
-    appendPlanChangeInfo,              // merges changeInfo into req.result
-    logCtaEvent('cta_ai_plan', req => ({ changeType: req.planChangeResult?.type })),
+    kickoffAiPlan,                     // inserts 'pending' row, schedules the background job
+    respond(202),
+  );
+
+  // Registered before the /:requestId route below — Express matches by full
+  // path shape, not registration order, but 'history' as a literal segment
+  // here can never collide with the /:requestId/status pattern (3 segments).
+  router.get('/plan/history',
+    makeListAiPlanHistory(aiPlanRequests),
     respond(200),
+  );
+
+  router.get('/plan/:requestId/status',
+    makeFindAiPlanRequest(aiPlanRequests),
+    checkAiPlanRequestOwnership,       // 404 if missing or not owned by the caller
+    aiPlanStatusResponse,
+    respond(200),
+  );
+
+  // Deletes (completed rows) or soft-deletes (failed rows — see Task 26) one
+  // ai_plan_requests row — called automatically by the frontend right after
+  // AiPlanningComponent.save() persists a plan, and manually via the
+  // "Descartar" button on a failed card (which can never be saved). Reuses
+  // the same find/ownership pair as the status route above.
+  router.delete('/plan/:requestId',
+    makeFindAiPlanRequest(aiPlanRequests),
+    checkAiPlanRequestOwnership,
+    makeDeleteAiPlanRequest(aiPlanRequests),
+    respond(204),
   );
 
   const requireKarmaForCitySuggestIfNeeded: RequestHandler = (req, res, next) => {

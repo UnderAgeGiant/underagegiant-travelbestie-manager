@@ -1,4 +1,4 @@
-import { PlanSessionOptions, TripSuggestion } from '../types';
+import { PlanChangeInfo, PlanChangeResult, PlanSessionOptions, TripSuggestion } from '../types';
 import { levenshtein } from './levenshtein';
 
 export const CHANGE_THRESHOLD = 0.20;
@@ -57,5 +57,29 @@ export function toSessionOptions(body: {
     duration:                 body.duration ?? 0,
     budget:                   body.budget ?? '',
     startDate:                body.startDate ?? '',
+  };
+}
+
+/**
+ * Builds the changeInfo payload the frontend renders (free-change banner/counter)
+ * from a PlanChangeResult. Pure — moved out of append-plan-change-info.middleware.ts
+ * (deleted) so the background AI plan job can call it without an Express req/res.
+ */
+export function buildPlanChangeInfo(result: PlanChangeResult): PlanChangeInfo {
+  if (result.type === 'new_session') {
+    return { type: 'new_session', freeChangesUsed: 0, freeChangesRemaining: FREE_CHANGE_LIMIT };
+  }
+  if (result.type === 'free_change') {
+    return {
+      type:                 'free_change',
+      freeChangesUsed:      result.freeChangesUsed + 1,   // count AFTER this change
+      freeChangesRemaining: result.freeChangesRemaining,
+    };
+  }
+  return {
+    type:                 'charged_change',
+    freeChangesUsed:      result.freeChangesUsed,
+    freeChangesRemaining: 0,
+    reason:               result.reason,
   };
 }

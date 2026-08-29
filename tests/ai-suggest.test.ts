@@ -4,6 +4,8 @@ import {
   StubUserRepository,
   StubKarmaRepository,
   StubHighlightRepository,
+  StubAiPlanRequestRepository,
+  StubNotificationRepository,
 } from './helpers/stubs';
 import { UserController }  from '../src/controllers/user.controller';
 import { KarmaController } from '../src/controllers/karma.controller';
@@ -44,12 +46,16 @@ jest.mock('../src/lib/deepseek', () => ({
 }));
 
 function buildApp() {
+  const karmaRepo = new StubKarmaRepository();
   const app = express();
   app.use(express.json());
   app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/ai',   createAiRouter(
     new AiController(),
-    new KarmaController(new StubKarmaRepository()),
+    new KarmaController(karmaRepo),
+    karmaRepo,
+    new StubAiPlanRequestRepository(),
+    new StubNotificationRepository(),
   ));
   app.use(errorHandler);
   return app;

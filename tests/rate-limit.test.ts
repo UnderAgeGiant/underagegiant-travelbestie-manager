@@ -38,16 +38,16 @@ describe('rateLimitMiddleware', () => {
     expect(res.body.error).toBeDefined();
   });
 
-  it('sets TTL only on first request (count === 1)', async () => {
+  it('sets TTL on the first request using NX so it never clobbers an existing one', async () => {
     mockRedis.incr.mockResolvedValue(1);
     await request(buildLimitedApp(5)).get('/ping');
-    expect(mockRedis.expire).toHaveBeenCalledWith(expect.any(String), 60);
+    expect(mockRedis.expire).toHaveBeenCalledWith(expect.any(String), 60, 'NX');
   });
 
-  it('does not set TTL on subsequent requests', async () => {
+  it('re-applies the NX TTL on subsequent requests too, so a key left without a TTL by a prior transient Redis failure self-heals on its very next hit', async () => {
     mockRedis.incr.mockResolvedValue(2);
     await request(buildLimitedApp(5)).get('/ping');
-    expect(mockRedis.expire).not.toHaveBeenCalled();
+    expect(mockRedis.expire).toHaveBeenCalledWith(expect.any(String), 60, 'NX');
   });
 
   it('fails open when Redis throws — request is allowed', async () => {
