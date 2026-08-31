@@ -323,6 +323,7 @@ declare global {
       invitedUser?: User;                // set by resolve-invitee.middleware.ts
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
+      weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
     }
   }
 }
