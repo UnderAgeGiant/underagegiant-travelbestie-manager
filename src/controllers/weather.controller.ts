@@ -36,17 +36,32 @@ export class WeatherController {
     }
     const cached = new Map<string, CachedDay>();
     isoDates.forEach((iso, i) => {
-      if (cachedRaw[i]) cached.set(iso, JSON.parse(cachedRaw[i]!));
+      if (!cachedRaw[i]) return;
+      try {
+        cached.set(iso, JSON.parse(cachedRaw[i]!));
+      } catch {
+        // Corrupted/schema-mismatched cache entry (e.g. after a future CachedDay
+        // shape change) — treat as a miss rather than letting JSON.parse throw
+        // inside this async handler, which Express 4 would never catch and would
+        // hang the request instead of returning a clean 4xx/5xx.
+      }
     });
 
-    // 2. Split the misses by forecast-eligibility.
-    const misses = isoDates.filter(iso => !cached.has(iso));
-    const forecastMisses = misses.filter(iso => classify(iso, today) === 'forecast');
-    const historicMisses = misses.filter(iso => classify(iso, today) === 'historic');
+    // 2. Split the misses by forecast-eligibility (single pass — classify() is
+    // date-parsing work, no need to run it twice per date).
+    const forecastMisses: string[] = [];
+    const historicMisses: string[] = [];
+    for (const iso of isoDates) {
+      if (cached.has(iso)) continue;
+      (classify(iso, today) === 'forecast' ? forecastMisses : historicMisses).push(iso);
+    }
 
     const fetched = new Map<string, CachedDay>();
 
-    if (forecastMisses.length > 0) {
+    // Forecast and historic misses hit two different Open-Meteo endpoints and
+    // write to disjoint keys of `fetched` — safe (and faster) to run concurrently
+    // instead of paying both network round trips serially.
+    const forecastFetch = forecastMisses.length === 0 ? Promise.resolve() : (async () => {
       try {
         const maxOffset = Math.max(...forecastMisses.map(iso =>
           Math.floor((new Date(iso).getTime() - new Date(today).getTime()) / 86_400_000),
@@ -56,14 +71,18 @@ export class WeatherController {
       } catch {
         for (const iso of forecastMisses) fetched.set(iso, { type: 'unavailable' });
       }
-    }
+    })();
 
-    if (historicMisses.length > 0) {
+    const historicFetch = historicMisses.length === 0 ? Promise.resolve() : (async () => {
       // Shift every historic miss back exactly 365 days, query that (contiguous)
       // range in one archive call, then map results back onto the *requested* dates.
       const shifted = historicMisses.map(iso => ({ requested: iso, source: addDaysISO(iso, -365) }));
-      const sourceStart = shifted.reduce((min, s) => s.source < min ? s.source : min, shifted[0].source);
-      const sourceEnd   = shifted.reduce((max, s) => s.source > max ? s.source : max, shifted[0].source);
+      let sourceStart = shifted[0].source;
+      let sourceEnd = shifted[0].source;
+      for (const { source } of shifted) {
+        if (source < sourceStart) sourceStart = source;
+        if (source > sourceEnd) sourceEnd = source;
+      }
       try {
         const readings = await fetchHistoricalRange(lat, lng, sourceStart, sourceEnd);
         const bySource = new Map(readings.map(r => [r.date, r]));
@@ -76,7 +95,9 @@ export class WeatherController {
       } catch {
         for (const iso of historicMisses) fetched.set(iso, { type: 'unavailable' });
       }
-    }
+    })();
+
+    await Promise.all([forecastFetch, historicFetch]);
 
     // 3. Cache every freshly-fetched day (not 'unavailable' ones — worth retrying next request).
     try {

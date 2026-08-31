@@ -43,6 +43,13 @@ describe('validateWeatherQuery', () => {
     expect(res.status).toBe(400);
   });
 
+  it('400s on a shape-valid but non-existent calendar date (e.g. 31/02)', async () => {
+    const res = await request(buildApp()).get('/weather').query({
+      cityId: 'paris', checkIn: '31/02/2026', checkOut: '31/02/2026',
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('400s when checkIn is after checkOut', async () => {
     const res = await request(buildApp()).get('/weather').query({
       cityId: 'paris', checkIn: '10/03/2026', checkOut: '07/03/2026',

@@ -1,4 +1,4 @@
-import { dmyToISO, isoToDMY, addDaysISO, iterateISODates, todayISO } from '../../src/lib/weather-dates';
+import { dmyToISO, isoToDMY, addDaysISO, iterateISODates, todayISO, isValidDMY } from '../../src/lib/weather-dates';
 
 describe('weather-dates', () => {
   it('converts dd/mm/yyyy to yyyy-mm-dd', () => {
@@ -31,5 +31,19 @@ describe('weather-dates', () => {
 
   it('todayISO returns a yyyy-mm-dd string', () => {
     expect(todayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('accepts real calendar dates', () => {
+    expect(isValidDMY('05/03/2026')).toBe(true);
+    expect(isValidDMY('29/02/2028')).toBe(true); // leap year
+    expect(isValidDMY('31/12/2026')).toBe(true);
+  });
+
+  it('rejects shape-valid but non-existent dates', () => {
+    expect(isValidDMY('31/02/2026')).toBe(false);  // February never has 31 days
+    expect(isValidDMY('29/02/2026')).toBe(false);  // 2026 is not a leap year
+    expect(isValidDMY('31/04/2026')).toBe(false);  // April has 30 days
+    expect(isValidDMY('00/01/2026')).toBe(false);
+    expect(isValidDMY('01/13/2026')).toBe(false);
   });
 });

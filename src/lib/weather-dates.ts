@@ -16,6 +16,15 @@ export function isoToDMY(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** True if a dd/mm/yyyy string names a real calendar date (rejects e.g. 31/02/2026 —
+ *  a shape-valid but non-existent date that Date.UTC would otherwise silently roll
+ *  over into a different, real date rather than rejecting). */
+export function isValidDMY(dmy: string): boolean {
+  const [d, m, y] = dmy.split('/').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
 /** Adds (or subtracts, for a negative value) whole days to an ISO date string. */
 export function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
