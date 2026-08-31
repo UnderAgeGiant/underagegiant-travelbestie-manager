@@ -21,6 +21,7 @@ import { StepCommentController }     from './controllers/step-comment.controller
 import { StatsController }           from './controllers/stats.controller';
 import { CompanionController }       from './controllers/companion.controller';
 import { CollaboratorController }    from './controllers/collaborator.controller';
+import { WeatherController }         from './controllers/weather.controller';
 
 export { pool };
 
@@ -46,3 +47,4 @@ export const stepCommentController   = new StepCommentController(stepCommentRepo
 export const statsController         = new StatsController(new PgStatsRepository(pool));
 export const companionController     = new CompanionController();
 export const collaboratorController  = new CollaboratorController(collaboratorRepo);
+export const weatherController       = new WeatherController();
