@@ -39,6 +39,16 @@ export function commentCacheKey(attractionId: string): string {
 
 export const COMMENT_CACHE_TTL = 60;
 
+/** Redis key for one calendar day's cached weather for a city. isoDate is yyyy-mm-dd. */
+export function weatherDayKey(cityId: string, isoDate: string): string {
+  return `weather:${cityId}:${isoDate}`;
+}
+
+// 12h — long enough that a city/date-range hit by many users in the same window
+// only calls Open-Meteo once, short enough that a forecast noticeably updates
+// as the date approaches (see root CLAUDE.md's Feature 61 section).
+export const WEATHER_CACHE_TTL = 43200;
+
 export function notificationStatusKey(userId: string): string {
   return `notif:status:${userId}`;
 }

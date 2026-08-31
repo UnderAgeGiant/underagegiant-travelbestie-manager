@@ -11,7 +11,7 @@ import {
   statsController, favoriteRepository, notificationRepo,
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
-  highlightRepo, aiPlanRequestRepo,
+  highlightRepo, aiPlanRequestRepo, weatherController,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -25,6 +25,7 @@ import { createFavoritesRouter }       from './routes/favorites.routes';
 import { createNotificationsRouter }   from './routes/notifications.routes';
 import { createCompanionRouter }       from './routes/companion.routes';
 import { createHighlightsRouter }      from './routes/highlights.routes';
+import { createWeatherRouter }         from './routes/weather.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
@@ -72,6 +73,7 @@ app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
+app.use('/weather', createWeatherRouter(weatherController));
 
 app.use(notFound);
 app.use(errorHandler);

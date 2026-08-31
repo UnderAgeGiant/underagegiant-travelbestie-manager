@@ -305,6 +305,16 @@ export interface StepCommentAddResult {
   karmaAwarded: boolean;
 }
 
+export type WeatherDayType = 'forecast' | 'historic' | 'unavailable';
+
+export interface WeatherResponseDay {
+  date: string;  // dd/mm/yyyy
+  type: WeatherDayType;
+  tempMaxC?: number;
+  tempMinC?: number;
+  weatherCode?: number;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -323,6 +333,7 @@ declare global {
       invitedUser?: User;                // set by resolve-invitee.middleware.ts
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
+      weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
     }
   }
 }
