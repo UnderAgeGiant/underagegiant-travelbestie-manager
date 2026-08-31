@@ -305,6 +305,16 @@ export interface StepCommentAddResult {
   karmaAwarded: boolean;
 }
 
+export type WeatherDayType = 'forecast' | 'historic' | 'unavailable';
+
+export interface WeatherResponseDay {
+  date: string;  // dd/mm/yyyy
+  type: WeatherDayType;
+  tempMaxC?: number;
+  tempMinC?: number;
+  weatherCode?: number;
+}
+
 declare global {
   namespace Express {
     interface Request {
