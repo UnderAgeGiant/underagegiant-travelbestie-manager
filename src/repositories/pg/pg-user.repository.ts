@@ -11,7 +11,7 @@ export class PgUserRepository implements IUserRepository {
     const { rows: [row] } = await this.pool.query(
       `INSERT INTO users (name, email, password_hash, karma)
        VALUES ($1, LOWER($2), $3, $4)
-       RETURNING user_id, name, email, password_hash, home_city, created_at`,
+       RETURNING user_id, name, email, password_hash, country_of_residence, created_at`,
       [data.name, data.email, data.passwordHash, INITIAL_KARMA],
     );
     return mapUser(row);
@@ -19,7 +19,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, home_city, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, created_at
        FROM users WHERE email = LOWER($1)`,
       [email],
     );
@@ -28,7 +28,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findById(id: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, home_city, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, created_at
        FROM users WHERE user_id = $1`,
       [id],
     );
@@ -37,17 +37,17 @@ export class PgUserRepository implements IUserRepository {
 
   async update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; homeCity?: string | null },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
   ): Promise<User> {
     const { rows: [row] } = await this.pool.query(
       `UPDATE users
-       SET name          = COALESCE($2, name),
-           email         = COALESCE($3, email),
-           password_hash = COALESCE($4, password_hash),
-           home_city     = COALESCE($5, home_city)
+       SET name                  = COALESCE($2, name),
+           email                 = COALESCE($3, email),
+           password_hash         = COALESCE($4, password_hash),
+           country_of_residence  = COALESCE($5, country_of_residence)
        WHERE user_id = $1
-       RETURNING user_id, name, email, password_hash, home_city, created_at`,
-      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.homeCity ?? null],
+       RETURNING user_id, name, email, password_hash, country_of_residence, created_at`,
+      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null],
     );
     if (!row) throw new Error('User not found');
     return mapUser(row);
@@ -56,11 +56,11 @@ export class PgUserRepository implements IUserRepository {
 
 function mapUser(row: Record<string, unknown>): User {
   return {
-    id:           row.user_id as string,
-    name:         row.name as string,
-    email:        row.email as string,
-    passwordHash: row.password_hash as string,
-    homeCity:     (row.home_city as string | null) ?? null,
-    createdAt:    (row.created_at as Date).toISOString(),
+    id:                  row.user_id as string,
+    name:                row.name as string,
+    email:               row.email as string,
+    passwordHash:        row.password_hash as string,
+    countryOfResidence:  (row.country_of_residence as string | null) ?? null,
+    createdAt:           (row.created_at as Date).toISOString(),
   };
 }

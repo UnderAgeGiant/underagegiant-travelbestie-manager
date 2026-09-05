@@ -51,7 +51,7 @@ const testUser: User = {
   name:         'Test User',
   email:        'test@example.com',
   passwordHash: TEST_PASSWORD_HASH,
-  homeCity:     null,
+  countryOfResidence: null,
   createdAt:    new Date().toISOString(),
 };
 
@@ -236,27 +236,33 @@ describe('PUT /auth/profile — email change', () => {
   });
 });
 
-// ── PUT /auth/profile — home city ─────────────────────────────────────────
-describe('PUT /auth/profile — home city', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it('updates home_city and returns it in the user payload', async () => {
+describe('PUT /auth/profile — country of residence', () => {
+  it('updates country_of_residence and returns it in the user payload', async () => {
     const res = await request(buildApp())
       .put('/auth/profile')
       .set('Authorization', 'Bearer mock')
-      .send({ homeCity: 'Santiago, Chile' });
+      .send({ countryOfResidence: 'CL' });
 
     expect(res.status).toBe(200);
-    expect(res.body.user.homeCity).toBe('Santiago, Chile');
+    expect(res.body.user.countryOfResidence).toBe('CL');
   });
 
-  it('does not require a password or OTP to set home city', async () => {
+  it('does not require a password or OTP to set country of residence', async () => {
     const res = await request(buildApp())
       .put('/auth/profile')
       .set('Authorization', 'Bearer mock')
-      .send({ homeCity: 'Lima, Perú' });
+      .send({ countryOfResidence: 'PE' });
 
     expect(res.status).toBe(200);
+  });
+
+  it('rejects a value that is not a 2-letter ISO country code', async () => {
+    const res = await request(buildApp())
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ countryOfResidence: 'Santiago, Chile' });
+
+    expect(res.status).toBe(400);
   });
 });
 
