@@ -6,6 +6,6 @@ export interface IUserRepository {
   findById(id: string): Promise<User | null>;
   update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; homeCity?: string | null },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
   ): Promise<User>;
 }

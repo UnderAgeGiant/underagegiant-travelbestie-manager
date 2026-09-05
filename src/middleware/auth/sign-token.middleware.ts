@@ -10,7 +10,7 @@ export async function signTokenMiddleware(req: Request, res: Response, next: Nex
     const refreshToken = await issueRefreshToken(user.id);
     setRefreshCookie(res, refreshToken);
     // Refresh token is delivered via HttpOnly cookie only — never in the JSON body (F-5).
-    req.result = { token, user: { name: user.name, email: user.email, homeCity: user.homeCity } };
+    req.result = { token, user: { name: user.name, email: user.email, countryOfResidence: user.countryOfResidence } };
     next();
   } catch (err) { next(err); }
 }
