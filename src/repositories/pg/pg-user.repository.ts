@@ -39,15 +39,21 @@ export class PgUserRepository implements IUserRepository {
     userId: string,
     fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
   ): Promise<User> {
+    // A plain COALESCE($5, country_of_residence) can never express "set to NULL" — an
+    // absent field (don't touch) and an explicit null (clear it) both collapse to the same
+    // SQL parameter. clearCountry distinguishes them: true only when the caller explicitly
+    // sent countryOfResidence: null (2026-09-08 feedback #5 — there was previously no way
+    // to remove a previously-set país de residencia).
+    const clearCountry = 'countryOfResidence' in fields && fields.countryOfResidence === null;
     const { rows: [row] } = await this.pool.query(
       `UPDATE users
        SET name                  = COALESCE($2, name),
            email                 = COALESCE($3, email),
            password_hash         = COALESCE($4, password_hash),
-           country_of_residence  = COALESCE($5, country_of_residence)
+           country_of_residence  = CASE WHEN $6 THEN NULL ELSE COALESCE($5, country_of_residence) END
        WHERE user_id = $1
        RETURNING user_id, name, email, password_hash, country_of_residence, created_at`,
-      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null],
+      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null, clearCountry],
     );
     if (!row) throw new Error('User not found');
     return mapUser(row);

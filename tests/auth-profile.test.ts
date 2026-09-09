@@ -264,6 +264,38 @@ describe('PUT /auth/profile — country of residence', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('clears countryOfResidence when the body explicitly sends null', async () => {
+    const app = buildApp();
+    await request(app)
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ countryOfResidence: 'CL' });
+
+    const res = await request(app)
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ countryOfResidence: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.countryOfResidence).toBeNull();
+  });
+
+  it('leaves countryOfResidence untouched when the body omits it entirely', async () => {
+    const app = buildApp();
+    await request(app)
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ countryOfResidence: 'CL' });
+
+    const res = await request(app)
+      .put('/auth/profile')
+      .set('Authorization', 'Bearer mock')
+      .send({ name: 'New Name' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.countryOfResidence).toBe('CL');
+  });
 });
 
 // ── PUT /auth/profile — password change ───────────────────────────────────

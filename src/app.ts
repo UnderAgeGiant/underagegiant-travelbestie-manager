@@ -42,7 +42,11 @@ app.use(requestLoggerMiddleware);
 app.use(helmet({ contentSecurityPolicy: false }));
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
 const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
-app.use(cors({ origin: corsOrigin, credentials: true }));
+// maxAge caches the browser's CORS preflight (OPTIONS) result for 24h — without it Chrome
+// falls back to a 5s cache, and since every request now carries X-Anonymous-Id (see
+// AuthInterceptor in the frontend repo, 2026-09-09), even anonymous GETs on public paths
+// like /featured, /stats, /shared/:id, /comments/:id trigger a preflight on nearly every call.
+app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400 }));
 app.use(cookieParser());
 app.use(express.json());
 

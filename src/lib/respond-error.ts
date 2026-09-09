@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { logger } from './logger';
+import { resolveUserKey } from './request-identity';
 
 export function respondError(req: Request, res: Response, status: number, body: Record<string, unknown>): void {
   logger.warn({
@@ -7,6 +8,7 @@ export function respondError(req: Request, res: Response, status: number, body: 
     method: req.method,
     path: req.originalUrl,
     userId: req.user?.userId ?? null,
+    userKey: resolveUserKey(req),
     status,
     msg: (body.error as string | undefined) ?? 'request rejected',
   });

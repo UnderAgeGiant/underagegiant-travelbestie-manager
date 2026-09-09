@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { logger } from '../lib/logger';
+import { resolveUserKey } from '../lib/request-identity';
 
 export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   req.flowId = randomUUID();
@@ -10,13 +11,13 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
   const { method } = req;
   const path = req.originalUrl.split('?')[0];
 
-  logger.info({ flowId: req.flowId, method, path, msg: '→ request' });
+  logger.info({ flowId: req.flowId, userKey: resolveUserKey(req), method, path, msg: '→ request' });
 
   res.on('finish', () => {
     const ms = Date.now() - start;
     const entry = {
       flowId: req.flowId, method, path, status: res.statusCode, ms,
-      userId: req.user?.userId ?? null, msg: '← response',
+      userId: req.user?.userId ?? null, userKey: resolveUserKey(req), msg: '← response',
     };
     if (res.statusCode >= 500) {
       logger.error(entry);

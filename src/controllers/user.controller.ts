@@ -44,11 +44,11 @@ export class UserController {
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string } = {};
+      const fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null } = {};
       if (req.body.name !== undefined)               fields.name               = req.body.name as string;
       if (req.body.newEmail !== undefined)            fields.email              = (req.body.newEmail as string).toLowerCase();
       if (req.newPasswordHash !== undefined)          fields.passwordHash       = req.newPasswordHash;
-      if (req.body.countryOfResidence !== undefined)  fields.countryOfResidence = req.body.countryOfResidence as string;
+      if ('countryOfResidence' in req.body) fields.countryOfResidence = req.body.countryOfResidence as string | null;
 
       if (Object.keys(fields).length === 0) {
         res.status(400).json({ error: 'Debes proporcionar al menos un campo para actualizar.' });
