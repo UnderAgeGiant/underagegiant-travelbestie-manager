@@ -9,7 +9,11 @@ const ANONYMOUS_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[
  *  migrate-anonymous-highlights.middleware.ts so both places agree on what counts as
  *  a well-formed id. */
 export function readAnonymousId(req: Request): string | null {
-  const anonymousId = req.header(ANONYMOUS_ID_HEADER);
+  // Real Express requests always have .header() — this guard exists only so hand-rolled
+  // plain-object Request mocks elsewhere in this test suite (which predate this function's
+  // reuse by resolveUserKey, see request-identity.ts) don't throw when this now runs on
+  // every respondError()/logEvent()/errorHandler() call instead of only the highlights routes.
+  const anonymousId = typeof req.header === 'function' ? req.header(ANONYMOUS_ID_HEADER) : undefined;
   return anonymousId && ANONYMOUS_ID_PATTERN.test(anonymousId) ? anonymousId : null;
 }
 

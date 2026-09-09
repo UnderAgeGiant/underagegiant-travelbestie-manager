@@ -4,12 +4,14 @@ import request from 'supertest';
 
 jest.mock('../src/lib/redis', () => ({ redis: { incr: jest.fn(), expire: jest.fn() } }));
 
-function mockReqRes(overrides: Partial<Request> = {}) {
+function mockReqRes(overrides: Partial<Request> & { headers?: Record<string, string> } = {}) {
+  const headers = overrides.headers ?? {};
   const req = {
     flowId: 'test-flow-id',
     method: 'GET',
     originalUrl: '/test',
-    headers: {},
+    headers,
+    header: (name: string) => headers[name.toLowerCase()],
     user: undefined,
     ...overrides,
   } as unknown as Request;
@@ -46,6 +48,25 @@ describe('logEvent', () => {
 
     const line = JSON.parse((writeSpy.mock.calls[0][0] as string).trim());
     expect(line.userId).toBeNull();
+  });
+
+  it('includes userKey from X-Anonymous-Id when req.user is absent', () => {
+    const { logEvent } = require('../src/lib/log-event');
+    const anonId = '12345678-1234-1234-1234-123456789012';
+    const { req } = mockReqRes({ headers: { 'x-anonymous-id': anonId } });
+    logEvent(req, 'cta_test');
+
+    const line = JSON.parse((writeSpy.mock.calls[0][0] as string).trim());
+    expect(line.userKey).toBe(anonId);
+  });
+
+  it('prefers userId over X-Anonymous-Id for userKey when both are present', () => {
+    const { logEvent } = require('../src/lib/log-event');
+    const { req } = mockReqRes({ user: { userId: 'u-1' } as any, headers: { 'x-anonymous-id': '12345678-1234-1234-1234-123456789012' } });
+    logEvent(req, 'cta_test');
+
+    const line = JSON.parse((writeSpy.mock.calls[0][0] as string).trim());
+    expect(line.userKey).toBe('u-1');
   });
 });
 
