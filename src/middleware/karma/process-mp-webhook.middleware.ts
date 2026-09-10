@@ -54,7 +54,7 @@ export function createProcessMpWebhook(purchases: IKarmaPurchaseRepository) {
             flowId: req.flowId, paymentId, externalReference: payment.externalReference,
             expectedAmount: purchase.amount, paidAmount: payment.transactionAmount,
           });
-          await purchases.failPurchase(purchase.providerOrderId);
+          await purchases.failPurchase(purchase.providerOrderId, 'amount_mismatch');
           req.result = { received: true };
           return next();
         }
@@ -64,7 +64,7 @@ export function createProcessMpWebhook(purchases: IKarmaPurchaseRepository) {
         req.karmaPurchase = completed;
         req.result = { karma: newKarmaTotal, karmaAdded: completed.karmaAmount };
       } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
-        await purchases.failPurchase(purchase.providerOrderId);
+        await purchases.failPurchase(purchase.providerOrderId, payment.status);
         req.result = { received: true };
       } else {
         // still pending on MP's side (e.g. a bank transfer awaiting clearance) — nothing

@@ -174,7 +174,33 @@ describe('POST /karma/purchase/mp/webhook', () => {
     expect(res.status).toBe(200); // still acked — an anticipated condition, not a retryable failure
     const updated = await purchaseRepo.findByOrderId(purchaseRef);
     expect(updated!.status).toBe('failed');
+    expect(updated!.failureReason).toBe('amount_mismatch');
     expect(updated!.providerCaptureId).toBeNull(); // never captured/completed
+  });
+
+  it('marks the purchase failed with reason "cancelled" for a cancelled payment', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/karma/purchase/mp/create-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'cancelled', externalReference: purchaseRef, transactionAmount: 900 });
+
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=ok')
+      .set('x-request-id', 'req-cancelled')
+      .send({ data: { id: 'pay-cancelled' } });
+
+    expect(res.status).toBe(200);
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('failed');
+    expect(updated!.failureReason).toBe('cancelled');
   });
 
   it('marks the purchase failed for a rejected payment', async () => {
@@ -199,6 +225,7 @@ describe('POST /karma/purchase/mp/webhook', () => {
     expect(res.status).toBe(200);
     const updated = await purchaseRepo.findByOrderId(purchaseRef);
     expect(updated!.status).toBe('failed');
+    expect(updated!.failureReason).toBe('rejected');
   });
 
   it('returns 200 with no changes for an unknown external_reference (idempotent ack, no retry storm)', async () => {

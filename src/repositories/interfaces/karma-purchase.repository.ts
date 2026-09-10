@@ -18,5 +18,5 @@ export interface IKarmaPurchaseRepository {
     captureId: string,
   ): Promise<CompleteKarmaPurchaseResult>;
 
-  failPurchase(providerOrderId: string): Promise<void>;
+  failPurchase(providerOrderId: string, reason: string): Promise<void>;
 }

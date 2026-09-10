@@ -208,7 +208,7 @@ export class StubKarmaPurchaseRepository implements IKarmaPurchaseRepository {
   ): Promise<KarmaPurchase> {
     const p: KarmaPurchase = {
       purchaseId: randomUUID(), userId, provider, providerOrderId, providerCaptureId: null,
-      packageId, karmaAmount, amount, currency, status: 'pending',
+      packageId, karmaAmount, amount, currency, status: 'pending', failureReason: null,
       createdAt: new Date().toISOString(), completedAt: null,
     };
     this.store.set(providerOrderId, p);
@@ -230,9 +230,9 @@ export class StubKarmaPurchaseRepository implements IKarmaPurchaseRepository {
     return { purchase: completed, newKarmaTotal: p.karmaAmount };
   }
 
-  async failPurchase(providerOrderId: string): Promise<void> {
+  async failPurchase(providerOrderId: string, reason: string): Promise<void> {
     const p = this.store.get(providerOrderId);
-    if (p) this.store.set(providerOrderId, { ...p, status: 'failed' });
+    if (p) this.store.set(providerOrderId, { ...p, status: 'failed', failureReason: reason });
   }
 }
 

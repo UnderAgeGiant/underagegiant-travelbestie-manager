@@ -220,6 +220,7 @@ export interface KarmaPurchase {
   amount: string;               // price as string to preserve decimal
   currency: string;             // ISO 4217 code
   status: 'pending' | 'completed' | 'failed' | 'refunded';
+  failureReason: string | null; // set only when status transitions to 'failed'; e.g. 'rejected' | 'cancelled' | 'amount_mismatch'
   createdAt: string;
   completedAt: string | null;
 }
