@@ -87,6 +87,44 @@ describe('createMpPreference', () => {
     expect(body.back_urls.success).toBe('https://app.example.com/?mp_purchase=mp_abc-123&mp_status=success');
     expect(body.back_urls.failure).toBe('https://app.example.com/?mp_purchase=mp_abc-123&mp_status=failure');
     expect(body.back_urls.pending).toBe('https://app.example.com/?mp_purchase=mp_abc-123&mp_status=pending');
+    // auto_return is only valid when back_urls point at a real, public domain —
+    // MercadoPago rejects it outright for localhost (see the 'omits auto_return...' test below).
+    expect(body.auto_return).toBe('approved');
+  });
+
+  it('omits auto_return when FRONTEND_ORIGIN is localhost (MercadoPago rejects auto_return with a local back_urls domain — "auto_return invalid. back_url.success must be defined")', async () => {
+    process.env.FRONTEND_ORIGIN = 'http://localhost:4200';
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'pref-123', init_point: 'https://mp.example.com/checkout/pref-123' }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { createMpPreference } = require('../src/lib/mercadopago');
+    await createMpPreference('3600', 'karma_50', 'mp_abc-123');
+
+    const [, opts] = fetchMock.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    // back_urls still get built (harmless — the webhook, not the browser redirect,
+    // is what actually completes the purchase) but auto_return must be absent.
+    expect(body.back_urls.success).toBe('http://localhost:4200/?mp_purchase=mp_abc-123&mp_status=success');
+    expect(body.auto_return).toBeUndefined();
+  });
+
+  it('omits auto_return when FRONTEND_ORIGIN is 127.0.0.1', async () => {
+    process.env.FRONTEND_ORIGIN = 'http://127.0.0.1:4200';
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'pref-123', init_point: 'https://mp.example.com/checkout/pref-123' }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { createMpPreference } = require('../src/lib/mercadopago');
+    await createMpPreference('3600', 'karma_50', 'mp_abc-123');
+
+    const [, opts] = fetchMock.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.auto_return).toBeUndefined();
   });
 
   it('throws when the MercadoPago API responds with an error', async () => {

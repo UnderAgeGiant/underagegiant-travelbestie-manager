@@ -7,6 +7,22 @@ function frontendOrigin(): string {
   return raw.includes(',') ? raw.split(',')[0].trim() : raw;
 }
 
+/**
+ * MercadoPago rejects auto_return outright when back_urls points at a local/non-public
+ * domain — the API's error ("auto_return invalid. back_url.success must be defined") is
+ * misleadingly worded; the real requirement is a publicly-routable domain. Local dev still
+ * gets working back_urls, just without the auto-fire redirect — harmless, since the webhook
+ * (not the browser redirect) is what actually completes the purchase.
+ */
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
 export async function createMpPreference(
   priceClp: string,
   packageId: string,
@@ -29,8 +45,8 @@ export async function createMpPreference(
       failure: `${origin}/?mp_purchase=${purchaseRef}&mp_status=failure`,
       pending: `${origin}/?mp_purchase=${purchaseRef}&mp_status=pending`,
     },
-    auto_return: 'approved',
   };
+  if (!isLocalOrigin(origin)) body['auto_return'] = 'approved';
   const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL;
   if (notificationUrl) body['notification_url'] = notificationUrl;
 
