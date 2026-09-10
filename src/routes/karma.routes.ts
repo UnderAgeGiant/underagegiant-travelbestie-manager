@@ -11,6 +11,9 @@ import { createOrderSchema, captureOrderSchema } from '../schemas/karma.schemas'
 import { validateKarmaPackage } from '../middleware/karma/validate-karma-package.middleware';
 import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
 import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
+import { verifyMpWebhookSignatureMiddleware } from '../middleware/karma/verify-mp-webhook-signature.middleware';
+import { createProcessMpWebhook } from '../middleware/karma/process-mp-webhook.middleware';
+import { createAttachPurchaseUser } from '../middleware/karma/attach-purchase-user.middleware';
 import { makeNotifyKarmaPurchase } from '../middleware/notifications/notify-karma-purchase.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -26,6 +29,8 @@ export function createKarmaRouter(
   const router = Router();
   const verifyOwnership     = createVerifyPurchaseOwnership(purchaseRepo);
   const notifyKarmaPurchase = makeNotifyKarmaPurchase(notificationRepo);
+  const processMpWebhook  = createProcessMpWebhook(purchaseRepo);
+  const attachPurchaseUser = createAttachPurchaseUser(userRepo);
 
   // GET /karma — authenticated user's karma score
   router.get('/',
@@ -69,6 +74,17 @@ export function createKarmaRouter(
     validateKarmaPackage,
     mercadopago.createPreference,
     respond(201),
+  );
+
+  // POST /karma/purchase/mp/webhook — MercadoPago calls this directly (no JWT)
+  router.post('/purchase/mp/webhook',
+    verifyMpWebhookSignatureMiddleware,
+    processMpWebhook,
+    attachPurchaseUser,
+    logCtaEvent('cta_karma_purchase', req => ({ provider: 'mercadopago', amount: req.karmaPurchase?.amount })),
+    sendKarmaConfirmationEmailMiddleware,
+    notifyKarmaPurchase,
+    respond(200),
   );
 
   return router;

@@ -1,5 +1,6 @@
 import request from 'supertest';
 import express from 'express';
+import { createMpPreference, fetchMpPayment, verifyMpWebhookSignature } from '../src/lib/mercadopago';
 import { StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository, StubNotificationRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController }          from '../src/controllers/user.controller';
 import { KarmaController }         from '../src/controllers/karma.controller';
@@ -104,5 +105,109 @@ describe('POST /karma/purchase/mp/create-preference', () => {
     expect(stored.currency).toBe('CLP');
     expect(stored.amount).toBe('900');
     expect(stored.karmaAmount).toBe(10);
+  });
+});
+
+describe('POST /karma/purchase/mp/webhook', () => {
+  beforeEach(() => {
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(true);
+  });
+
+  it('returns 401 when the signature is invalid', async () => {
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(false);
+    const { app } = buildApp();
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=bad')
+      .set('x-request-id', 'req-1')
+      .send({ data: { id: 'pay-1' } });
+    expect(res.status).toBe(401);
+  });
+
+  it('credits karma and returns 200 for an approved payment matching a pending purchase', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+
+    const createRes = await request(app)
+      .post('/karma/purchase/mp/create-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+    expect(createRes.status).toBe(201);
+
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 900 });
+
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=ok')
+      .set('x-request-id', 'req-2')
+      .send({ data: { id: 'pay-2' } });
+
+    expect(res.status).toBe(200);
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('completed');
+    expect(updated!.providerCaptureId).toBe('pay-2');
+  });
+
+  it('marks the purchase failed for a rejected payment', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/karma/purchase/mp/create-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'rejected', externalReference: purchaseRef, transactionAmount: 900 });
+
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=ok')
+      .set('x-request-id', 'req-3')
+      .send({ data: { id: 'pay-3' } });
+
+    expect(res.status).toBe(200);
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('failed');
+  });
+
+  it('returns 200 with no changes for an unknown external_reference (idempotent ack, no retry storm)', async () => {
+    const { app } = buildApp();
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: 'mp_does-not-exist', transactionAmount: 900 });
+
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=ok')
+      .set('x-request-id', 'req-4')
+      .send({ data: { id: 'pay-4' } });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 200 with no re-processing for an already-completed purchase (duplicate MP notification)', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/karma/purchase/mp/create-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 900 });
+    await request(app).post('/karma/purchase/mp/webhook').set('x-signature', 'ts=1,v1=ok').set('x-request-id', 'req-5').send({ data: { id: 'pay-5' } });
+
+    const before = await purchaseRepo.findByOrderId(purchaseRef);
+
+    // MercadoPago retries the same notification
+    const res = await request(app).post('/karma/purchase/mp/webhook').set('x-signature', 'ts=1,v1=ok').set('x-request-id', 'req-5').send({ data: { id: 'pay-5' } });
+    expect(res.status).toBe(200);
+
+    const after = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(after!.completedAt).toBe(before!.completedAt); // unchanged — not reprocessed
   });
 });
