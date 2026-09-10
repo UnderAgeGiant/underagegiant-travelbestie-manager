@@ -14,6 +14,7 @@ import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-k
 import { verifyMpWebhookSignatureMiddleware } from '../middleware/karma/verify-mp-webhook-signature.middleware';
 import { createProcessMpWebhook } from '../middleware/karma/process-mp-webhook.middleware';
 import { createAttachPurchaseUser } from '../middleware/karma/attach-purchase-user.middleware';
+import { createVerifyMpPurchaseOwnership } from '../middleware/karma/verify-mp-purchase-ownership.middleware';
 import { makeNotifyKarmaPurchase } from '../middleware/notifications/notify-karma-purchase.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -31,6 +32,7 @@ export function createKarmaRouter(
   const notifyKarmaPurchase = makeNotifyKarmaPurchase(notificationRepo);
   const processMpWebhook  = createProcessMpWebhook(purchaseRepo);
   const attachPurchaseUser = createAttachPurchaseUser(userRepo);
+  const verifyMpOwnership = createVerifyMpPurchaseOwnership(purchaseRepo);
 
   // GET /karma — authenticated user's karma score
   router.get('/',
@@ -84,6 +86,13 @@ export function createKarmaRouter(
     logCtaEvent('cta_karma_purchase', req => ({ provider: 'mercadopago', amount: req.karmaPurchase?.amount })),
     sendKarmaConfirmationEmailMiddleware,
     notifyKarmaPurchase,
+    respond(200),
+  );
+
+  // GET /karma/purchase/mp/status/:purchaseRef — polled by the frontend after MP redirects back
+  router.get('/purchase/mp/status/:purchaseRef',
+    requireAuth,
+    verifyMpOwnership,
     respond(200),
   );
 

@@ -211,3 +211,59 @@ describe('POST /karma/purchase/mp/webhook', () => {
     expect(after!.completedAt).toBe(before!.completedAt); // unchanged — not reprocessed
   });
 });
+
+describe('GET /karma/purchase/mp/status/:purchaseRef', () => {
+  it('returns 401 without token', async () => {
+    const { app } = buildApp();
+    expect((await request(app).get('/karma/purchase/mp/status/mp_x')).status).toBe(401);
+  });
+
+  it('returns 404 for a purchaseRef that does not exist', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    const res = await request(app).get('/karma/purchase/mp/status/mp_does-not-exist').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns pending status right after create-preference, before any webhook', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${stored.providerOrderId}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+    expect(res.body.karmaAdded).toBeUndefined();
+  });
+
+  it('returns completed status with karmaAdded once the webhook has processed it', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(true);
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 900 });
+    await request(app).post('/karma/purchase/mp/webhook').set('x-signature', 'ts=1,v1=ok').set('x-request-id', 'req-status-1').send({ data: { id: 'pay-status-1' } });
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('completed');
+    expect(res.body.karmaAdded).toBe(10);
+  });
+
+  it('returns 404 when a different user polls someone else\'s purchase', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const ownerToken = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${ownerToken}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+
+    const otherRes = await request(app).post('/auth/register').send({ name: 'Other', email: 'other@mp.com', password: 'secret123', otp: '123456' });
+    const otherToken = otherRes.body.token as string;
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${stored.providerOrderId}`).set('Authorization', `Bearer ${otherToken}`);
+    expect(res.status).toBe(404);
+  });
+});
