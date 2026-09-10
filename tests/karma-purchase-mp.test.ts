@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { createMpPreference, fetchMpPayment, verifyMpWebhookSignature } from '../src/lib/mercadopago';
+import { createMpPreference, fetchMpPayment, verifyMpWebhookSignature, searchMpPayments } from '../src/lib/mercadopago';
 import { StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository, StubNotificationRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController }          from '../src/controllers/user.controller';
 import { KarmaController }         from '../src/controllers/karma.controller';
@@ -35,6 +35,7 @@ jest.mock('../src/lib/mercadopago', () => ({
   createMpPreference: jest.fn().mockResolvedValue({ preferenceId: 'pref-abc', initPoint: 'https://mp.example.com/checkout/pref-abc' }),
   fetchMpPayment: jest.fn(),
   verifyMpWebhookSignature: jest.fn(),
+  searchMpPayments: jest.fn(),
 }));
 
 function buildApp() {
@@ -267,6 +268,10 @@ describe('POST /karma/purchase/mp/webhook', () => {
 });
 
 describe('GET /karma/purchase/mp/status/:purchaseRef', () => {
+  beforeEach(() => {
+    (searchMpPayments as jest.Mock).mockResolvedValue([]);
+  });
+
   it('returns 401 without token', async () => {
     const { app } = buildApp();
     expect((await request(app).get('/karma/purchase/mp/status/mp_x')).status).toBe(401);
@@ -319,5 +324,91 @@ describe('GET /karma/purchase/mp/status/:purchaseRef', () => {
 
     const res = await request(app).get(`/karma/purchase/mp/status/${stored.providerOrderId}`).set('Authorization', `Bearer ${otherToken}`);
     expect(res.status).toBe(404);
+  });
+
+  it('reconciles to failed/rejected when the search API finds a rejected payment the webhook never reported', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([{ id: 'pay-x', status: 'rejected' }]);
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('failed');
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.failureReason).toBe('rejected');
+  });
+
+  it('reconciles to failed/abandoned when no payment record exists and the purchase has been pending long enough', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+    // Simulate a purchase old enough to safely conclude it was abandoned before any payment attempt.
+    stored.createdAt = new Date(Date.now() - 60_000).toISOString();
+    (purchaseRepo as any).store.set(purchaseRef, stored);
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([]);
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('failed');
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.failureReason).toBe('abandoned');
+  });
+
+  it('leaves a freshly-created purchase pending even when search finds nothing yet (age gate)', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([]);
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+    expect(searchMpPayments).toHaveBeenCalledWith(purchaseRef);
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('pending');
+  });
+
+  it('leaves the purchase pending when search finds an in-process payment, regardless of age', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+    stored.createdAt = new Date(Date.now() - 60_000).toISOString();
+    (purchaseRepo as any).store.set(purchaseRef, stored);
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([{ id: 'pay-x', status: 'in_process' }]);
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+  });
+
+  it('fails open (stays pending, 200) when the MercadoPago search API errors', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+    stored.createdAt = new Date(Date.now() - 60_000).toISOString();
+    (purchaseRepo as any).store.set(purchaseRef, stored);
+
+    (searchMpPayments as jest.Mock).mockRejectedValue(new Error('network blip'));
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('pending');
   });
 });

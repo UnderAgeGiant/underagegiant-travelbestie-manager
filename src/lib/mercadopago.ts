@@ -76,6 +76,17 @@ export async function fetchMpPayment(paymentId: string): Promise<{
   return { status: data.status, externalReference: data.external_reference, transactionAmount: data.transaction_amount };
 }
 
+export async function searchMpPayments(externalReference: string): Promise<Array<{ id: string; status: string }>> {
+  const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  if (!accessToken) throw new Error('MERCADOPAGO_ACCESS_TOKEN must be set');
+
+  const url = `${MP_BASE}/v1/payments/search?external_reference=${encodeURIComponent(externalReference)}&sort=date_created&criteria=desc`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error(`MercadoPago search payments error: ${res.status} ${await res.text()}`);
+  const data = await res.json() as { results?: Array<{ id: number | string; status: string }> };
+  return (data.results ?? []).map(r => ({ id: String(r.id), status: r.status }));
+}
+
 /**
  * Verifies MercadoPago's x-signature webhook header against MERCADOPAGO_WEBHOOK_SECRET.
  * Header format: "ts=<unix-seconds>,v1=<hmac-sha256-hex>", where the hash covers the
