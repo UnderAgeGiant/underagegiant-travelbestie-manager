@@ -156,3 +156,57 @@ describe('fetchMpPayment', () => {
     expect(result).toEqual({ status: 'approved', externalReference: 'mp_abc', transactionAmount: 3600 });
   });
 });
+
+describe('searchMpPayments', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...ORIGINAL_ENV, MERCADOPAGO_ACCESS_TOKEN: 'test-token' };
+  });
+
+  afterEach(() => { global.fetch = originalFetch; });
+  afterAll(() => { process.env = ORIGINAL_ENV; });
+
+  it('searches by external_reference, sorted most-recent-first, and maps results to {id, status}', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { id: 111, status: 'rejected' },
+          { id: 222, status: 'in_process' },
+        ],
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { searchMpPayments } = require('../src/lib/mercadopago');
+    const result = await searchMpPayments('mp_abc-123');
+
+    expect(result).toEqual([
+      { id: '111', status: 'rejected' },
+      { id: '222', status: 'in_process' },
+    ]);
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.mercadopago.com/v1/payments/search?external_reference=mp_abc-123&sort=date_created&criteria=desc');
+    expect(opts.headers.Authorization).toBe('Bearer test-token');
+  });
+
+  it('returns an empty array when MercadoPago has no matching payment', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) }) as unknown as typeof fetch;
+    const { searchMpPayments } = require('../src/lib/mercadopago');
+    expect(await searchMpPayments('mp_none')).toEqual([]);
+  });
+
+  it('throws when the MercadoPago API responds with an error', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'server error' }) as unknown as typeof fetch;
+    const { searchMpPayments } = require('../src/lib/mercadopago');
+    await expect(searchMpPayments('mp_abc')).rejects.toThrow('MercadoPago search payments error');
+  });
+
+  it('throws when MERCADOPAGO_ACCESS_TOKEN is not configured', async () => {
+    delete process.env.MERCADOPAGO_ACCESS_TOKEN;
+    const { searchMpPayments } = require('../src/lib/mercadopago');
+    await expect(searchMpPayments('mp_abc')).rejects.toThrow('MERCADOPAGO_ACCESS_TOKEN must be set');
+  });
+});
