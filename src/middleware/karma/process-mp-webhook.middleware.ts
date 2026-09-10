@@ -40,6 +40,25 @@ export function createProcessMpWebhook(purchases: IKarmaPurchaseRepository) {
       }
 
       if (payment.status === 'approved') {
+        const expectedAmount = Number(purchase.amount);
+        const paidAmount = payment.transactionAmount;
+        const AMOUNT_TOLERANCE = 0.01; // guards against decimal round-trip noise, not a real discrepancy
+
+        if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - expectedAmount) > AMOUNT_TOLERANCE) {
+          // The amount MercadoPago actually charged doesn't match what this purchase was
+          // created for — a tampering attempt or an MP-integration anomaly. Never credit
+          // karma for this: fail the purchase and ack 200 (this won't resolve on retry,
+          // so it belongs with the other anticipated-condition no-ops, not a 5xx).
+          logger.error({
+            msg: 'mp webhook: amount mismatch — refusing to credit karma',
+            flowId: req.flowId, paymentId, externalReference: payment.externalReference,
+            expectedAmount: purchase.amount, paidAmount: payment.transactionAmount,
+          });
+          await purchases.failPurchase(purchase.providerOrderId);
+          req.result = { received: true };
+          return next();
+        }
+
         const { purchase: completed, newKarmaTotal } =
           await purchases.completePurchase(purchase.providerOrderId, paymentId);
         req.karmaPurchase = completed;

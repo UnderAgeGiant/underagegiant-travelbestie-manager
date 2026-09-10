@@ -150,6 +150,33 @@ describe('POST /karma/purchase/mp/webhook', () => {
     expect(updated!.providerCaptureId).toBe('pay-2');
   });
 
+  it('marks the purchase failed and does not credit karma when the paid amount does not match the stored purchase amount', async () => {
+    const { app, purchaseRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/karma/purchase/mp/create-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: 'karma_10' }); // stored amount is '900' (CLP)
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    // Payer's actual charged amount (1) doesn't match the requested package price (900) —
+    // a tampering or MercadoPago-integration anomaly. Must never credit karma for this.
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 1 });
+
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .set('x-signature', 'ts=1,v1=ok')
+      .set('x-request-id', 'req-amount-mismatch')
+      .send({ data: { id: 'pay-amount-mismatch' } });
+
+    expect(res.status).toBe(200); // still acked — an anticipated condition, not a retryable failure
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('failed');
+    expect(updated!.providerCaptureId).toBeNull(); // never captured/completed
+  });
+
   it('marks the purchase failed for a rejected payment', async () => {
     const { app, purchaseRepo } = buildApp();
     const token = await getToken(app);
