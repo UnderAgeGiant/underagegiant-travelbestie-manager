@@ -14,6 +14,7 @@ function rowToPurchase(row: Record<string, unknown>): KarmaPurchase {
     amount:           String(row.amount),
     currency:         row.currency as string,
     status:           row.status as KarmaPurchase['status'],
+    failureReason:    (row.failure_reason as string | null) ?? null,
     createdAt:        (row.created_at as Date).toISOString(),
     completedAt:      row.completed_at ? (row.completed_at as Date).toISOString() : null,
   };
@@ -93,10 +94,10 @@ export class PgKarmaPurchaseRepository implements IKarmaPurchaseRepository {
     }
   }
 
-  async failPurchase(providerOrderId: string): Promise<void> {
+  async failPurchase(providerOrderId: string, reason: string): Promise<void> {
     await this.pool.query(
-      `UPDATE karma_purchases SET status = 'failed' WHERE provider_order_id = $1`,
-      [providerOrderId],
+      `UPDATE karma_purchases SET status = 'failed', failure_reason = $2 WHERE provider_order_id = $1`,
+      [providerOrderId, reason],
     );
   }
 }

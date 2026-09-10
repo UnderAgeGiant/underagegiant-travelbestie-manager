@@ -203,9 +203,10 @@ export interface AuthPayload {
 export interface KarmaPackage {
   id: string;
   karma: number;
-  price: string;    // string to preserve exact decimal, e.g. "3.99"
-  currency: string; // ISO 4217 code, e.g. "USD", "CLP"
+  price: string;    // string to preserve exact decimal, e.g. "3.99" — always equals prices.USD
+  currency: string;    // ISO 4217, always "USD" for this field — see prices for other currencies
   label: string;
+  prices: Record<string, string>; // e.g. { USD: "3.99", CLP: "3600" } — one entry per supported provider currency
 }
 
 export interface KarmaPurchase {
@@ -219,6 +220,7 @@ export interface KarmaPurchase {
   amount: string;               // price as string to preserve decimal
   currency: string;             // ISO 4217 code
   status: 'pending' | 'completed' | 'failed' | 'refunded';
+  failureReason: string | null; // set only when status transitions to 'failed'; e.g. 'rejected' | 'cancelled' | 'amount_mismatch'
   createdAt: string;
   completedAt: string | null;
 }
