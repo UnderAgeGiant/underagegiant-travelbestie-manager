@@ -7,6 +7,7 @@ import { swaggerSpec } from './swagger';
 import {
   userController, tripController, commentController,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
+  mercadopagoController,
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
   statsController, favoriteRepository, notificationRepo,
   companionController,
@@ -70,7 +71,7 @@ app.use('/shared/:shareId/comments',
 );
 app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo));
 app.use('/comments', createCommentsRouter(commentController));
-app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, karmaPurchaseRepo, notificationRepo));
+app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo));
 app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { KarmaController } from '../controllers/karma.controller';
 import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
+import { MercadoPagoController } from '../controllers/mercadopago.controller';
 import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
+import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
@@ -16,7 +18,9 @@ import { logCtaEvent } from '../lib/log-event';
 export function createKarmaRouter(
   karma: KarmaController,
   karmaPurchase: KarmaPurchaseController,
+  mercadopago: MercadoPagoController,
   purchaseRepo: IKarmaPurchaseRepository,
+  userRepo: IUserRepository,
   notificationRepo: INotificationRepository,
 ): Router {
   const router = Router();
@@ -37,7 +41,7 @@ export function createKarmaRouter(
     respond(200),
   );
 
-  // POST /karma/purchase/create-order — create a provider order for a package
+  // POST /karma/purchase/create-order — create a PayPal order for a package
   router.post('/purchase/create-order',
     requireAuth,
     validateBody(createOrderSchema),
@@ -46,7 +50,7 @@ export function createKarmaRouter(
     respond(201),
   );
 
-  // POST /karma/purchase/capture-order — capture approved payment and credit karma
+  // POST /karma/purchase/capture-order — capture approved PayPal payment and credit karma
   router.post('/purchase/capture-order',
     requireAuth,
     validateBody(captureOrderSchema),
@@ -56,6 +60,15 @@ export function createKarmaRouter(
     sendKarmaConfirmationEmailMiddleware,
     notifyKarmaPurchase,
     respond(200),
+  );
+
+  // POST /karma/purchase/mp/create-preference — create a MercadoPago Checkout Pro preference
+  router.post('/purchase/mp/create-preference',
+    requireAuth,
+    validateBody(createOrderSchema),
+    validateKarmaPackage,
+    mercadopago.createPreference,
+    respond(201),
   );
 
   return router;

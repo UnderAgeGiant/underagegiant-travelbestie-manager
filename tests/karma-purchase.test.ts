@@ -4,6 +4,7 @@ import { StubUserRepository, StubKarmaRepository, StubKarmaPurchaseRepository, S
 import { UserController }          from '../src/controllers/user.controller';
 import { KarmaController }         from '../src/controllers/karma.controller';
 import { KarmaPurchaseController } from '../src/controllers/karma-purchase.controller';
+import { MercadoPagoController }   from '../src/controllers/mercadopago.controller';
 import { createAuthRouter }  from '../src/routes/auth.routes';
 import { createKarmaRouter } from '../src/routes/karma.routes';
 import { errorHandler }      from '../src/middleware/error.middleware';
@@ -44,10 +45,13 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
+  const userRepo = new StubUserRepository();
   app.use('/karma', createKarmaRouter(
     new KarmaController(new StubKarmaRepository()),
     new KarmaPurchaseController(purchaseRepo),
+    new MercadoPagoController(purchaseRepo),
     purchaseRepo,
+    userRepo,
     new StubNotificationRepository(),
   ));
   app.use(errorHandler);
