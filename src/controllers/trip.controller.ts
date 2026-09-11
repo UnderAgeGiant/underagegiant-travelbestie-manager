@@ -8,8 +8,12 @@ export class TripController {
 
   create = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { title, stops, transits } = req.body as { title: string; stops: TripStop[]; transits: TransitLeg[] };
-      req.trip = await this.trips.create({ title, stops, transits: transits ?? [], ownerId: req.user!.userId });
+      const { title, stops, transits, sourceAiPlanRequestId } = req.body as {
+        title: string; stops: TripStop[]; transits: TransitLeg[]; sourceAiPlanRequestId?: string;
+      };
+      req.trip = await this.trips.create({
+        title, stops, transits: transits ?? [], ownerId: req.user!.userId, sourceAiPlanRequestId,
+      });
       next();
     } catch (err) { next(err); }
   };

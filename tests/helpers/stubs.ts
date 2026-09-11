@@ -62,8 +62,9 @@ export class StubUserRepository implements IUserRepository {
 export class StubTripRepository implements ITripRepository {
   private trips = new Map<string, Trip>();
 
-  async create(data: { title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string }): Promise<Trip> {
-    const trip: Trip = { id: randomUUID(), ...data, createdAt: new Date().toISOString() };
+  async create(data: { title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string; sourceAiPlanRequestId?: string }): Promise<Trip> {
+    const { sourceAiPlanRequestId: _unused, ...tripData } = data;
+    const trip: Trip = { id: randomUUID(), ...tripData, createdAt: new Date().toISOString() };
     this.trips.set(trip.id, trip);
     return trip;
   }

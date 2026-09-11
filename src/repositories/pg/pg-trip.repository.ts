@@ -25,13 +25,13 @@ function toHM(pgTime: string): string {
 export class PgTripRepository implements ITripRepository {
   constructor(private readonly pool: Pool) {}
 
-  async create(data: { title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string }): Promise<Trip> {
+  async create(data: { title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string; sourceAiPlanRequestId?: string }): Promise<Trip> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const { rows: [row] } = await client.query(
-        `INSERT INTO trips (owner_id, title) VALUES ($1, $2) RETURNING trip_id, created_at`,
-        [data.ownerId, data.title],
+        `INSERT INTO trips (owner_id, title, source_ai_plan_request_id) VALUES ($1, $2, $3) RETURNING trip_id, created_at`,
+        [data.ownerId, data.title, data.sourceAiPlanRequestId ?? null],
       );
       await insertStops(client, row.trip_id, data.stops);
       await insertLegs(client, row.trip_id, data.transits);
