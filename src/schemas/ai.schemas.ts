@@ -28,6 +28,7 @@ export const aiPlanSchema = z.object({
 
 export const aiSuggestAttractionsSchema = z.object({
   cityId:                z.string().min(1).max(80),
+  tripId:                z.string().min(1).max(120).optional(),
   checkIn:                z.string().min(1).max(10),
   checkOut:               z.string().min(1).max(10),
   existingAttractionIds:  z.array(z.string().min(1).max(120)).max(100).optional(),

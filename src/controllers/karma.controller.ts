@@ -55,7 +55,10 @@ export class KarmaController {
 
   spendForAiSuggest      = this.spendFor(KARMA_COST_AI_SUGGEST, 'ai_suggest');
   spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan', req => req.aiPlanRequestId!);
-  spendForCitySuggest    = this.spendFor(KARMA_COST_CITY_SUGGEST, 'ai_city_suggest');
+  spendForCitySuggest    = this.spendFor(
+    KARMA_COST_CITY_SUGGEST, 'ai_city_suggest',
+    req => (req.body as { tripId?: string }).tripId ?? req.flowId,
+  );
   spendForCompanionBoost = this.spendFor(KARMA_COST_COMPANION_BOOST, 'companion_boost');
 
   requireForCollaboratorInvite = this.requireKarma(KARMA_COST_COLLABORATOR_INVITE);

@@ -48,6 +48,10 @@ jest.mock('../src/lib/deepseek', () => ({
 function buildApp() {
   const karmaRepo = new StubKarmaRepository(100);
   const app = express();
+  app.use((req: any, _res, next) => {
+    req.flowId = 'test-flow-id';
+    next();
+  });
   app.use(express.json());
   app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/ai',   createAiRouter(
@@ -215,5 +219,47 @@ describe('POST /ai/suggest-attractions', () => {
     expect(res.body.suggestions).toEqual([
       { attractionId: 'paris_1', date: '02/07/2026', startTime: '10:00', endTime: '12:00', reason: 'Cerca de tu hotel y del resto del itinerario.' },
     ]);
+  });
+
+  it('records the karma event ref_id as the given tripId', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+
+    create.mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
+    });
+
+    await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        cityId: 'paris', checkIn: '01/01/2027', checkOut: '05/01/2027',
+        cityCatalog: [{ id: 'paris_0', name: 'Eiffel Tower' }],
+        tripId: 'trip-abc-123',
+      });
+
+    const event = karmaRepo.events.find(e => e.reason === 'ai_city_suggest');
+    expect(event?.refId).toBe('trip-abc-123');
+  });
+
+  it('falls back to the flow id when tripId is not provided', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+
+    create.mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
+    });
+
+    await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        cityId: 'paris', checkIn: '01/01/2027', checkOut: '05/01/2027',
+        cityCatalog: [{ id: 'paris_0', name: 'Eiffel Tower' }],
+      });
+
+    const event = karmaRepo.events.find(e => e.reason === 'ai_city_suggest');
+    expect(event?.refId).not.toBe('trip-abc-123');
+    expect(event?.refId).toBeTruthy();
   });
 });
