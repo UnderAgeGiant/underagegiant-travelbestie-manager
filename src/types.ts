@@ -156,6 +156,13 @@ export interface Karma {
 export interface KarmaEventTarget {
   type: 'trip' | 'ai_plan_request';
   id: string;
+  /** The trip's title — only ever populated when type === 'trip'. */
+  name?: string;
+}
+
+export interface KarmaPurchaseMeta {
+  provider: string;
+  transactionId: string;
 }
 
 /** One row as read back from the karma_events table — pre-target-resolution. */
@@ -175,6 +182,8 @@ export interface KarmaEvent {
   reason: string;
   createdAt: string;
   target: KarmaEventTarget | null;
+  /** Only populated for reason === 'karma_purchased'. Display-only — no CTA. */
+  purchase?: KarmaPurchaseMeta;
 }
 
 export interface KarmaEventsPage {

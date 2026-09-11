@@ -29,23 +29,30 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 const mockPoolQuery = jest.fn();
 const mockPool = { query: mockPoolQuery } as any;
 
-// Three distinct query shapes hit the same mock pool in one request:
-//   1. trip existence,       "SELECT trip_id FROM trips WHERE trip_id = ANY(...)"
-//   2. ai_plan -> trip link, "SELECT trip_id, source_ai_plan_request_id FROM trips WHERE source_ai_plan_request_id = ANY(...)"
-//   3. ai_plan_requests existence, "SELECT request_id FROM ai_plan_requests WHERE request_id = ANY(...)"
+// Four distinct query shapes hit the same mock pool in one request:
+//   1. trip existence (+ title),       "SELECT trip_id, title FROM trips WHERE trip_id = ANY(...)"
+//   2. ai_plan -> trip link (+ title), "SELECT trip_id, title, source_ai_plan_request_id FROM trips WHERE source_ai_plan_request_id = ANY(...)"
+//   3. ai_plan_requests existence,     "SELECT request_id FROM ai_plan_requests WHERE request_id = ANY(...)"
+//   4. karma_purchases lookup,         "SELECT purchase_id, provider, provider_capture_id FROM karma_purchases WHERE purchase_id = ANY(...)"
 // Distinguished by substring since both (1) and (2) start "FROM trips".
 function setPoolResults(
   tripIds: string[],
-  savedAiPlanLinks: { sourceRequestId: string; tripId: string }[],
+  savedAiPlanLinks: { sourceRequestId: string; tripId: string; title?: string }[],
   aiPlanRequestIds: string[],
+  purchases: { purchaseId: string; provider: string; transactionId: string | null }[] = [],
 ) {
   mockPoolQuery.mockImplementation((sql: string) => {
-    if (sql.includes('source_ai_plan_request_id = ANY')) {
+    if (sql.includes('FROM karma_purchases')) {
       return Promise.resolve({
-        rows: savedAiPlanLinks.map(l => ({ trip_id: l.tripId, source_ai_plan_request_id: l.sourceRequestId })),
+        rows: purchases.map(p => ({ purchase_id: p.purchaseId, provider: p.provider, provider_capture_id: p.transactionId })),
       });
     }
-    if (sql.includes('FROM trips')) return Promise.resolve({ rows: tripIds.map(trip_id => ({ trip_id })) });
+    if (sql.includes('source_ai_plan_request_id = ANY')) {
+      return Promise.resolve({
+        rows: savedAiPlanLinks.map(l => ({ trip_id: l.tripId, title: l.title ?? 'Untitled', source_ai_plan_request_id: l.sourceRequestId })),
+      });
+    }
+    if (sql.includes('FROM trips')) return Promise.resolve({ rows: tripIds.map(trip_id => ({ trip_id, title: 'Untitled' })) });
     if (sql.includes('FROM ai_plan_requests')) return Promise.resolve({ rows: aiPlanRequestIds.map(request_id => ({ request_id })) });
     return Promise.resolve({ rows: [] });
   });
@@ -141,7 +148,7 @@ describe('GET /karma/events', () => {
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     const live = res.body.events.find((e: any) => e.reason === 'trip_created');
     const deleted = res.body.events.find((e: any) => e.reason === 'itinerary_exported');
-    expect(live.target).toEqual({ type: 'trip', id: tripLiveId });
+    expect(live.target).toEqual({ type: 'trip', id: tripLiveId, name: 'Untitled' });
     expect(deleted.target).toBeNull();
   });
 
@@ -175,7 +182,7 @@ describe('GET /karma/events', () => {
     setPoolResults([], [{ sourceRequestId: reqSavedId, tripId: 'trip-from-plan' }], []);
 
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
-    expect(res.body.events[0].target).toEqual({ type: 'trip', id: 'trip-from-plan' });
+    expect(res.body.events[0].target).toEqual({ type: 'trip', id: 'trip-from-plan', name: 'Untitled' });
   });
 
   it('never attaches a target to a non-linkable reason', async () => {
@@ -245,5 +252,72 @@ describe('GET /karma/events', () => {
 
     const res2 = await request(app).get('/karma/events?limit=abc').set('Authorization', `Bearer ${token}`);
     expect(res2.body.events).toHaveLength(20);
+  });
+
+  it('includes the trip title on a trip target', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const tripId = 'eeeeeeee-5555-4555-8555-eeeeeeeeeeee';
+    await karmaRepo.spendAmount(userId, 1, 'trip_created', tripId);
+    mockPoolQuery.mockImplementation((sql: string) => {
+      if (sql.includes('FROM trips')) return Promise.resolve({ rows: [{ trip_id: tripId, title: 'Ruta Clásica por Europa' }] });
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].target).toEqual({ type: 'trip', id: tripId, name: 'Ruta Clásica por Europa' });
+  });
+
+  it('includes the trip title when an ai_plan event resolves via source_ai_plan_request_id', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const reqSavedId = 'ffffffff-6666-4666-8666-ffffffffffff';
+    await karmaRepo.spendAmount(userId, 1, 'ai_plan', reqSavedId);
+    setPoolResults([], [{ sourceRequestId: reqSavedId, tripId: 'trip-from-plan', title: 'Mi Plan Europa' }], []);
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].target).toEqual({ type: 'trip', id: 'trip-from-plan', name: 'Mi Plan Europa' });
+  });
+
+  it('includes provider and transactionId on a karma_purchased event', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const purchaseId = '11111111-1111-4111-8111-111111111111';
+    await karmaRepo.award(userId, 25, 'karma_purchased', purchaseId);
+    setPoolResults([], [], [], [{ purchaseId, provider: 'mercadopago', transactionId: 'mp-capture-abc' }]);
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].purchase).toEqual({ provider: 'mercadopago', transactionId: 'mp-capture-abc' });
+    expect(res.body.events[0].target).toBeNull();
+  });
+
+  it('falls back to the purchase id as transactionId when provider_capture_id is null', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const purchaseId = '22222222-2222-4222-8222-222222222222';
+    await karmaRepo.award(userId, 25, 'karma_purchased', purchaseId);
+    setPoolResults([], [], [], [{ purchaseId, provider: 'paypal', transactionId: null }]);
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].purchase).toEqual({ provider: 'paypal', transactionId: purchaseId });
+  });
+
+  it('never includes purchase metadata on a non-karma_purchased event', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    await karmaRepo.spendAmount(userId, 1, 'trip_created', 'trip-1');
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].purchase).toBeUndefined();
   });
 });
