@@ -31,6 +31,7 @@ jest.mock('../src/lib/redis', () => ({
   redis: { get: jest.fn().mockResolvedValue(null), set: jest.fn() },
   planSessionKey: () => 'unused',
 }));
+jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
 
 function buildApp() {
   const karmaRepo = new StubKarmaRepository(100);
