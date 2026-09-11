@@ -126,6 +126,38 @@ describe('POST /karma/purchase/mp/webhook', () => {
     expect(res.status).toBe(401);
   });
 
+  it('acks 200 for a non-payment topic (?topic=merchant_order) without ever checking the signature', async () => {
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(false); // would 401 if the filter didn't short-circuit first
+    const { app } = buildApp();
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook?id=44344824471&topic=merchant_order')
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ received: true });
+    expect(verifyMpWebhookSignature).not.toHaveBeenCalled();
+    expect(fetchMpPayment).not.toHaveBeenCalled();
+  });
+
+  it('acks 200 for a non-payment type in the JSON body without ever checking the signature', async () => {
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(false);
+    const { app } = buildApp();
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook')
+      .send({ type: 'subscription_authorized_payment', data: { id: 'sub-1' } });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ received: true });
+    expect(verifyMpWebhookSignature).not.toHaveBeenCalled();
+  });
+
+  it('still requires a valid signature for an explicit ?topic=payment notification', async () => {
+    (verifyMpWebhookSignature as jest.Mock).mockReturnValue(false);
+    const { app } = buildApp();
+    const res = await request(app)
+      .post('/karma/purchase/mp/webhook?topic=payment&id=pay-1')
+      .send({});
+    expect(res.status).toBe(401);
+  });
+
   it('credits karma and returns 200 for an approved payment matching a pending purchase', async () => {
     const { app, purchaseRepo } = buildApp();
     const token = await getToken(app);
