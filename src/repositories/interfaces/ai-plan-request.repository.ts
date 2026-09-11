@@ -3,6 +3,7 @@ import { AiPlanRequestParams, AiPlanRequestRecord, PlanChangeInfo, PlanTripRespo
 export interface IAiPlanRequestRepository {
   /** Creates a 'pending' row for a newly-accepted /ai/plan call. */
   insert(data: {
+    requestId:     string;
     userId:        string;
     planSessionId: string;
     karmaCharged:  number;

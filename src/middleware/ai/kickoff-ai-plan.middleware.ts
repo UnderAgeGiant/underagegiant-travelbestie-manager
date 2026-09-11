@@ -28,6 +28,7 @@ export function createKickoffAiPlanMiddleware(
       const karmaCharged = planChangeResult.type === 'free_change' ? 0 : 1;
 
       const record = await aiPlanRequests.insert({
+        requestId:     req.aiPlanRequestId!,
         userId:        req.user!.userId,
         planSessionId: body.planSessionId ?? '',
         karmaCharged,

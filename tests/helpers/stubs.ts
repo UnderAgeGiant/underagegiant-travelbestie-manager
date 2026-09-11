@@ -367,13 +367,14 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
   private rows = new Map<string, AiPlanRequestRecord>();
 
   async insert(data: {
+    requestId: string;
     userId: string;
     planSessionId: string;
     karmaCharged: number;
     requestParams: AiPlanRequestParams;
   }): Promise<AiPlanRequestRecord> {
     const record: AiPlanRequestRecord = {
-      requestId: randomUUID(),
+      requestId: data.requestId,
       userId: data.userId,
       planSessionId: data.planSessionId,
       status: 'pending',

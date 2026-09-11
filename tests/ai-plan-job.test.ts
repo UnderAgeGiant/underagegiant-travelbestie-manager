@@ -41,7 +41,7 @@ describe('runAiPlanJob', () => {
 
     const body = makeBody();
     const record = await aiPlanRequests.insert({
-      userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
+      requestId: 'req-1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
       requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
@@ -68,7 +68,7 @@ describe('runAiPlanJob', () => {
 
     const body = makeBody();
     const record = await aiPlanRequests.insert({
-      userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
+      requestId: 'req-2', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
       requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
@@ -96,7 +96,7 @@ describe('runAiPlanJob', () => {
 
     const body = makeBody();
     const record = await aiPlanRequests.insert({
-      userId: 'u1', planSessionId: 'session-1', karmaCharged: 0,
+      requestId: 'req-3', userId: 'u1', planSessionId: 'session-1', karmaCharged: 0,
       requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = {

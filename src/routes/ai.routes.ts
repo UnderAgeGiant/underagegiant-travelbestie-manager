@@ -10,9 +10,10 @@ import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompa
 import type { AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 import type { CompanionSuggestion } from '../types';
 import { respond }         from '../middleware/respond.middleware';
-import { checkPlanChange }              from '../middleware/ai/check-plan-change.middleware';
-import { createChargeAiPlanMiddleware } from '../middleware/ai/charge-ai-plan.middleware';
-import { createKickoffAiPlanMiddleware } from '../middleware/ai/kickoff-ai-plan.middleware';
+import { checkPlanChange }                  from '../middleware/ai/check-plan-change.middleware';
+import { generateAiPlanRequestId }          from '../middleware/ai/generate-ai-plan-request-id.middleware';
+import { createChargeAiPlanMiddleware }     from '../middleware/ai/charge-ai-plan.middleware';
+import { createKickoffAiPlanMiddleware }    from '../middleware/ai/kickoff-ai-plan.middleware';
 import { makeFindAiPlanRequest }        from '../middleware/ai/find-ai-plan-request.middleware';
 import { checkAiPlanRequestOwnership }  from '../middleware/ai/check-ai-plan-request-ownership.middleware';
 import { aiPlanStatusResponse }         from '../middleware/ai/ai-plan-status-response.middleware';
@@ -58,9 +59,10 @@ export function createAiRouter(
   router.post('/plan',
     validateBody(aiPlanSchema),
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
+    generateAiPlanRequestId,           // req.aiPlanRequestId — shared by the charge and the insert below
     requireKarmaForAiPlanIfNeeded,     // 402 if insufficient karma (skipped for free_change)
-    chargeAiPlanIfNeeded,              // deducts 1 karma unless free_change
-    kickoffAiPlan,                     // inserts 'pending' row, schedules the background job
+    chargeAiPlanIfNeeded,              // deducts 1 karma unless free_change; ref_id = req.aiPlanRequestId
+    kickoffAiPlan,                     // inserts 'pending' row using the same id, schedules the background job
     respond(202),
   );
 
