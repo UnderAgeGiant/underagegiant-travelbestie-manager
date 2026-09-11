@@ -71,7 +71,7 @@ app.use('/shared/:shareId/comments',
 );
 app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo));
 app.use('/comments', createCommentsRouter(commentController));
-app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo));
+app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
 app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));

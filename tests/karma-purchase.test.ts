@@ -46,13 +46,17 @@ function buildApp() {
   app.use(express.json());
   app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   const userRepo = new StubUserRepository();
+  const karmaRepo = new StubKarmaRepository();
+  const mockPool = { query: jest.fn().mockResolvedValue({ rows: [] }) } as any;
   app.use('/karma', createKarmaRouter(
-    new KarmaController(new StubKarmaRepository()),
+    new KarmaController(karmaRepo),
     new KarmaPurchaseController(purchaseRepo),
     new MercadoPagoController(purchaseRepo),
     purchaseRepo,
     userRepo,
     new StubNotificationRepository(),
+    karmaRepo,
+    mockPool,
   ));
   app.use(errorHandler);
   return app;

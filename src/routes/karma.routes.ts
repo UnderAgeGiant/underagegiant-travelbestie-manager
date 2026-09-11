@@ -1,10 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { Pool } from 'pg';
 import { KarmaController } from '../controllers/karma.controller';
 import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
 import { MercadoPagoController } from '../controllers/mercadopago.controller';
 import { IKarmaPurchaseRepository } from '../repositories/interfaces/karma-purchase.repository';
 import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
 import { createOrderSchema, captureOrderSchema } from '../schemas/karma.schemas';
@@ -17,6 +19,9 @@ import { createProcessMpWebhook } from '../middleware/karma/process-mp-webhook.m
 import { createAttachPurchaseUser } from '../middleware/karma/attach-purchase-user.middleware';
 import { createVerifyMpPurchaseOwnership } from '../middleware/karma/verify-mp-purchase-ownership.middleware';
 import { makeNotifyKarmaPurchase } from '../middleware/notifications/notify-karma-purchase.middleware';
+import { validateKarmaEventsQuery } from '../middleware/karma/validate-karma-events-query.middleware';
+import { makeListKarmaEvents } from '../middleware/karma/list-karma-events.middleware';
+import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent, logEvent } from '../lib/log-event';
 
@@ -39,6 +44,8 @@ export function createKarmaRouter(
   purchaseRepo: IKarmaPurchaseRepository,
   userRepo: IUserRepository,
   notificationRepo: INotificationRepository,
+  karmaRepo: IKarmaRepository,
+  pool: Pool,
 ): Router {
   const router = Router();
   const verifyOwnership     = createVerifyPurchaseOwnership(purchaseRepo);
@@ -58,6 +65,15 @@ export function createKarmaRouter(
   router.get('/packages',
     requireAuth,
     karmaPurchase.getPackages,
+    respond(200),
+  );
+
+  // GET /karma/events — the caller's full karma ledger, newest-first, keyset-paginated
+  router.get('/events',
+    requireAuth,
+    rateLimitMiddleware({ keyPrefix: 'rl:karma-events', windowSeconds: 60, maxRequests: 60, getKey: req => req.user!.userId }),
+    validateKarmaEventsQuery,
+    makeListKarmaEvents(karmaRepo, pool),
     respond(200),
   );
 
