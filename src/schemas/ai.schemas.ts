@@ -8,6 +8,7 @@ export const aiSuggestSchema = z.object({
     id:   z.string().min(1).max(80),
     name: z.string().min(1).max(120),
   }).passthrough()).max(1000).optional(),
+  planSessionId: z.string().min(1).max(200).optional(),
 }).passthrough();
 
 export const aiPlanSchema = z.object({

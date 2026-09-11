@@ -48,6 +48,10 @@ jest.mock('../src/lib/deepseek', () => ({
 function buildApp() {
   const karmaRepo = new StubKarmaRepository();
   const app = express();
+  app.use((req: any, _res, next) => {
+    req.flowId = 'test-flow-id';
+    next();
+  });
   app.use(express.json());
   app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/ai',   createAiRouter(
@@ -58,7 +62,7 @@ function buildApp() {
     new StubNotificationRepository(),
   ));
   app.use(errorHandler);
-  return app;
+  return { app, karmaRepo };
 }
 
 async function getToken(app: express.Express): Promise<string> {
@@ -86,7 +90,7 @@ describe('POST /ai/suggest', () => {
         },
       }],
     });
-    app   = buildApp();
+    ({ app } = buildApp());
     token = await getToken(app);
   });
 
@@ -123,5 +127,32 @@ describe('POST /ai/suggest', () => {
     expect(res.status).toBe(200);
     expect(res.body.options[0].cityIds).toEqual(['paris']);
     expect(res.body.options[1].cityIds).toEqual(['tokyo']);
+  });
+
+  it('records the ai_suggest karma event ref_id as the given planSessionId', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'romantic trip', planSessionId: 'session-abc' });
+
+    const event = karmaRepo.events.find((e: any) => e.reason === 'ai_suggest');
+    expect(event?.refId).toBe('session-abc');
+  });
+
+  it('falls back to the flow id when planSessionId is not provided', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+
+    await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'romantic trip' });
+
+    const event = karmaRepo.events.find((e: any) => e.reason === 'ai_suggest');
+    expect(event?.refId).not.toBe('session-abc');
+    expect(event?.refId).toBeTruthy();
   });
 });

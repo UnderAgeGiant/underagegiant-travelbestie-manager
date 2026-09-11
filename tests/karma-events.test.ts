@@ -320,4 +320,40 @@ describe('GET /karma/events', () => {
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     expect(res.body.events[0].purchase).toBeUndefined();
   });
+
+  // NOTE: the brief's literal fixture ids ('session-xyz' / 'session-unused') are not
+  // UUID-shaped, and would be silently stripped by the isUuid filter in
+  // list-karma-events.middleware.ts before ever reaching the aiSuggestSessionIds
+  // query -- making these two assertions vacuously true. Substituted with
+  // UUID-shaped ids (same substitution pattern Task 15 used), consistent with the
+  // real-world invariant that planSessionId is always a client crypto.randomUUID().
+  it('attaches a trip target to an ai_suggest event when its planSessionId matches a saved trip', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const sessionId = 'a1111111-1111-4111-8111-111111111111';
+    await karmaRepo.spendAmount(userId, 9, 'ai_suggest', sessionId);
+    mockPoolQuery.mockImplementation((sql: string) => {
+      if (sql.includes('source_plan_session_id = ANY')) {
+        return Promise.resolve({ rows: [{ trip_id: 'trip-from-session', title: 'Ruta Clásica', source_plan_session_id: sessionId }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].target).toEqual({ type: 'trip', id: 'trip-from-session', name: 'Ruta Clásica' });
+  });
+
+  it('leaves an ai_suggest event unlinked when no trip claims its planSessionId', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const sessionId = 'b2222222-2222-4222-8222-222222222222';
+    await karmaRepo.spendAmount(userId, 9, 'ai_suggest', sessionId);
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].target).toBeNull();
+  });
 });

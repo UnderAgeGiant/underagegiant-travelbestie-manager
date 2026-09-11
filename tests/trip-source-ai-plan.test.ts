@@ -16,4 +16,14 @@ describe('ITripRepository.create — sourceAiPlanRequestId', () => {
     const trip = await trips.create({ title: 'Manual Trip', stops: [], transits: [], ownerId: 'u1' });
     expect(trip.id).toBeDefined();
   });
+
+  it('accepts an optional sourcePlanSessionId without it appearing on the returned Trip', async () => {
+    const trips = new StubTripRepository();
+    const trip = await trips.create({
+      title: 'Ruta Clásica', stops: [], transits: [], ownerId: 'u1',
+      sourcePlanSessionId: 'session-1',
+    });
+    expect(trip.id).toBeDefined();
+    expect((trip as any).sourcePlanSessionId).toBeUndefined();
+  });
 });

@@ -53,7 +53,10 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
-  spendForAiSuggest      = this.spendFor(KARMA_COST_AI_SUGGEST, 'ai_suggest');
+  spendForAiSuggest      = this.spendFor(
+    KARMA_COST_AI_SUGGEST, 'ai_suggest',
+    req => (req.body as { planSessionId?: string }).planSessionId ?? req.flowId,
+  );
   spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan', req => req.aiPlanRequestId!);
   spendForCitySuggest    = this.spendFor(
     KARMA_COST_CITY_SUGGEST, 'ai_city_suggest',

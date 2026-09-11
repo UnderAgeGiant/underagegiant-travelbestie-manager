@@ -43,6 +43,10 @@ export function makeListKarmaEvents(karma: IKarmaRepository, pool: Pool) {
       const aiPlanSourceCandidateIds = [...new Set(rows.filter(r => r.reason === 'ai_plan').map(r => r.refId).filter(isUuid))];
       const aiPlanRequestIds = [...new Set(rows.filter(r => AI_PLAN_REQUEST_REASONS.has(r.reason)).map(r => r.refId).filter(isUuid))];
       const purchaseIds = [...new Set(rows.filter(r => r.reason === 'karma_purchased').map(r => r.refId).filter(isUuid))];
+      // ai_suggest -> resulting trip, resolved via the client-generated
+      // planSessionId shared across a whole AI-planning session (session-level
+      // analogue of the ai_plan -> trip link above, one level up).
+      const aiSuggestSessionIds = [...new Set(rows.filter(r => r.reason === 'ai_suggest').map(r => r.refId).filter(isUuid))];
 
       const tripById = tripIds.length
         ? new Map((await pool.query(
@@ -68,6 +72,14 @@ export function makeListKarmaEvents(karma: IKarmaRepository, pool: Pool) {
           )).rows.map((r: { request_id: string }) => r.request_id))
         : new Set<string>();
 
+      const savedTripBySessionId = aiSuggestSessionIds.length
+        ? new Map((await pool.query(
+            `SELECT trip_id, title, source_plan_session_id FROM trips WHERE source_plan_session_id = ANY($1) AND owner_id = $2`,
+            [aiSuggestSessionIds, userId],
+          )).rows.map((r: { trip_id: string; title: string; source_plan_session_id: string }) =>
+            [r.source_plan_session_id, { tripId: r.trip_id, title: r.title }]))
+        : new Map<string, { tripId: string; title: string }>();
+
       const purchaseByRefId = purchaseIds.length
         ? new Map((await pool.query(
             `SELECT purchase_id, provider, provider_capture_id FROM karma_purchases WHERE purchase_id = ANY($1) AND user_id = $2`,
@@ -86,6 +98,9 @@ export function makeListKarmaEvents(karma: IKarmaRepository, pool: Pool) {
           target = { type: 'trip', id: link.tripId, name: link.title };
         } else if (AI_PLAN_REQUEST_REASONS.has(r.reason) && existingAiPlanRequestIds.has(r.refId)) {
           target = { type: 'ai_plan_request', id: r.refId };
+        } else if (r.reason === 'ai_suggest' && savedTripBySessionId.has(r.refId)) {
+          const link = savedTripBySessionId.get(r.refId)!;
+          target = { type: 'trip', id: link.tripId, name: link.title };
         } else if (r.reason === 'karma_purchased' && purchaseByRefId.has(r.refId)) {
           purchase = purchaseByRefId.get(r.refId);
         }
