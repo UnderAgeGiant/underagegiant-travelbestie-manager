@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { IKarmaPurchaseRepository } from '../../repositories/interfaces/karma-purchase.repository';
 import { fetchMpPayment } from '../../lib/mercadopago';
 import { logger } from '../../lib/logger';
+import { completeMpPurchaseIfAmountMatches } from './complete-mp-purchase';
 
 /**
  * Resolves a MercadoPago payment notification to a karma_purchases row and
@@ -40,29 +41,19 @@ export function createProcessMpWebhook(purchases: IKarmaPurchaseRepository) {
       }
 
       if (payment.status === 'approved') {
-        const expectedAmount = Number(purchase.amount);
-        const paidAmount = payment.transactionAmount;
-        const AMOUNT_TOLERANCE = 0.01; // guards against decimal round-trip noise, not a real discrepancy
-
-        if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - expectedAmount) > AMOUNT_TOLERANCE) {
-          // The amount MercadoPago actually charged doesn't match what this purchase was
-          // created for — a tampering attempt or an MP-integration anomaly. Never credit
-          // karma for this: fail the purchase and ack 200 (this won't resolve on retry,
-          // so it belongs with the other anticipated-condition no-ops, not a 5xx).
-          logger.error({
-            msg: 'mp webhook: amount mismatch — refusing to credit karma',
-            flowId: req.flowId, paymentId, externalReference: payment.externalReference,
-            expectedAmount: purchase.amount, paidAmount: payment.transactionAmount,
-          });
-          await purchases.failPurchase(purchase.providerOrderId, 'amount_mismatch');
+        // completeMpPurchaseIfAmountMatches never credits karma for a payment whose
+        // transactionAmount doesn't match this purchase's stored amount — a tampering
+        // attempt or an MP-integration anomaly instead fails the purchase and this route
+        // still acks 200 (this won't resolve on retry, so it belongs with the other
+        // anticipated-condition no-ops, not a 5xx).
+        const { purchase: updated, newKarmaTotal } =
+          await completeMpPurchaseIfAmountMatches(purchases, purchase, { id: paymentId, transactionAmount: payment.transactionAmount });
+        if (updated.status === 'completed') {
+          req.karmaPurchase = updated;
+          req.result = { karma: newKarmaTotal, karmaAdded: updated.karmaAmount };
+        } else {
           req.result = { received: true };
-          return next();
         }
-
-        const { purchase: completed, newKarmaTotal } =
-          await purchases.completePurchase(purchase.providerOrderId, paymentId);
-        req.karmaPurchase = completed;
-        req.result = { karma: newKarmaTotal, karmaAdded: completed.karmaAmount };
       } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
         await purchases.failPurchase(purchase.providerOrderId, payment.status);
         req.result = { received: true };

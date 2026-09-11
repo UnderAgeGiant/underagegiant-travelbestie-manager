@@ -41,6 +41,7 @@ jest.mock('../src/lib/mercadopago', () => ({
 function buildApp() {
   const purchaseRepo = new StubKarmaPurchaseRepository();
   const userRepo = new StubUserRepository();
+  const notificationRepo = new StubNotificationRepository();
   const app = express();
   app.use(express.json());
   app.use('/auth',  createAuthRouter(new UserController(userRepo), new StubHighlightRepository()));
@@ -50,10 +51,10 @@ function buildApp() {
     new MercadoPagoController(purchaseRepo),
     purchaseRepo,
     userRepo,
-    new StubNotificationRepository(),
+    notificationRepo,
   ));
   app.use(errorHandler);
-  return { app, purchaseRepo, userRepo };
+  return { app, purchaseRepo, userRepo, notificationRepo };
 }
 
 async function getToken(app: express.Express): Promise<string> {
@@ -410,5 +411,69 @@ describe('GET /karma/purchase/mp/status/:purchaseRef', () => {
     expect(res.body.status).toBe('pending');
     const updated = await purchaseRepo.findByOrderId(purchaseRef);
     expect(updated!.status).toBe('pending');
+  });
+
+  it('completes the purchase and credits karma when search finds an approved payment the webhook never reported', async () => {
+    const { app, purchaseRepo, notificationRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([{ id: 'pay-approved', status: 'approved' }]);
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 900 });
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('completed');
+    expect(res.body.karmaAdded).toBe(10);
+
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('completed');
+    expect(updated!.providerCaptureId).toBe('pay-approved');
+
+    // Same side effects the webhook fires on completion — confirmation email/notification/CTA —
+    // must also fire here, or a purchase completed only via self-heal never notifies the buyer.
+    expect(notificationRepo.items).toHaveLength(1);
+  });
+
+  it('does not re-fire completion side effects on a second poll of an already-completed purchase', async () => {
+    const { app, purchaseRepo, notificationRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([{ id: 'pay-approved', status: 'approved' }]);
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 900 });
+
+    await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(notificationRepo.items).toHaveLength(1);
+
+    const res2 = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res2.status).toBe(200);
+    expect(res2.body.status).toBe('completed');
+    expect(notificationRepo.items).toHaveLength(1); // unchanged — not re-notified
+  });
+
+  it('fails with amount_mismatch (no karma credited) when the approved payment found via search has the wrong amount', async () => {
+    const { app, purchaseRepo, notificationRepo } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' }); // stored amount '900'
+    const stored = Array.from((purchaseRepo as any).store.values())[0] as any;
+    const purchaseRef = stored.providerOrderId;
+
+    (searchMpPayments as jest.Mock).mockResolvedValue([{ id: 'pay-approved', status: 'approved' }]);
+    (fetchMpPayment as jest.Mock).mockResolvedValue({ status: 'approved', externalReference: purchaseRef, transactionAmount: 1 });
+
+    const res = await request(app).get(`/karma/purchase/mp/status/${purchaseRef}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('failed');
+    expect(res.body.karmaAdded).toBeUndefined();
+
+    const updated = await purchaseRepo.findByOrderId(purchaseRef);
+    expect(updated!.status).toBe('failed');
+    expect(updated!.failureReason).toBe('amount_mismatch');
+    expect(notificationRepo.items).toHaveLength(0);
   });
 });
