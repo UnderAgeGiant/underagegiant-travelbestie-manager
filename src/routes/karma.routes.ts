@@ -11,6 +11,7 @@ import { createOrderSchema, captureOrderSchema } from '../schemas/karma.schemas'
 import { validateKarmaPackage } from '../middleware/karma/validate-karma-package.middleware';
 import { createVerifyPurchaseOwnership } from '../middleware/karma/verify-purchase-ownership.middleware';
 import { sendKarmaConfirmationEmailMiddleware } from '../middleware/karma/send-karma-confirmation-email.middleware';
+import { filterMpNotificationTopic } from '../middleware/karma/filter-mp-notification-topic.middleware';
 import { verifyMpWebhookSignatureMiddleware } from '../middleware/karma/verify-mp-webhook-signature.middleware';
 import { createProcessMpWebhook } from '../middleware/karma/process-mp-webhook.middleware';
 import { createAttachPurchaseUser } from '../middleware/karma/attach-purchase-user.middleware';
@@ -92,6 +93,7 @@ export function createKarmaRouter(
 
   // POST /karma/purchase/mp/webhook — MercadoPago calls this directly (no JWT)
   router.post('/purchase/mp/webhook',
+    filterMpNotificationTopic,
     verifyMpWebhookSignatureMiddleware,
     processMpWebhook,
     attachPurchaseUser,
