@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { IKarmaPurchaseRepository } from '../../repositories/interfaces/karma-purchase.repository';
 import { KarmaPurchase } from '../../types';
-import { searchMpPayments } from '../../lib/mercadopago';
+import { searchMpPayments, fetchMpPayment } from '../../lib/mercadopago';
+import { completeMpPurchaseIfAmountMatches } from './complete-mp-purchase';
 import { logger } from '../../lib/logger';
 
 /**
@@ -15,21 +16,23 @@ import { logger } from '../../lib/logger';
 // Only treat "no payment record found" as a genuine abandonment once the purchase has
 // been pending at least this long — protects against a client polling immediately after
 // create-preference, before the user has even reached MercadoPago's checkout page, from
-// being prematurely marked failed. A found rejected/cancelled payment is NOT gated by
-// this — MercadoPago has already made that determination, so it's safe to act on right away.
+// being prematurely marked failed. A found rejected/cancelled/approved payment is NOT
+// gated by this — MercadoPago has already made that determination, so it's safe to act
+// on right away.
 const MP_RECONCILE_MIN_PENDING_AGE_MS = 10_000;
 
 /**
  * Self-heals a MercadoPago purchase stuck 'pending' when the webhook never fired — e.g.
  * the user abandoned MercadoPago's hosted checkout without ever submitting payment details,
- * so MercadoPago never created a payment object and never called our webhook. Called lazily
- * on each status poll rather than on a schedule.
+ * or the webhook call itself never reached us (misconfigured notification_url, delivery
+ * failure, etc.) even for a genuinely approved payment. Called lazily on each status poll
+ * rather than on a schedule.
  *
- * Deliberately does NOT complete an 'approved' payment discovered this way — that stays the
- * webhook's exclusive job (completing it here would need the same confirmation-email/
- * notification/CTA-logging side effects the webhook already fires, which is out of scope for
- * this self-heal path). Fails open (leaves the purchase pending) on any MercadoPago API error,
- * since this runs on every poll and a transient failure must not break the next one.
+ * An approved payment found this way is completed through the exact same
+ * completeMpPurchaseIfAmountMatches() the webhook uses, so the amount-tampering guard can
+ * never be bypassed just because the webhook happened to miss this purchase. Fails open
+ * (leaves the purchase pending) on any MercadoPago API error, since this runs on every
+ * poll and a transient failure must not break the next one.
  */
 export async function reconcilePendingMpPurchase(
   purchases: IKarmaPurchaseRepository,
@@ -59,7 +62,28 @@ export async function reconcilePendingMpPurchase(
       await purchases.failPurchase(purchase.providerOrderId, latest.status);
       return (await purchases.findByOrderId(purchase.providerOrderId))!;
     }
-    return purchase; // approved (webhook's job) / in_process / authorized / etc. — leave it
+
+    if (latest.status === 'approved') {
+      let payment: { transactionAmount: number };
+      try {
+        payment = await fetchMpPayment(latest.id);
+      } catch (err) {
+        logger.warn({
+          msg: 'mp reconcile: fetching approved payment details failed, leaving purchase pending',
+          providerOrderId: purchase.providerOrderId, paymentId: latest.id, err: (err as Error).message,
+        });
+        return purchase;
+      }
+      logger.info({
+        msg: 'mp reconcile: found an approved payment the webhook never reported — completing it',
+        providerOrderId: purchase.providerOrderId, paymentId: latest.id,
+      });
+      const { purchase: updated } =
+        await completeMpPurchaseIfAmountMatches(purchases, purchase, { id: latest.id, transactionAmount: payment.transactionAmount });
+      return updated;
+    }
+
+    return purchase; // in_process / authorized / etc. — still genuinely pending, leave it
   }
 
   const ageMs = Date.now() - new Date(purchase.createdAt).getTime();
@@ -83,7 +107,14 @@ export function createVerifyMpPurchaseOwnership(repo: IKarmaPurchaseRepository) 
         return next(err);
       }
 
+      const wasPending = purchase.status === 'pending';
       purchase = await reconcilePendingMpPurchase(repo, purchase);
+
+      if (wasPending && purchase.status === 'completed') {
+        // Just self-healed to completed in this exact call — let the route chain's
+        // confirmation-email/notification/CTA-logging middleware fire, same as the webhook.
+        req.karmaPurchase = purchase;
+      }
 
       req.result = {
         status: purchase.status,

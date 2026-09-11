@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { KarmaController } from '../controllers/karma.controller';
 import { KarmaPurchaseController } from '../controllers/karma-purchase.controller';
 import { MercadoPagoController } from '../controllers/mercadopago.controller';
@@ -17,7 +17,19 @@ import { createAttachPurchaseUser } from '../middleware/karma/attach-purchase-us
 import { createVerifyMpPurchaseOwnership } from '../middleware/karma/verify-mp-purchase-ownership.middleware';
 import { makeNotifyKarmaPurchase } from '../middleware/notifications/notify-karma-purchase.middleware';
 import { respond } from '../middleware/respond.middleware';
-import { logCtaEvent } from '../lib/log-event';
+import { logCtaEvent, logEvent } from '../lib/log-event';
+
+// Unlike the webhook's unconditional logCtaEvent, GET /purchase/mp/status/:purchaseRef is
+// polled far more frequently (up to 12x per purchase) — only log a cta_karma_purchase event
+// when this exact call actually just self-healed the purchase to 'completed' (req.karmaPurchase
+// is only set on that transition, see verify-mp-purchase-ownership.middleware.ts), or every
+// poll would flood analytics with mostly-empty events.
+function logCtaKarmaPurchaseIfCompleted(req: Request, _res: Response, next: NextFunction): void {
+  if (req.karmaPurchase) {
+    logEvent(req, 'cta_karma_purchase', { provider: 'mercadopago', amount: req.karmaPurchase.amount });
+  }
+  next();
+}
 
 export function createKarmaRouter(
   karma: KarmaController,
@@ -93,6 +105,9 @@ export function createKarmaRouter(
   router.get('/purchase/mp/status/:purchaseRef',
     requireAuth,
     verifyMpOwnership,
+    logCtaKarmaPurchaseIfCompleted,
+    sendKarmaConfirmationEmailMiddleware,
+    notifyKarmaPurchase,
     respond(200),
   );
 
