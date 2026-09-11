@@ -133,14 +133,15 @@ describe('GET /karma/events', () => {
     const token = await getToken(app);
     const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 
-    await karmaRepo.spendAmount(userId, 1, 'trip_created', 'trip-live');
+    const tripLiveId = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
+    await karmaRepo.spendAmount(userId, 1, 'trip_created', tripLiveId);
     await karmaRepo.spendAmount(userId, 1, 'itinerary_exported', 'trip-deleted');
-    setPoolResults(['trip-live'], [], []);
+    setPoolResults([tripLiveId], [], []);
 
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     const live = res.body.events.find((e: any) => e.reason === 'trip_created');
     const deleted = res.body.events.find((e: any) => e.reason === 'itinerary_exported');
-    expect(live.target).toEqual({ type: 'trip', id: 'trip-live' });
+    expect(live.target).toEqual({ type: 'trip', id: tripLiveId });
     expect(deleted.target).toBeNull();
   });
 
@@ -149,15 +150,16 @@ describe('GET /karma/events', () => {
     const token = await getToken(app);
     const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 
-    await karmaRepo.spendAmount(userId, 1, 'ai_plan', 'req-live');
+    const reqLiveId = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb';
+    await karmaRepo.spendAmount(userId, 1, 'ai_plan', reqLiveId);
     await karmaRepo.spendAmount(userId, 1, 'ai_plan', 'req-discarded');
-    setPoolResults([], [], ['req-live']);
+    setPoolResults([], [], [reqLiveId]);
 
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     const events = res.body.events.filter((e: any) => e.reason === 'ai_plan');
     const liveEvent = events.find((e: any) => e.target !== null);
     const discardedEvent = events.find((e: any) => e.target === null);
-    expect(liveEvent.target).toEqual({ type: 'ai_plan_request', id: 'req-live' });
+    expect(liveEvent.target).toEqual({ type: 'ai_plan_request', id: reqLiveId });
     expect(discardedEvent).toBeDefined();
   });
 
@@ -166,10 +168,11 @@ describe('GET /karma/events', () => {
     const token = await getToken(app);
     const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 
-    await karmaRepo.spendAmount(userId, 1, 'ai_plan', 'req-saved');
+    const reqSavedId = 'cccccccc-3333-4333-8333-cccccccccccc';
+    await karmaRepo.spendAmount(userId, 1, 'ai_plan', reqSavedId);
     // The ai_plan_requests row is gone (hard-deleted on save) — only the trip's
     // source_ai_plan_request_id link resolves it now.
-    setPoolResults([], [{ sourceRequestId: 'req-saved', tripId: 'trip-from-plan' }], []);
+    setPoolResults([], [{ sourceRequestId: reqSavedId, tripId: 'trip-from-plan' }], []);
 
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     expect(res.body.events[0].target).toEqual({ type: 'trip', id: 'trip-from-plan' });
@@ -185,6 +188,23 @@ describe('GET /karma/events', () => {
 
     const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
     expect(res.body.events[0].target).toBeNull();
+  });
+
+  it('never resolves an ai_plan_refund event via the trip-source link, even when both queries match its ref_id', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { userId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+    const reqRefundedId = 'dddddddd-4444-4444-8444-dddddddddddd';
+    await karmaRepo.award(userId, 1, 'ai_plan_refund', reqRefundedId);
+    // Both the trip-source-link query and the ai_plan_requests-existence query
+    // would resolve this id — proves the code ignores the trip-source link for
+    // ai_plan_refund (only 'ai_plan' can ever have produced a saved trip) and
+    // uses the plain existence check instead.
+    setPoolResults([], [{ sourceRequestId: reqRefundedId, tripId: 'trip-should-not-be-used' }], [reqRefundedId]);
+
+    const res = await request(app).get('/karma/events').set('Authorization', `Bearer ${token}`);
+    expect(res.body.events[0].target).toEqual({ type: 'ai_plan_request', id: reqRefundedId });
   });
 
   it('paginates and returns nextCursor when there are more rows', async () => {

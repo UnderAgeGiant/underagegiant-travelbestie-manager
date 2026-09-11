@@ -9,7 +9,7 @@ export function validateKarmaEventsQuery(req: Request, res: Response, next: Next
   let limit = DEFAULT_LIMIT;
   if (typeof req.query.limit === 'string') {
     const parsed = Number.parseInt(req.query.limit, 10);
-    if (Number.isFinite(parsed) && parsed >= 1) limit = Math.min(parsed, MAX_LIMIT);
+    if (Number.isFinite(parsed)) limit = Math.min(Math.max(parsed, 1), MAX_LIMIT);
   }
 
   let cursor = null;

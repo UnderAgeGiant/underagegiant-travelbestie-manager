@@ -235,11 +235,11 @@ describe('POST /ai/suggest-attractions', () => {
       .send({
         cityId: 'paris', checkIn: '01/01/2027', checkOut: '05/01/2027',
         cityCatalog: [{ id: 'paris_0', name: 'Eiffel Tower' }],
-        tripId: 'trip-abc-123',
+        tripId: '11111111-2222-4333-8444-555555555555',
       });
 
     const event = karmaRepo.events.find(e => e.reason === 'ai_city_suggest');
-    expect(event?.refId).toBe('trip-abc-123');
+    expect(event?.refId).toBe('11111111-2222-4333-8444-555555555555');
   });
 
   it('falls back to the flow id when tripId is not provided', async () => {

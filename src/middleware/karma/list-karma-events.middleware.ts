@@ -11,6 +11,15 @@ const TRIP_LINKED_REASONS = new Set([
 // so it only ever needs the plain ai_plan_requests-existence check below.
 const AI_PLAN_REQUEST_REASONS = new Set(['ai_plan', 'ai_plan_refund']);
 
+// Belt-and-suspenders defense: ref_id is a plain TEXT column with no FK, so a
+// non-UUID value (e.g. written before the tripId-uuid validation fix, or from
+// any other non-UUID-guaranteed source) must never reach a query comparing it
+// against a UUID column — pg would throw 'invalid input syntax for type uuid'
+// and, since karma_events rows are immutable/never deleted, that would
+// permanently 500 this user's entire ledger page. Silently exclude instead.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: string): boolean => UUID_RE.test(v);
+
 // SECURITY NOTE: the `AND owner_id = $2` / `AND user_id = $2` clauses in the three
 // queries below are the actual cross-user isolation boundary for target resolution —
 // karma.listEvents() already scopes the base ledger by userId, but a ref_id is just a
@@ -28,10 +37,10 @@ export function makeListKarmaEvents(karma: IKarmaRepository, pool: Pool) {
 
       const { rows, hasMore } = await karma.listEvents(userId, cursor, limit);
 
-      const tripIds = [...new Set(rows.filter(r => TRIP_LINKED_REASONS.has(r.reason)).map(r => r.refId))];
+      const tripIds = [...new Set(rows.filter(r => TRIP_LINKED_REASONS.has(r.reason)).map(r => r.refId).filter(isUuid))];
       // Only 'ai_plan' (not 'ai_plan_refund') can ever have been saved into a trip.
-      const aiPlanSourceCandidateIds = [...new Set(rows.filter(r => r.reason === 'ai_plan').map(r => r.refId))];
-      const aiPlanRequestIds = [...new Set(rows.filter(r => AI_PLAN_REQUEST_REASONS.has(r.reason)).map(r => r.refId))];
+      const aiPlanSourceCandidateIds = [...new Set(rows.filter(r => r.reason === 'ai_plan').map(r => r.refId).filter(isUuid))];
+      const aiPlanRequestIds = [...new Set(rows.filter(r => AI_PLAN_REQUEST_REASONS.has(r.reason)).map(r => r.refId).filter(isUuid))];
 
       const existingTripIds = tripIds.length
         ? new Set((await pool.query(

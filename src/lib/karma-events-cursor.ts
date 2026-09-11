@@ -7,19 +7,22 @@ export interface KarmaEventsCursor {
   eventId: string;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function encodeKarmaEventsCursor(cursor: KarmaEventsCursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64');
+  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
 }
 
 export function decodeKarmaEventsCursor(raw: string): KarmaEventsCursor | null {
   try {
-    const parsed: unknown = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    const parsed: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
     if (
       typeof parsed === 'object' && parsed !== null &&
       typeof (parsed as Record<string, unknown>).createdAt === 'string' &&
       ((parsed as Record<string, unknown>).createdAt as string).length > 0 &&
+      Number.isFinite(Date.parse((parsed as Record<string, unknown>).createdAt as string)) &&
       typeof (parsed as Record<string, unknown>).eventId === 'string' &&
-      ((parsed as Record<string, unknown>).eventId as string).length > 0
+      UUID_RE.test((parsed as Record<string, unknown>).eventId as string)
     ) {
       return {
         createdAt: (parsed as Record<string, unknown>).createdAt as string,
