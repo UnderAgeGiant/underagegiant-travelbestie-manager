@@ -153,6 +153,35 @@ export interface Karma {
   score: number;
 }
 
+export interface KarmaEventTarget {
+  type: 'trip' | 'ai_plan_request';
+  id: string;
+}
+
+/** One row as read back from the karma_events table — pre-target-resolution. */
+export interface KarmaEventRow {
+  eventId: string;
+  delta: number;
+  reason: string;
+  refId: string;
+  createdAt: string;
+}
+
+/** Public API shape — target is null unless the referenced trip/ai_plan_requests
+ *  row still exists (see list-karma-events.middleware.ts). */
+export interface KarmaEvent {
+  eventId: string;
+  delta: number;
+  reason: string;
+  createdAt: string;
+  target: KarmaEventTarget | null;
+}
+
+export interface KarmaEventsPage {
+  events: KarmaEvent[];
+  nextCursor: string | null;
+}
+
 export interface TripSuggestion {
   id: number;
   title: string;
@@ -336,6 +365,8 @@ declare global {
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
+      aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
+      karmaEventsQuery?: { cursor: import('./lib/karma-events-cursor').KarmaEventsCursor | null; limit: number };
     }
   }
 }
