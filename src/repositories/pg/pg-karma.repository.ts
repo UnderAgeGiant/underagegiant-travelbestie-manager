@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { IKarmaRepository } from '../interfaces/karma.repository';
-import { Karma } from '../../types';
+import { Karma, KarmaEventRow } from '../../types';
+import { KarmaEventsCursor } from '../../lib/karma-events-cursor';
 
 function insufficientKarmaError(have: number, need: number): Error & { status: number } {
   const err = new Error(`Insufficient karma: need ${need}, have ${have}`) as Error & { status: number };
@@ -69,5 +70,33 @@ export class PgKarmaRepository implements IKarmaRepository {
     } finally {
       client.release();
     }
+  }
+
+  async listEvents(
+    userId: string,
+    cursor: KarmaEventsCursor | null,
+    limit: number,
+  ): Promise<{ rows: KarmaEventRow[]; hasMore: boolean }> {
+    const { rows } = await this.pool.query(
+      `SELECT event_id AS "eventId", delta, reason, ref_id AS "refId", created_at AS "createdAt"
+       FROM karma_events
+       WHERE user_id = $1
+         AND ($2::timestamptz IS NULL OR (created_at, event_id) < ($2, $3))
+       ORDER BY created_at DESC, event_id DESC
+       LIMIT $4`,
+      [userId, cursor?.createdAt ?? null, cursor?.eventId ?? null, limit + 1],
+    );
+    const hasMore = rows.length > limit;
+    const trimmed = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      rows: trimmed.map((r: Record<string, unknown>) => ({
+        eventId: r.eventId as string,
+        delta: r.delta as number,
+        reason: r.reason as string,
+        refId: r.refId as string,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt as string),
+      })),
+      hasMore,
+    };
   }
 }

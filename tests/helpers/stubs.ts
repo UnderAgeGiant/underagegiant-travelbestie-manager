@@ -5,13 +5,14 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
 import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
 import { IHighlightRepository } from '../../src/repositories/interfaces/highlight.repository.interface';
 import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-plan-request.repository';
+import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -151,7 +152,9 @@ export class StubCommentRepository implements ICommentRepository {
 
 export class StubKarmaRepository implements IKarmaRepository {
   awarded: { userId: string; amount: number; reason: string; refId: string }[] = [];
+  events: (KarmaEventRow & { userId: string })[] = [];
   private score: number;
+  private clockMs = Date.now();
 
   constructor(initialScore = 100) { this.score = initialScore; }
 
@@ -161,10 +164,46 @@ export class StubKarmaRepository implements IKarmaRepository {
     return { email, score: this.score };
   }
 
-  async spend(_userId: string, _refId: string): Promise<void> {}
-  async spendAmount(_userId: string, _amount: number, _reason: string, _refId: string): Promise<void> {}
+  async spend(userId: string, refId: string): Promise<void> {
+    this.recordEvent(userId, -1, 'itinerary_exported', refId);
+  }
+
+  async spendAmount(userId: string, amount: number, reason: string, refId: string): Promise<void> {
+    this.recordEvent(userId, -amount, reason, refId);
+  }
+
   async award(userId: string, amount: number, reason: string, refId: string): Promise<void> {
     this.awarded.push({ userId, amount, reason, refId });
+    this.recordEvent(userId, amount, reason, refId);
+  }
+
+  async listEvents(
+    userId: string,
+    cursor: KarmaEventsCursor | null,
+    limit: number,
+  ): Promise<{ rows: KarmaEventRow[]; hasMore: boolean }> {
+    const sorted = this.events
+      .filter(e => e.userId === userId)
+      .sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+        return a.eventId < b.eventId ? 1 : -1;
+      });
+    const startIndex = cursor
+      ? sorted.findIndex(e => e.createdAt === cursor.createdAt && e.eventId === cursor.eventId) + 1
+      : 0;
+    const page = sorted.slice(startIndex, startIndex + limit + 1);
+    const hasMore = page.length > limit;
+    const trimmed = hasMore ? page.slice(0, limit) : page;
+    return { rows: trimmed.map(({ userId: _u, ...rest }) => rest), hasMore };
+  }
+
+  private recordEvent(userId: string, delta: number, reason: string, refId: string): void {
+    this.clockMs += 1; // strictly increasing even across same-millisecond calls in one test
+    this.events.push({
+      eventId: randomUUID(),
+      userId, delta, reason, refId,
+      createdAt: new Date(this.clockMs).toISOString(),
+    });
   }
 }
 
