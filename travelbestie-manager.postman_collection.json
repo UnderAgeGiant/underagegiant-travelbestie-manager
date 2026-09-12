@@ -2087,7 +2087,7 @@
     },
     {
       "name": "🤖 AI",
-      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth. Suggest costs −9 karma, Plan costs −1 karma (free for minor re-plans). Run Suggest - Success first to populate {{suggestedOption}}.",
+      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth. Suggest costs −8 karma, Plan costs −1 karma (free for minor re-plans). Run Suggest - Success first to populate {{suggestedOption}}.",
       "item": [
         {
           "name": "Suggest Trips - Success (full params)",

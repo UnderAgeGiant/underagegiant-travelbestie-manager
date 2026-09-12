@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { AiController }    from '../controllers/ai.controller';
-import { KarmaController } from '../controllers/karma.controller';
+import { KarmaController, KARMA_COST_AI_SUGGEST } from '../controllers/karma.controller';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
@@ -37,10 +37,10 @@ export function createAiRouter(
 
   router.post('/suggest',
     validateBody(aiSuggestSchema),
-    karma.requireKarma(9),
+    karma.requireKarma(KARMA_COST_AI_SUGGEST),
     karma.spendForAiSuggest,
     ai.suggest,
-    logCtaEvent('cta_ai_suggest', () => ({ karmaSpent: 9 })),
+    logCtaEvent('cta_ai_suggest', () => ({ karmaSpent: KARMA_COST_AI_SUGGEST })),
     respond(200),
   );
 

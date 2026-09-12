@@ -3,7 +3,7 @@ import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
 const KARMA_COST_TRIP           = 1;
 const KARMA_COST_AI_PLAN        = 1;
-const KARMA_COST_AI_SUGGEST     = 9;
+export const KARMA_COST_AI_SUGGEST = 8;
 const KARMA_COST_CITY_SUGGEST   = 2;
 const KARMA_COST_COMPANION_BOOST = 2;
 const KARMA_COST_COLLABORATOR_INVITE = 1;
