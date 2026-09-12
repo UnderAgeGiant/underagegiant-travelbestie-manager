@@ -132,6 +132,7 @@ export class StubTripRepository implements ITripRepository {
 
 export class StubCommentRepository implements ICommentRepository {
   private comments = new Map<string, Comment[]>();
+  private karmaSlots = new Set<string>(); // `${userId}:${attractionId}`
 
   async add(data: Omit<Comment, 'id' | 'createdAt'> & { userId: string }): Promise<Comment> {
     const { userId: _userId, ...rest } = data;
@@ -151,6 +152,13 @@ export class StubCommentRepository implements ICommentRepository {
       result[id] = this.comments.get(id) ?? [];
     }
     return result;
+  }
+
+  async markFirstAttractionComment(userId: string, attractionId: string): Promise<boolean> {
+    const key = `${userId}:${attractionId}`;
+    if (this.karmaSlots.has(key)) return false;
+    this.karmaSlots.add(key);
+    return true;
   }
 }
 

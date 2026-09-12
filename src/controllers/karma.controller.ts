@@ -53,6 +53,8 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
+  spendForTripCreated    = this.spendFor(KARMA_COST_TRIP, 'trip_created', req => req.trip!.id);
+
   spendForAiSuggest      = this.spendFor(
     KARMA_COST_AI_SUGGEST, 'ai_suggest',
     req => (req.body as { planSessionId?: string }).planSessionId ?? req.flowId,

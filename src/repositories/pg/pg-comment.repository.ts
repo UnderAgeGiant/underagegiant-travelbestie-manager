@@ -58,6 +58,16 @@ export class PgCommentRepository implements ICommentRepository {
     return result;
   }
 
+  async markFirstAttractionComment(userId: string, attractionId: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      `INSERT INTO user_attraction_karma (user_id, attraction_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, attractionId],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
   private toComment(r: Record<string, unknown>): Comment {
     const createdAt = (r.created_at as Date).toISOString();
     return {

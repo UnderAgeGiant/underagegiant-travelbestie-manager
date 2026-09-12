@@ -65,7 +65,7 @@ export function createTripsRouter(
     validateBody(createTripSchema),
     karma.requireForTrip,
     trip.create,
-    karma.spend,
+    karma.spendForTripCreated,
     buildTripResponse,
     respond(201),
   );
@@ -109,7 +109,7 @@ export function createTripsRouter(
     prepareOwnedClone,
     karma.requireForTrip,
     trip.create,
-    karma.spend,
+    karma.spendForTripCreated,
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceTripId: req.params.id, newTripId: (req.result as { id?: string } | undefined)?.id })),
     respond(201),
