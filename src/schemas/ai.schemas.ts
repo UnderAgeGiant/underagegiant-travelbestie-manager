@@ -8,6 +8,7 @@ export const aiSuggestSchema = z.object({
     id:   z.string().min(1).max(80),
     name: z.string().min(1).max(120),
   }).passthrough()).max(1000).optional(),
+  planSessionId: z.string().min(1).max(200).optional(),
 }).passthrough();
 
 export const aiPlanSchema = z.object({
@@ -28,6 +29,7 @@ export const aiPlanSchema = z.object({
 
 export const aiSuggestAttractionsSchema = z.object({
   cityId:                z.string().min(1).max(80),
+  tripId:                z.string().uuid().optional(),
   checkIn:                z.string().min(1).max(10),
   checkOut:               z.string().min(1).max(10),
   existingAttractionIds:  z.array(z.string().min(1).max(120)).max(100).optional(),

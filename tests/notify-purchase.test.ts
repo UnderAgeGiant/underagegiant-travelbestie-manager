@@ -44,16 +44,20 @@ jest.mock('../src/middleware/karma/send-karma-confirmation-email.middleware', ()
 function buildApp(notificationRepo = new StubNotificationRepository()) {
   const purchaseRepo = new StubKarmaPurchaseRepository();
   const userRepo = new StubUserRepository();
+  const karmaRepo = new StubKarmaRepository();
+  const mockPool = { query: jest.fn().mockResolvedValue({ rows: [] }) } as any;
   const app = express();
   app.use(express.json());
   app.use('/auth',  createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/karma', createKarmaRouter(
-    new KarmaController(new StubKarmaRepository()),
+    new KarmaController(karmaRepo),
     new KarmaPurchaseController(purchaseRepo),
     new MercadoPagoController(purchaseRepo),
     purchaseRepo,
     userRepo,
     notificationRepo,
+    karmaRepo,
+    mockPool,
   ));
   app.use(errorHandler);
   return { app, notificationRepo };

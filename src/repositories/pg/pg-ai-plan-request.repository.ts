@@ -45,16 +45,17 @@ export class PgAiPlanRequestRepository implements IAiPlanRequestRepository {
   constructor(private readonly pool: Pool) {}
 
   async insert(data: {
+    requestId: string;
     userId: string;
     planSessionId: string;
     karmaCharged: number;
     requestParams: AiPlanRequestParams;
   }): Promise<AiPlanRequestRecord> {
     const { rows: [row] } = await this.pool.query(
-      `INSERT INTO ai_plan_requests (user_id, plan_session_id, karma_charged, request_params)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO ai_plan_requests (request_id, user_id, plan_session_id, karma_charged, request_params)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING ${SELECT_COLUMNS}`,
-      [data.userId, data.planSessionId, data.karmaCharged, JSON.stringify(data.requestParams)],
+      [data.requestId, data.userId, data.planSessionId, data.karmaCharged, JSON.stringify(data.requestParams)],
     );
     return mapRow(row as Row);
   }

@@ -124,6 +124,24 @@ describe('POST /shared/:shareId/clone', () => {
     const res = await request(app).post(`/shared/${shareId}/clone`);
     expect(res.status).toBe(401);
   });
+
+  it('12. charges exactly one karma event, reason trip_created, refId = the cloned trip id (regression: previously mislabeled itinerary_exported)', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const { shareId } = await createAndShareTrip(app, token);
+    const eventsBeforeClone = karmaRepo.events.length;
+
+    const res = await request(app)
+      .post(`/shared/${shareId}/clone`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(201);
+    const cloneEvents = karmaRepo.events.slice(eventsBeforeClone);
+    expect(cloneEvents).toHaveLength(1);
+    expect(cloneEvents[0].reason).toBe('trip_created');
+    expect(cloneEvents[0].delta).toBe(-1);
+    expect(cloneEvents[0].refId).toBe(res.body.id);
+  });
 });
 
 // ─── Owned clone ─────────────────────────────────────────────────────────────
@@ -220,5 +238,27 @@ describe('POST /trips/:id/clone', () => {
 
     expect(res.status).toBe(201);
     expect(res.body).not.toHaveProperty('shareId');
+  });
+
+  it('11. charges exactly one karma event per clone, reason trip_created, refId = new (cloned) trip id (regression: previously double-charged with a bogus itinerary_exported event)', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const created = await request(app)
+      .post('/trips')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Original trip', stops: [], transits: [] });
+
+    const res = await request(app)
+      .post(`/trips/${created.body.id}/clone`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(201);
+    // One event for the original creation, one for the clone — both trip_created.
+    expect(karmaRepo.events).toHaveLength(2);
+    const cloneEvent = karmaRepo.events.find(e => e.refId === res.body.id);
+    expect(cloneEvent).toBeDefined();
+    expect(cloneEvent!.reason).toBe('trip_created');
+    expect(cloneEvent!.delta).toBe(-1);
+    expect(karmaRepo.events.some(e => e.reason === 'itinerary_exported')).toBe(false);
   });
 });

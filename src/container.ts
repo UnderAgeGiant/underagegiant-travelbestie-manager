@@ -37,10 +37,11 @@ export const stepCommentRepo         = new PgStepCommentRepository(pool);
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);
 export const collaboratorRepo        = new PgCollaboratorRepository(pool);
+export const commentRepo             = new PgCommentRepository(pool);
 
 export const userController          = new UserController(userRepo);
 export const tripController          = new TripController(tripRepo);
-export const commentController       = new CommentController(new PgCommentRepository(pool));
+export const commentController       = new CommentController(commentRepo);
 export const karmaController         = new KarmaController(karmaRepo);
 export const karmaPurchaseController = new KarmaPurchaseController(karmaPurchaseRepo);
 export const mercadopagoController   = new MercadoPagoController(karmaPurchaseRepo);

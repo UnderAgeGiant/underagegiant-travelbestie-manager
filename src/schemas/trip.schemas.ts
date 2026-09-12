@@ -36,6 +36,8 @@ export const createTripSchema = z.object({
   title:    z.string().trim().min(1).max(200),
   stops:    z.array(tripStop).max(100),
   transits: z.array(transitLeg).max(100).optional(),
+  sourceAiPlanRequestId: z.string().min(1).max(120).optional(),
+  sourcePlanSessionId: z.string().min(1).max(200).optional(),
 }).passthrough();
 
 export const updateTripSchema = createTripSchema;

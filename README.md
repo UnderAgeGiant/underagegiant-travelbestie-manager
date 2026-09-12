@@ -91,7 +91,7 @@ Full request/response contracts, karma costs, and route chains live in `CLAUDE.m
 | GET | `/karma`, `/karma/packages` | — / Bearer | Balance / purchasable packages |
 | POST | `/karma/purchase/create-order`, `/karma/purchase/capture-order` | Bearer | PayPal karma purchase flow |
 | **AI (DeepSeek)** | | | |
-| POST | `/ai/suggest` | Bearer | 2 trip options (−9 karma) |
+| POST | `/ai/suggest` | Bearer | 2 trip options (−8 karma) |
 | POST | `/ai/plan` | Bearer | Full itinerary (−1 karma; free for minor re-plans) |
 | POST | `/ai/suggest-attractions` | Bearer | 3–5 more attractions for one city (−2 karma, free on follow-up) |
 | POST | `/ai/suggest-companion` | Bearer | Unprompted single-attraction nudge (free, rate-limited) |

@@ -3,7 +3,7 @@ import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
 const KARMA_COST_TRIP           = 1;
 const KARMA_COST_AI_PLAN        = 1;
-const KARMA_COST_AI_SUGGEST     = 9;
+export const KARMA_COST_AI_SUGGEST = 8;
 const KARMA_COST_CITY_SUGGEST   = 2;
 const KARMA_COST_COMPANION_BOOST = 2;
 const KARMA_COST_COLLABORATOR_INVITE = 1;
@@ -53,9 +53,17 @@ export class KarmaController {
     } catch (err) { next(err); }
   };
 
-  spendForAiSuggest      = this.spendFor(KARMA_COST_AI_SUGGEST, 'ai_suggest');
-  spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan');
-  spendForCitySuggest    = this.spendFor(KARMA_COST_CITY_SUGGEST, 'ai_city_suggest');
+  spendForTripCreated    = this.spendFor(KARMA_COST_TRIP, 'trip_created', req => req.trip!.id);
+
+  spendForAiSuggest      = this.spendFor(
+    KARMA_COST_AI_SUGGEST, 'ai_suggest',
+    req => (req.body as { planSessionId?: string }).planSessionId ?? req.flowId,
+  );
+  spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan', req => req.aiPlanRequestId!);
+  spendForCitySuggest    = this.spendFor(
+    KARMA_COST_CITY_SUGGEST, 'ai_city_suggest',
+    req => (req.body as { tripId?: string }).tripId ?? req.flowId,
+  );
   spendForCompanionBoost = this.spendFor(KARMA_COST_COMPANION_BOOST, 'companion_boost');
 
   requireForCollaboratorInvite = this.requireKarma(KARMA_COST_COLLABORATOR_INVITE);

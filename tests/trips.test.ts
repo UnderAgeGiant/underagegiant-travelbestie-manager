@@ -33,16 +33,17 @@ function buildApp() {
   const users = new StubUserRepository();
   const trips = new StubTripRepository();
   const collaborators = new StubCollaboratorRepository(users, trips);
+  const karmaRepo = new StubKarmaRepository();
 
   const app = express();
   app.use(express.json());
   app.use('/auth',  createAuthRouter(new UserController(users), new StubHighlightRepository()));
   app.use('/trips', createTripsRouter(
-    new TripController(trips), new KarmaController(new StubKarmaRepository()),
+    new TripController(trips), new KarmaController(karmaRepo),
     new CollaboratorController(collaborators), collaborators, users, trips, new StubNotificationRepository(),
   ));
   app.use(errorHandler);
-  return app;
+  return { app, karmaRepo };
 }
 
 async function getToken(app: express.Express): Promise<string> {
@@ -52,11 +53,11 @@ async function getToken(app: express.Express): Promise<string> {
 
 describe('GET /trips', () => {
   it('returns 401 without token', async () => {
-    expect((await request(buildApp()).get('/trips')).status).toBe(401);
+    expect((await request(buildApp().app).get('/trips')).status).toBe(401);
   });
 
   it('returns empty array for new user', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const res = await request(app).get('/trips').set('Authorization', `Bearer ${await getToken(app)}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
@@ -65,7 +66,7 @@ describe('GET /trips', () => {
 
 describe('POST /trips', () => {
   it('creates a trip with stops and transits', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const token = await getToken(app);
     const res = await request(app).post('/trips')
       .set('Authorization', `Bearer ${token}`)
@@ -80,13 +81,13 @@ describe('POST /trips', () => {
   });
 
   it('returns 400 when title missing', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const res = await request(app).post('/trips').set('Authorization', `Bearer ${await getToken(app)}`).send({ stops: [] });
     expect(res.status).toBe(400);
   });
 
   it('preserves category on planned attractions', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const token = await getToken(app);
     const res = await request(app).post('/trips')
       .set('Authorization', `Bearer ${token}`)
@@ -110,7 +111,7 @@ describe('POST /trips', () => {
   });
 
   it('preserves ticket/carrier/location/lodging fields on create', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const token = await getToken(app);
     const res = await request(app).post('/trips')
       .set('Authorization', `Bearer ${token}`)
@@ -144,11 +145,25 @@ describe('POST /trips', () => {
     expect(segment.carrier).toBe('Latam');
     expect(segment.locationUrl).toBe('https://maps.app.goo.gl/xyz');
   });
+
+  it('charges exactly one karma event, reason trip_created, refId = new trip id (regression: previously double-charged with a bogus itinerary_exported event)', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const res = await request(app).post('/trips')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Single Charge Trip', stops: [], transits: [] });
+
+    expect(res.status).toBe(201);
+    expect(karmaRepo.events).toHaveLength(1);
+    expect(karmaRepo.events[0].reason).toBe('trip_created');
+    expect(karmaRepo.events[0].delta).toBe(-1);
+    expect(karmaRepo.events[0].refId).toBe(res.body.id);
+  });
 });
 
 describe('PUT /trips/:id', () => {
   it('updates a trip title and transits', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const token = await getToken(app);
     const created = await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send({ title: 'Asia', stops: [], transits: [] });
     const res = await request(app).put(`/trips/${created.body.id}`)
@@ -159,7 +174,7 @@ describe('PUT /trips/:id', () => {
   });
 
   it('returns 404 for unknown trip', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const res = await request(app).put('/trips/bad-id').set('Authorization', `Bearer ${await getToken(app)}`).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
@@ -167,7 +182,7 @@ describe('PUT /trips/:id', () => {
 
 describe('DELETE /trips/:id', () => {
   it('deletes a trip and returns 204', async () => {
-    const app = buildApp();
+    const { app } = buildApp();
     const token = await getToken(app);
     const created = await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send({ title: 'Del', stops: [], transits: [] });
     expect((await request(app).delete(`/trips/${created.body.id}`).set('Authorization', `Bearer ${token}`)).status).toBe(204);

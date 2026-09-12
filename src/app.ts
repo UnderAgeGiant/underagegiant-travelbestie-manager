@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
 import {
-  userController, tripController, commentController,
+  userController, tripController, commentController, commentRepo,
   karmaController, karmaPurchaseController, karmaPurchaseRepo,
   mercadopagoController,
   aiController, stepCommentController, stepCommentRepo, karmaRepo, pool,
@@ -70,8 +70,8 @@ app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo),
 );
 app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo));
-app.use('/comments', createCommentsRouter(commentController));
-app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo));
+app.use('/comments', createCommentsRouter(commentController, commentRepo, karmaRepo));
+app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
 app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
