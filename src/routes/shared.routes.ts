@@ -52,7 +52,7 @@ export function createSharedRouter(
     prepareSharedClone,
     karma.requireForTrip,
     trip.create,
-    karma.spend,
+    karma.spendForTripCreated,
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
     notifyClone,
