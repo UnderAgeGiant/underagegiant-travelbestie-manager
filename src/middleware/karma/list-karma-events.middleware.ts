@@ -20,13 +20,13 @@ const AI_PLAN_REQUEST_REASONS = new Set(['ai_plan', 'ai_plan_refund']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: string): boolean => UUID_RE.test(v);
 
-// SECURITY NOTE: the `AND owner_id = $2` / `AND user_id = $2` clauses in the four
+// SECURITY NOTE: the `AND owner_id = $2` / `AND user_id = $2` clauses in the five
 // queries below are the actual cross-user isolation boundary for target/metadata
 // resolution — karma.listEvents() already scopes the base ledger by userId, but a
 // ref_id is just a TEXT column with no FK, so these lookups independently re-verify
 // ownership rather than trusting that a ref_id could only ever belong to the caller.
 // This can't be exercised by this file's mocked-pool tests (they return canned rows
-// regardless of the SQL's WHERE clause) — verify these four ownership filters by
+// regardless of the SQL's WHERE clause) — verify these five ownership filters by
 // reading the query text directly during code review, not by trusting a green test
 // suite alone.
 
