@@ -35,6 +35,45 @@ describe('validateProductionSecrets (B-5)', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_SECRET = 'a-strong-unique-secret-value';
     process.env.RSA_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----...';
+    process.env.FRONTEND_ORIGIN = 'https://tripilove.com';
+    expect(() => validateProductionSecrets()).not.toThrow();
+  });
+
+  it('throws in production when FRONTEND_ORIGIN is not set', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'a-strong-unique-secret';
+    process.env.RSA_PRIVATE_KEY = 'some-key';
+    delete process.env.FRONTEND_ORIGIN;
+
+    expect(() => validateProductionSecrets()).toThrow(
+      'FATAL: FRONTEND_ORIGIN must be set to the real production frontend URL (not localhost) so MercadoPago can redirect back to the app.',
+    );
+  });
+
+  it('throws in production when FRONTEND_ORIGIN resolves to a local hostname', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'a-strong-unique-secret';
+    process.env.RSA_PRIVATE_KEY = 'some-key';
+    process.env.FRONTEND_ORIGIN = 'http://localhost:4200';
+
+    expect(() => validateProductionSecrets()).toThrow(/FRONTEND_ORIGIN/);
+  });
+
+  it('does not throw in production when FRONTEND_ORIGIN is a real HTTPS domain', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'a-strong-unique-secret';
+    process.env.RSA_PRIVATE_KEY = 'some-key';
+    process.env.FRONTEND_ORIGIN = 'https://tripilove.com';
+
+    expect(() => validateProductionSecrets()).not.toThrow();
+  });
+
+  it('does not throw in production when FRONTEND_ORIGIN has multiple comma-separated origins and the first is real', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'a-strong-unique-secret';
+    process.env.RSA_PRIVATE_KEY = 'some-key';
+    process.env.FRONTEND_ORIGIN = 'https://tripilove.com,https://www.tripilove.com';
+
     expect(() => validateProductionSecrets()).not.toThrow();
   });
 });
