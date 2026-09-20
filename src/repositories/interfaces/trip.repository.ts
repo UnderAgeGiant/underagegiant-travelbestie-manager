@@ -1,4 +1,5 @@
-import { Trip, TripStop, TransitLeg, SharedTripPayload } from '../../types';
+import { Trip, TripStop, TransitLeg, SharedTripPayload, FeedPage } from '../../types';
+import { FeedCursor } from '../../lib/feed-cursor';
 
 export interface ITripRepository {
   create(data: {
@@ -13,5 +14,6 @@ export interface ITripRepository {
   findByShareId(shareId: string): Promise<SharedTripPayload | null>;
   findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]>;
   searchShared(query: string): Promise<SharedTripPayload[]>;
+  listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage>;
   delete(id: string): Promise<boolean>;
 }
