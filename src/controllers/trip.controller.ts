@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TripStop, TransitLeg } from '../types';
@@ -121,6 +121,28 @@ export class TripController {
       } catch { /* non-fatal */ }
 
       req.result = trips;
+      next();
+    } catch (err) { next(err); }
+  };
+
+  /** GET /feed — Redis cache-aside (identical for every caller: no per-viewer fields). */
+  listFeed = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { cursor, limit } = req.feedQuery!;
+      const rawCursor = typeof req.query.cursor === 'string' ? req.query.cursor : '';
+      const cacheKey = `feed:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
+      const { redis } = await import('../lib/redis');
+
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) { req.result = JSON.parse(cached); return next(); }
+      } catch { /* non-fatal — fall through to DB */ }
+
+      const page = await this.trips.listFeed(cursor, limit);
+
+      try { await redis.set(cacheKey, JSON.stringify(page), 'EX', 300); } catch { /* non-fatal */ }
+
+      req.result = page;
       next();
     } catch (err) { next(err); }
   };

@@ -21,7 +21,7 @@ import { createSharedCommentsRouter }  from './routes/shared-comments.routes';
 import { createCommentsRouter }        from './routes/comments.routes';
 import { createKarmaRouter }           from './routes/karma.routes';
 import { createAiRouter }              from './routes/ai.routes';
-import { createFeaturedRouter, createStatsRouter } from './routes/landing.routes';
+import { createFeaturedRouter, createStatsRouter, createFeedRouter } from './routes/landing.routes';
 import { createFavoritesRouter }       from './routes/favorites.routes';
 import { createNotificationsRouter }   from './routes/notifications.routes';
 import { createCompanionRouter }       from './routes/companion.routes';
@@ -76,6 +76,7 @@ app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, ai
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
+app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));

@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan } from '../../types';
+import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 
 // dd/mm/yyyy → yyyy-mm-dd
 function toISO(dmy: string): string {
@@ -173,6 +174,63 @@ export class PgTripRepository implements ITripRepository {
       tripId:        trip.id,
       favoriteCount: rows[i].favorite_count as number,
     }));
+  }
+
+  /** Public feed page: shared plans with >=1 stop, ranked by favorites. Keyset-paginated on
+   *  (favorite_count, created_at, trip_id) — all DESC, so the row-value comparison is valid.
+   *  Deliberately never selects owner_id/owner_email. */
+  async listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
+    const { rows } = await this.pool.query(
+      `WITH ranked AS (
+         SELECT t.trip_id, t.title, t.created_at, t.created_at::text AS created_at_raw,
+                t.share_id, u.name AS owner_name,
+                COALESCE(f.c, 0)::int AS favorite_count
+         FROM trips t
+         JOIN users u ON u.user_id = t.owner_id
+         LEFT JOIN (SELECT trip_id, COUNT(*) AS c FROM trip_favorites GROUP BY trip_id) f
+                ON f.trip_id = t.trip_id
+         WHERE t.share_id IS NOT NULL
+           AND EXISTS (SELECT 1 FROM trip_stops s WHERE s.trip_id = t.trip_id)
+       )
+       SELECT * FROM ranked
+       WHERE $1::int IS NULL
+          OR (favorite_count, created_at, trip_id) < ($1::int, $2::timestamptz, $3::uuid)
+       ORDER BY favorite_count DESC, created_at DESC, trip_id DESC
+       LIMIT $4`,
+      [cursor?.favoriteCount ?? null, cursor?.createdAt ?? null, cursor?.tripId ?? null, limit + 1],
+    );
+
+    const hasMore  = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const trips    = await hydrateTrips(this.pool, pageRows);
+
+    const items: FeedPlan[] = trips.map((trip, i) => ({
+      id:            pageRows[i].share_id as string,
+      tripName:      trip.title,
+      ownerName:     pageRows[i].owner_name as string,
+      createdAt:     trip.createdAt,
+      favoriteCount: pageRows[i].favorite_count as number,
+      stops: trip.stops.map(s => ({
+        cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
+        selectedAttractions: s.selectedAttractions.map(a => ({
+          attractionId: a.attractionId,
+          ...(a.date ? { date: a.date } : {}),
+          startTime: a.startTime,
+          endTime:   a.endTime,
+        })),
+      })),
+    }));
+
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor = hasMore && last
+      ? encodeFeedCursor({
+          favoriteCount: last.favorite_count as number,
+          createdAt:     last.created_at_raw as string,
+          tripId:        last.trip_id as string,
+        })
+      : null;
+
+    return { items, nextCursor };
   }
 
   async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {

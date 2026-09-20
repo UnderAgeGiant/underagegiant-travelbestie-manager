@@ -83,6 +83,35 @@ export interface SharedTripPayload {
   isFavoritedByMe?: boolean;
 }
 
+export interface FeedPlanAttraction {
+  attractionId: string;
+  date?:        string;         // dd/mm/yyyy
+  startTime:    string | null;  // HH:mm
+  endTime:      string | null;  // HH:mm
+}
+
+export interface FeedPlanStop {
+  cityId:   string;
+  checkIn:  string;             // dd/mm/yyyy
+  checkOut: string;             // dd/mm/yyyy
+  selectedAttractions: FeedPlanAttraction[];
+}
+
+/** One item of GET /feed. Deliberately has no owner email/id, transits, lodging, or per-viewer state. */
+export interface FeedPlan {
+  id:            string;        // shareId
+  tripName:      string;
+  ownerName:     string;
+  createdAt:     string;        // ISO
+  favoriteCount: number;
+  stops:         FeedPlanStop[];
+}
+
+export interface FeedPage {
+  items:      FeedPlan[];
+  nextCursor: string | null;
+}
+
 export interface CollaboratorRecord {
   userId:     string;
   name:       string;
@@ -376,6 +405,7 @@ declare global {
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
       karmaEventsQuery?: { cursor: import('./lib/karma-events-cursor').KarmaEventsCursor | null; limit: number };
+      feedQuery?: { cursor: import('./lib/feed-cursor').FeedCursor | null; limit: number };
     }
   }
 }

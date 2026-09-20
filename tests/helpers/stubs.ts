@@ -5,7 +5,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -13,6 +13,7 @@ import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
 import { IHighlightRepository } from '../../src/repositories/interfaces/highlight.repository.interface';
 import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-plan-request.repository';
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
+import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -123,6 +124,51 @@ export class StubTripRepository implements ITripRepository {
       .filter(t => t.shareId && t.title.toLowerCase().includes(q))
       .slice(0, 5)
       .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
+  }
+
+  private favoriteCounts = new Map<string, number>(); // shareId -> favorite count
+
+  setFavoriteCount(shareId: string, n: number): void { this.favoriteCounts.set(shareId, n); }
+
+  setCreatedAt(id: string, iso: string): void {
+    const t = this.trips.get(id);
+    if (t) this.trips.set(id, { ...t, createdAt: iso });
+  }
+
+  async listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
+    const eligible = [...this.trips.values()]
+      .filter(t => t.shareId && t.stops.length > 0)
+      .map(t => ({ t, fav: this.favoriteCounts.get(t.shareId!) ?? 0 }))
+      .sort((a, b) => b.fav - a.fav
+        || b.t.createdAt.localeCompare(a.t.createdAt)
+        || b.t.id.localeCompare(a.t.id));
+
+    const startIdx = cursor
+      ? eligible.findIndex(e =>
+          e.fav < cursor.favoriteCount ||
+          (e.fav === cursor.favoriteCount && (e.t.createdAt < cursor.createdAt ||
+            (e.t.createdAt === cursor.createdAt && e.t.id < cursor.tripId))))
+      : 0;
+    if (startIdx === -1) return { items: [], nextCursor: null };
+
+    const slice   = eligible.slice(startIdx, startIdx + limit + 1);
+    const hasMore = slice.length > limit;
+    const page    = hasMore ? slice.slice(0, limit) : slice;
+    const items = page.map(({ t, fav }) => ({
+      id: t.shareId!, tripName: t.title, ownerName: '', createdAt: t.createdAt, favoriteCount: fav,
+      stops: t.stops.map(s => ({
+        cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
+        selectedAttractions: s.selectedAttractions.map(a => ({
+          attractionId: a.attractionId, ...(a.date ? { date: a.date } : {}),
+          startTime: a.startTime, endTime: a.endTime,
+        })),
+      })),
+    }));
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last
+      ? encodeFeedCursor({ favoriteCount: last.fav, createdAt: last.t.createdAt, tripId: last.t.id })
+      : null;
+    return { items, nextCursor };
   }
 
   async delete(id: string): Promise<boolean> {
