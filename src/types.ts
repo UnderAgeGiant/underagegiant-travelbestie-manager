@@ -131,7 +131,12 @@ export interface SeoSharedSummary {
   indexable:       boolean;
 }
 
+/** Public sitemap item — exactly this shape leaves the API. */
 export interface SeoSitemapEntry { id: string; updatedAt: string; }
+
+/** Repository-level sitemap row: carries cityIds so the controller can apply the known-city rule
+ *  (CITY_NAMES lives in code, not SQL). cityIds is stripped before responding. */
+export interface SeoSitemapRow extends SeoSitemapEntry { cityIds: string[]; }
 
 export interface CollaboratorRecord {
   userId:     string;

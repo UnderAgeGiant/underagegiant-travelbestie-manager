@@ -31,11 +31,17 @@ describe('PgTripRepository SEO queries', () => {
     expect(await new PgTripRepository(pool).findSeoRow('nope')).toBeNull();
   });
 
-  it('listSeoIndex passes the floor and limit and ISO-formats updatedAt', async () => {
-    query.mockResolvedValueOnce({ rows: [{ id: 'a', updated_at: new Date('2026-09-02T00:00:00Z') }] });
+  it('listSeoIndex passes the floor and limit, ISO-formats updatedAt and carries cityIds (filtered in the controller)', async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: 'a', updated_at: new Date('2026-09-02T00:00:00Z'), city_ids: ['paris', 'zzz'] }] });
     const items = await new PgTripRepository(pool).listSeoIndex(3, 5000);
-    expect(items).toEqual([{ id: 'a', updatedAt: '2026-09-02T00:00:00.000Z' }]);
+    expect(items).toEqual([{ id: 'a', updatedAt: '2026-09-02T00:00:00.000Z', cityIds: ['paris', 'zzz'] }]);
     expect(query.mock.calls[0][1]).toEqual([3, 5000]);
+  });
+
+  it('listSeoIndex never selects owner columns (PII)', async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    await new PgTripRepository(pool).listSeoIndex(3, 5000);
+    expect(String(query.mock.calls[0][0])).not.toMatch(/owner_id|email|users/i);
   });
 });
 

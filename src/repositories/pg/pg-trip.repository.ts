@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapEntry } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow } from '../../types';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 
 // dd/mm/yyyy → yyyy-mm-dd
@@ -256,10 +256,13 @@ export class PgTripRepository implements ITripRepository {
     };
   }
 
-  /** Shared trips with at least `minAttractions` planned attractions, most recently updated first (sitemap source). */
-  async listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapEntry[]> {
+  /** Shared trips with at least `minAttractions` planned attractions, most recently updated first (sitemap source).
+   *  Rows carry cityIds so the controller can also apply the known-city rule; they never leave the API. */
+  async listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapRow[]> {
     const { rows } = await this.pool.query(
-      `SELECT t.share_id AS id, t.updated_at
+      `SELECT t.share_id AS id, t.updated_at,
+              COALESCE((SELECT array_agg(s.city_id ORDER BY s.sort_order)
+                          FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids
          FROM trips t
         WHERE t.share_id IS NOT NULL
           AND (SELECT COUNT(*) FROM planned_attractions pa
@@ -269,7 +272,11 @@ export class PgTripRepository implements ITripRepository {
         LIMIT $2`,
       [minAttractions, limit],
     );
-    return rows.map(r => ({ id: r.id as string, updatedAt: new Date(r.updated_at).toISOString() }));
+    return rows.map(r => ({
+      id: r.id as string,
+      updatedAt: new Date(r.updated_at).toISOString(),
+      cityIds: r.city_ids as string[],
+    }));
   }
 
   async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {

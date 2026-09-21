@@ -5,7 +5,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapEntry } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -148,12 +148,12 @@ export class StubTripRepository implements ITripRepository {
     };
   }
 
-  async listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapEntry[]> {
+  async listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapRow[]> {
     return [...this.trips.values()]
       .filter(t => t.shareId && this.attractionCount(t) >= minAttractions)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit)
-      .map(t => ({ id: t.shareId!, updatedAt: t.createdAt }));
+      .map(t => ({ id: t.shareId!, updatedAt: t.createdAt, cityIds: t.stops.map(s => s.cityId) }));
   }
 
   async listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage> {

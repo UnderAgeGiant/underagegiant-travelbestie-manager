@@ -15,6 +15,15 @@ export function seoSharedCacheKey(shareId: string): string {
   return `seo:shared:${shareId}`;
 }
 
+/**
+ * True when at least one city id resolves to a display name. This is half of the "indexable" rule
+ * (the other half is SEO_MIN_ATTRACTIONS) — shared by buildSeoSummary() and the sitemap controller so
+ * the sitemap lists exactly the plans /seo/shared/:id would mark indexable.
+ */
+export function hasKnownCity(cityIds: string[]): boolean {
+  return cityIds.some(id => Boolean(CITY_NAMES[id]));
+}
+
 export function buildSeoSummary(row: SeoSharedRow): SeoSharedSummary {
   const names = row.cityIds.map(id => CITY_NAMES[id]).filter((n): n is string => Boolean(n));
   const cities = [...new Set(names)];

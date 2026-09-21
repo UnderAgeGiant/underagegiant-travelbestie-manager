@@ -4,7 +4,7 @@ import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TripStop, TransitLeg } from '../types';
 import {
   SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT, SEO_SITEMAP_CACHE_KEY,
-  SEO_SHARED_CACHE_TTL, SEO_SITEMAP_CACHE_TTL, seoSharedCacheKey,
+  SEO_SHARED_CACHE_TTL, SEO_SITEMAP_CACHE_TTL, seoSharedCacheKey, hasKnownCity,
 } from '../lib/seo';
 
 export class TripController {
@@ -178,7 +178,14 @@ export class TripController {
         if (cached) { req.result = JSON.parse(cached); return next(); }
       } catch { /* non-fatal */ }
 
-      const result = { items: await this.trips.listSeoIndex(SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT) };
+      // Apply the known-city half of the indexable rule here (CITY_NAMES lives in code, not SQL) and strip
+      // cityIds so the public shape stays exactly { id, updatedAt } — the sitemap then lists exactly the
+      // plans /seo/shared/:id marks indexable. Note: the SQL LIMIT runs before this filter, so a page of
+      // unknown-city plans could under-fill the list; harmless at current volumes.
+      const rows = await this.trips.listSeoIndex(SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT);
+      const result = {
+        items: rows.filter(r => hasKnownCity(r.cityIds)).map(({ id, updatedAt }) => ({ id, updatedAt })),
+      };
       try { await redis.set(SEO_SITEMAP_CACHE_KEY, JSON.stringify(result), 'EX', SEO_SITEMAP_CACHE_TTL); } catch { /* non-fatal */ }
       req.result = result;
       next();
