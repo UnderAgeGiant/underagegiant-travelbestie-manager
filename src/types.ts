@@ -112,6 +112,32 @@ export interface FeedPage {
   nextCursor: string | null;
 }
 
+/** Raw DB row for the SEO summary of a shared trip (city ids, not names — repositories stay DB-only). */
+export interface SeoSharedRow {
+  id:              string;    // shareId
+  tripName:        string;
+  cityIds:         string[];  // stop order, may contain duplicates / unknown ids
+  attractionCount: number;
+  updatedAt:       string;    // ISO
+}
+
+/** Public, PII-free summary consumed by the frontend's crawler head function. */
+export interface SeoSharedSummary {
+  id:              string;
+  tripName:        string;
+  cities:          string[];  // display names, deduped, stop order
+  attractionCount: number;
+  updatedAt:       string;
+  indexable:       boolean;
+}
+
+/** Public sitemap item — exactly this shape leaves the API. */
+export interface SeoSitemapEntry { id: string; updatedAt: string; }
+
+/** Repository-level sitemap row: carries cityIds so the controller can apply the known-city rule
+ *  (CITY_NAMES lives in code, not SQL). cityIds is stripped before responding. */
+export interface SeoSitemapRow extends SeoSitemapEntry { cityIds: string[]; }
+
 export interface CollaboratorRecord {
   userId:     string;
   name:       string;
@@ -399,6 +425,7 @@ declare global {
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
       sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
+      seoRow?: SeoSharedRow | null;      // set by TripController.seoShared
       invitedUser?: User;                // set by resolve-invitee.middleware.ts
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts

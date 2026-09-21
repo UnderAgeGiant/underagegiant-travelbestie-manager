@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow } from '../../types';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 
 // dd/mm/yyyy → yyyy-mm-dd
@@ -233,6 +233,52 @@ export class PgTripRepository implements ITripRepository {
     return { items, nextCursor };
   }
 
+  /** SEO summary source row for one shared trip. PII-free by construction: no owner columns, no users join. */
+  async findSeoRow(shareId: string): Promise<SeoSharedRow | null> {
+    const { rows: [r] } = await this.pool.query(
+      `SELECT t.share_id AS id, t.title, t.updated_at,
+              COALESCE((SELECT array_agg(s.city_id ORDER BY s.sort_order)
+                          FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids,
+              (SELECT COUNT(*)::int FROM planned_attractions pa
+                 JOIN trip_stops s ON s.stop_id = pa.stop_id
+                WHERE s.trip_id = t.trip_id) AS attraction_count
+         FROM trips t
+        WHERE t.share_id = $1`,
+      [shareId],
+    );
+    if (!r) return null;
+    return {
+      id: r.id as string,
+      tripName: r.title as string,
+      cityIds: r.city_ids as string[],
+      attractionCount: r.attraction_count as number,
+      updatedAt: new Date(r.updated_at).toISOString(),
+    };
+  }
+
+  /** Shared trips with at least `minAttractions` planned attractions, most recently updated first (sitemap source).
+   *  Rows carry cityIds so the controller can also apply the known-city rule; they never leave the API. */
+  async listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT t.share_id AS id, t.updated_at,
+              COALESCE((SELECT array_agg(s.city_id ORDER BY s.sort_order)
+                          FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids
+         FROM trips t
+        WHERE t.share_id IS NOT NULL
+          AND (SELECT COUNT(*) FROM planned_attractions pa
+                 JOIN trip_stops s ON s.stop_id = pa.stop_id
+                WHERE s.trip_id = t.trip_id) >= $1
+        ORDER BY t.updated_at DESC, t.trip_id DESC
+        LIMIT $2`,
+      [minAttractions, limit],
+    );
+    return rows.map(r => ({
+      id: r.id as string,
+      updatedAt: new Date(r.updated_at).toISOString(),
+      cityIds: r.city_ids as string[],
+    }));
+  }
+
   async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {
     const { rows: [existing] } = await this.pool.query(
       `SELECT trip_id FROM trips WHERE trip_id = $1`,
@@ -243,12 +289,12 @@ export class PgTripRepository implements ITripRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      if (data.title !== undefined) {
-        await client.query(
-          `UPDATE trips SET title = $1, updated_at = now() WHERE trip_id = $2`,
-          [data.title, id],
-        );
-      }
+      // Always bump updated_at — a stops/transits-only edit is still an edit, and the SEO
+      // sitemap's <lastmod> is derived from this column.
+      await client.query(
+        `UPDATE trips SET title = COALESCE($1, title), updated_at = now() WHERE trip_id = $2`,
+        [data.title ?? null, id],
+      );
       if (data.stops !== undefined) {
         await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [id]);
         await insertStops(client, id, data.stops);

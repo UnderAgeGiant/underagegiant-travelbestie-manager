@@ -27,7 +27,9 @@ import { createNotificationsRouter }   from './routes/notifications.routes';
 import { createCompanionRouter }       from './routes/companion.routes';
 import { createHighlightsRouter }      from './routes/highlights.routes';
 import { createWeatherRouter }         from './routes/weather.routes';
+import { createSeoRouter }             from './routes/seo.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
+import { noIndexApi, robotsTxt } from './middleware/no-index.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
 import { stripPollutionKeys } from './lib/sanitize-body';
@@ -41,6 +43,7 @@ app.use(requestLoggerMiddleware);
 // API-appropriate security headers. contentSecurityPolicy is disabled here — this is a
 // JSON API (no HTML it serves), and the browser CSP is enforced at the frontend/Vercel edge.
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(noIndexApi);
 const rawOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:4200';
 const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.trim()) : rawOrigin;
 // maxAge caches the browser's CORS preflight (OPTIONS) result for 24h — without it Chrome
@@ -58,6 +61,7 @@ app.use((req, _res, next) => {
 });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/robots.txt', robotsTxt);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
@@ -80,6 +84,7 @@ app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
+app.use('/seo',     createSeoRouter(tripController));
 
 app.use(notFound);
 app.use(errorHandler);
