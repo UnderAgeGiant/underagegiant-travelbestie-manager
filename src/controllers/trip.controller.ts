@@ -2,6 +2,10 @@ import { randomUUID, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TripStop, TransitLeg } from '../types';
+import {
+  SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT, SEO_SITEMAP_CACHE_KEY,
+  SEO_SHARED_CACHE_TTL, SEO_SITEMAP_CACHE_TTL, seoSharedCacheKey,
+} from '../lib/seo';
 
 export class TripController {
   constructor(private readonly trips: ITripRepository) {}
@@ -143,6 +147,40 @@ export class TripController {
       try { await redis.set(cacheKey, JSON.stringify(page), 'EX', 300); } catch { /* non-fatal */ }
 
       req.result = page;
+      next();
+    } catch (err) { next(err); }
+  };
+
+  /** GET /seo/shared/:shareId — Redis cache-aside (hits only; 404s are never cached). Sets req.seoRow. */
+  seoShared = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const shareId = String(req.params.shareId);
+      const key = seoSharedCacheKey(shareId);
+      const { redis } = await import('../lib/redis');
+      try {
+        const cached = await redis.get(key);
+        if (cached) { req.seoRow = JSON.parse(cached); return next(); }
+      } catch { /* non-fatal — fall through to DB */ }
+
+      const row = await this.trips.findSeoRow(shareId);
+      if (row) { try { await redis.set(key, JSON.stringify(row), 'EX', SEO_SHARED_CACHE_TTL); } catch { /* non-fatal */ } }
+      req.seoRow = row;
+      next();
+    } catch (err) { next(err); }
+  };
+
+  /** GET /seo/sitemap — indexable shared plans, Redis cache-aside 1 h. */
+  seoSitemap = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { redis } = await import('../lib/redis');
+      try {
+        const cached = await redis.get(SEO_SITEMAP_CACHE_KEY);
+        if (cached) { req.result = JSON.parse(cached); return next(); }
+      } catch { /* non-fatal */ }
+
+      const result = { items: await this.trips.listSeoIndex(SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT) };
+      try { await redis.set(SEO_SITEMAP_CACHE_KEY, JSON.stringify(result), 'EX', SEO_SITEMAP_CACHE_TTL); } catch { /* non-fatal */ }
+      req.result = result;
       next();
     } catch (err) { next(err); }
   };

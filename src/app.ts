@@ -27,6 +27,7 @@ import { createNotificationsRouter }   from './routes/notifications.routes';
 import { createCompanionRouter }       from './routes/companion.routes';
 import { createHighlightsRouter }      from './routes/highlights.routes';
 import { createWeatherRouter }         from './routes/weather.routes';
+import { createSeoRouter }             from './routes/seo.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
 import { validateProductionSecrets } from './lib/validate-env';
@@ -80,6 +81,7 @@ app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
+app.use('/seo',     createSeoRouter(tripController));
 
 app.use(notFound);
 app.use(errorHandler);

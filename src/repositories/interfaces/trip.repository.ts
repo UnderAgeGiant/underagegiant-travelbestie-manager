@@ -1,4 +1,4 @@
-import { Trip, TripStop, TransitLeg, SharedTripPayload, FeedPage } from '../../types';
+import { Trip, TripStop, TransitLeg, SharedTripPayload, FeedPage, SeoSharedRow, SeoSitemapEntry } from '../../types';
 import { FeedCursor } from '../../lib/feed-cursor';
 
 export interface ITripRepository {
@@ -15,5 +15,7 @@ export interface ITripRepository {
   findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]>;
   searchShared(query: string): Promise<SharedTripPayload[]>;
   listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage>;
+  findSeoRow(shareId: string): Promise<SeoSharedRow | null>;
+  listSeoIndex(minAttractions: number, limit: number): Promise<SeoSitemapEntry[]>;
   delete(id: string): Promise<boolean>;
 }
