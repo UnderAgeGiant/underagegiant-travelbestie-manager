@@ -5,6 +5,7 @@ import { TripStop, TransitLeg } from '../types';
 import {
   SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT, SEO_SITEMAP_CACHE_KEY,
   SEO_SHARED_CACHE_TTL, SEO_SITEMAP_CACHE_TTL, seoSharedCacheKey, hasKnownCity,
+  SEO_CITY_PLANS_LIMIT, SEO_CITY_PLANS_CACHE_TTL, seoCityPlansCacheKey, buildSeoCityPlans,
 } from '../lib/seo';
 
 export class TripController {
@@ -187,6 +188,25 @@ export class TripController {
         items: rows.filter(r => hasKnownCity(r.cityIds)).map(({ id, updatedAt }) => ({ id, updatedAt })),
       };
       try { await redis.set(SEO_SITEMAP_CACHE_KEY, JSON.stringify(result), 'EX', SEO_SITEMAP_CACHE_TTL); } catch { /* non-fatal */ }
+      req.result = result;
+      next();
+    } catch (err) { next(err); }
+  };
+
+  /** GET /seo/city/:cityId/plans — Redis cache-aside 10 min per city. */
+  seoCityPlans = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cityId = String(req.params.cityId);
+      const key = seoCityPlansCacheKey(cityId);
+      const { redis } = await import('../lib/redis');
+      try {
+        const cached = await redis.get(key);
+        if (cached) { req.result = JSON.parse(cached); return next(); }
+      } catch { /* non-fatal */ }
+
+      const rows = await this.trips.listSeoCityPlans(cityId, SEO_MIN_ATTRACTIONS, SEO_CITY_PLANS_LIMIT);
+      const result = { items: buildSeoCityPlans(rows) };
+      try { await redis.set(key, JSON.stringify(result), 'EX', SEO_CITY_PLANS_CACHE_TTL); } catch { /* non-fatal */ }
       req.result = result;
       next();
     } catch (err) { next(err); }

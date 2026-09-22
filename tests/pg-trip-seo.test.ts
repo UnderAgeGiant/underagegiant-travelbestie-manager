@@ -45,6 +45,24 @@ describe('PgTripRepository SEO queries', () => {
   });
 });
 
+describe('PgTripRepository.listSeoCityPlans', () => {
+  const pool = { query: jest.fn() } as any;
+  beforeEach(() => pool.query.mockReset());
+
+  it('passes cityId, floor and limit and maps rows', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{
+      id: 'abc', title: 'T', updated_at: new Date('2026-09-01T00:00:00Z'),
+      favorite_count: 4, city_ids: ['paris', 'rome'], attraction_count: 6,
+    }] });
+    const rows = await new PgTripRepository(pool).listSeoCityPlans('paris', 3, 6);
+    expect(pool.query.mock.calls[0][1]).toEqual(['paris', 3, 6]);
+    expect(rows).toEqual([{
+      id: 'abc', tripName: 'T', cityIds: ['paris', 'rome'], attractionCount: 6,
+      updatedAt: '2026-09-01T00:00:00.000Z', favoriteCount: 4,
+    }]);
+  });
+});
+
 describe('PgTripRepository.update bumps updated_at (sitemap <lastmod> depends on it)', () => {
   it('bumps updated_at even when only stops are edited (no title change)', async () => {
     const clientQuery = jest.fn().mockResolvedValue({ rows: [] });
