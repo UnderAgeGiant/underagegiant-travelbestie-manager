@@ -20,10 +20,10 @@ describe('real app: API host is never indexed', () => {
     expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
   });
 
-  it('serves the disallow-all robots.txt', async () => {
+  it('serves an allow-all robots.txt (crawling allowed; X-Robots-Tag blocks indexing)', async () => {
     const res = await request(app).get('/robots.txt');
     expect(res.status).toBe(200);
-    expect(res.text).toBe('User-agent: *\nDisallow: /\n');
+    expect(res.text).toBe('User-agent: *\nAllow: /\n');
   });
 
   it('mounts /seo (unknown share id → 404 from the seo router, not the generic notFound)', async () => {

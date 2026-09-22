@@ -16,10 +16,10 @@ describe('API noindex', () => {
     expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
   });
 
-  it('serves a disallow-all robots.txt as text/plain', async () => {
+  it('serves an allow-all robots.txt as text/plain (crawling is allowed; X-Robots-Tag blocks indexing)', async () => {
     const res = await request(buildApp()).get('/robots.txt');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/plain/);
-    expect(res.text).toBe('User-agent: *\nDisallow: /\n');
+    expect(res.text).toBe('User-agent: *\nAllow: /\n');
   });
 });
