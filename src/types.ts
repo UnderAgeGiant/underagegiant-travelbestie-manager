@@ -138,6 +138,18 @@ export interface SeoSitemapEntry { id: string; updatedAt: string; }
  *  (CITY_NAMES lives in code, not SQL). cityIds is stripped before responding. */
 export interface SeoSitemapRow extends SeoSitemapEntry { cityIds: string[]; }
 
+/** Raw DB row for a real shared itinerary through a given city (GET /seo/city/:cityId/plans). */
+export interface SeoCityPlanRow extends SeoSharedRow { favoriteCount: number; }
+
+/** Public, PII-free plan card for a city guide page. */
+export interface SeoCityPlan {
+  id:              string;
+  tripName:        string;
+  cities:          string[];
+  attractionCount: number;
+  favoriteCount:   number;
+}
+
 export interface CollaboratorRecord {
   userId:     string;
   name:       string;

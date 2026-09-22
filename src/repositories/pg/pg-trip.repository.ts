@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow } from '../../types';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 
 // dd/mm/yyyy → yyyy-mm-dd
@@ -276,6 +276,38 @@ export class PgTripRepository implements ITripRepository {
       id: r.id as string,
       updatedAt: new Date(r.updated_at).toISOString(),
       cityIds: r.city_ids as string[],
+    }));
+  }
+
+  /** Real shared itineraries with a stop in cityId and at least minAttractions planned attractions,
+   *  most-favorited first (favorites break ties by recency). Feeds a city guide page's "Itinerarios reales" block. */
+  async listSeoCityPlans(cityId: string, minAttractions: number, limit: number): Promise<SeoCityPlanRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM (
+         SELECT t.share_id AS id, t.title, t.updated_at,
+                COALESCE(f.c, 0)::int AS favorite_count,
+                COALESCE((SELECT array_agg(s.city_id ORDER BY s.sort_order)
+                            FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids,
+                (SELECT COUNT(*)::int FROM planned_attractions pa
+                   JOIN trip_stops s2 ON s2.stop_id = pa.stop_id
+                  WHERE s2.trip_id = t.trip_id) AS attraction_count
+           FROM trips t
+           LEFT JOIN (SELECT trip_id, COUNT(*) AS c FROM trip_favorites GROUP BY trip_id) f ON f.trip_id = t.trip_id
+          WHERE t.share_id IS NOT NULL
+            AND EXISTS (SELECT 1 FROM trip_stops s3 WHERE s3.trip_id = t.trip_id AND s3.city_id = $1)
+       ) x
+       WHERE x.attraction_count >= $2
+       ORDER BY x.favorite_count DESC, x.updated_at DESC
+       LIMIT $3`,
+      [cityId, minAttractions, limit],
+    );
+    return rows.map(r => ({
+      id: r.id as string,
+      tripName: r.title as string,
+      cityIds: r.city_ids as string[],
+      attractionCount: r.attraction_count as number,
+      updatedAt: new Date(r.updated_at).toISOString(),
+      favoriteCount: r.favorite_count as number,
     }));
   }
 
