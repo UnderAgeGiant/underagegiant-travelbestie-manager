@@ -5,6 +5,7 @@ import { TripController } from '../src/controllers/trip.controller';
 import { createFeedRouter } from '../src/routes/landing.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 import { redis } from '../src/lib/redis';
+import { signToken } from '../src/lib/jwt';
 
 jest.mock('../src/lib/redis', () => ({
   redis: {
@@ -14,6 +15,8 @@ jest.mock('../src/lib/redis', () => ({
     expire: jest.fn().mockResolvedValue(1),
   },
 }));
+
+const TOKEN = signToken({ userId: 'u1', email: 'a@b.com', name: 'Ana' });
 
 function buildApp() {
   const tripStub = new StubTripRepository();
@@ -49,9 +52,15 @@ describe('GET /feed', () => {
     (redis.incr as jest.Mock).mockResolvedValue(1);
   });
 
-  it('returns an empty page when nothing is shared', async () => {
+  it('401s without a token (feedback F2 — the feed is only for logged-in visitors)', async () => {
     const { app } = buildApp();
     const res = await request(app).get('/feed');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns an empty page when nothing is shared', async () => {
+    const { app } = buildApp();
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ items: [], nextCursor: null });
   });
@@ -61,7 +70,7 @@ describe('GET /feed', () => {
     await seed(tripStub, { title: 'A', fav: 1, createdAt: '2026-09-01T10:00:00.000Z' });
     await seed(tripStub, { title: 'B', fav: 3, createdAt: '2026-09-01T10:00:00.000Z' });
     await seed(tripStub, { title: 'C', fav: 3, createdAt: '2026-09-01T11:00:00.000Z' });
-    const res = await request(app).get('/feed');
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.body.items.map((i: { tripName: string }) => i.tripName)).toEqual(['C', 'B', 'A']);
   });
 
@@ -70,7 +79,7 @@ describe('GET /feed', () => {
     await seed(tripStub, { title: 'ok', fav: 0, createdAt: '2026-09-01T10:00:00.000Z' });
     await seed(tripStub, { title: 'private', fav: 9, createdAt: '2026-09-01T10:00:00.000Z', shared: false });
     await seed(tripStub, { title: 'empty', fav: 9, createdAt: '2026-09-01T10:00:00.000Z', stops: 0 });
-    const res = await request(app).get('/feed');
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.body.items.map((i: { tripName: string }) => i.tripName)).toEqual(['ok']);
   });
 
@@ -80,24 +89,24 @@ describe('GET /feed', () => {
     await seed(tripStub, { title: 'B', fav: 3, createdAt: '2026-09-01T10:00:00.000Z' });
     await seed(tripStub, { title: 'C', fav: 3, createdAt: '2026-09-01T11:00:00.000Z' });
 
-    const p1 = await request(app).get('/feed?limit=2');
+    const p1 = await request(app).get('/feed?limit=2').set('Authorization', `Bearer ${TOKEN}`);
     expect(p1.body.items).toHaveLength(2);
     expect(p1.body.nextCursor).toEqual(expect.any(String));
 
-    const p2 = await request(app).get(`/feed?limit=2&cursor=${p1.body.nextCursor}`);
+    const p2 = await request(app).get(`/feed?limit=2&cursor=${p1.body.nextCursor}`).set('Authorization', `Bearer ${TOKEN}`);
     expect(p2.body.items.map((i: { tripName: string }) => i.tripName)).toEqual(['A']);
     expect(p2.body.nextCursor).toBeNull();
 
     const all = [...p1.body.items, ...p2.body.items].map((i: { id: string }) => i.id);
     expect(new Set(all).size).toBe(3); // no duplicates across the boundary
 
-    const restart = await request(app).get('/feed?limit=2');
+    const restart = await request(app).get('/feed?limit=2').set('Authorization', `Bearer ${TOKEN}`);
     expect(restart.body.items.map((i: { id: string }) => i.id)).toEqual(p1.body.items.map((i: { id: string }) => i.id));
   });
 
   it('400s on a malformed cursor', async () => {
     const { app } = buildApp();
-    const res = await request(app).get('/feed?cursor=definitely-not-valid');
+    const res = await request(app).get('/feed?cursor=definitely-not-valid').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'Invalid cursor' });
   });
@@ -105,16 +114,16 @@ describe('GET /feed', () => {
   it('clamps limit to 20 and falls back to 20 for junk', async () => {
     const { app, tripStub } = buildApp();
     const spy = jest.spyOn(tripStub, 'listFeed');
-    await request(app).get('/feed?limit=999');
-    await request(app).get('/feed?limit=abc');
-    await request(app).get('/feed?limit=0');
+    await request(app).get('/feed?limit=999').set('Authorization', `Bearer ${TOKEN}`);
+    await request(app).get('/feed?limit=abc').set('Authorization', `Bearer ${TOKEN}`);
+    await request(app).get('/feed?limit=0').set('Authorization', `Bearer ${TOKEN}`);
     expect(spy.mock.calls.map(c => c[1])).toEqual([20, 20, 1]);
   });
 
   it('exposes only the public fields — no owner identity, transits, or per-viewer state', async () => {
     const { app, tripStub } = buildApp();
     await seed(tripStub, { title: 'A', fav: 2, createdAt: '2026-09-01T10:00:00.000Z' });
-    const res = await request(app).get('/feed');
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     const [item] = res.body.items;
     expect(Object.keys(item).sort()).toEqual(['createdAt', 'favoriteCount', 'id', 'ownerName', 'stops', 'tripName']);
     const raw = JSON.stringify(res.body);
@@ -127,14 +136,14 @@ describe('GET /feed', () => {
     const { app, tripStub } = buildApp();
     const spy = jest.spyOn(tripStub, 'listFeed');
     (redis.get as jest.Mock).mockResolvedValueOnce(JSON.stringify({ items: [], nextCursor: 'from-cache' }));
-    const res = await request(app).get('/feed');
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.body).toEqual({ items: [], nextCursor: 'from-cache' });
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('writes a cache miss with a 300 s TTL under a feed:{limit}: key', async () => {
+  it('writes a non-first-page cache miss with a 300 s TTL under a feed:{limit}: key', async () => {
     const { app } = buildApp();
-    await request(app).get('/feed?limit=5');
+    await request(app).get('/feed?limit=5').set('Authorization', `Bearer ${TOKEN}`);
     const [key, , mode, ttl] = (redis.set as jest.Mock).mock.calls[0];
     expect(key).toMatch(/^feed:5:[0-9a-f]{64}$/);
     expect([mode, ttl]).toEqual(['EX', 300]);
@@ -143,7 +152,7 @@ describe('GET /feed', () => {
   it('429s past 60 requests/minute', async () => {
     const { app } = buildApp();
     (redis.incr as jest.Mock).mockResolvedValueOnce(61);
-    const res = await request(app).get('/feed');
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.status).toBe(429);
   });
 });
