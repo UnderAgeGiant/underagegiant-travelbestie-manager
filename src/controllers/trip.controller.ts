@@ -1,5 +1,7 @@
 import { randomUUID, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+import { waitUntil } from '@vercel/functions';
+import type { Redis } from 'ioredis';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TripStop, TransitLeg } from '../types';
 import {
@@ -130,27 +132,67 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
+  /** Redis-cache-aside TTL for a normal (non-first-page) feed request. */
+  private static readonly FEED_CACHE_TTL = 300;
+  /** The first page (no cursor, default page size 20 — the one every landing visitor
+   *  requests) is kept warm for up to 2h and refreshed in the background at most once
+   *  per FEED_FIRST_PAGE_REFRESH_LOCK_TTL (stale-while-revalidate), so it's almost always
+   *  served from a warm cache instead of a cold DB read (feedback T1, 2026-09-20). */
+  private static readonly FEED_FIRST_PAGE_TTL = 7200;
+  private static readonly FEED_FIRST_PAGE_REFRESH_LOCK_TTL = 600;
+  private static readonly FEED_FIRST_PAGE_LOCK_KEY = 'feed:first:refreshing';
+
   /** GET /feed — Redis cache-aside (identical for every caller: no per-viewer fields). */
   listFeed = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const { cursor, limit } = req.feedQuery!;
       const rawCursor = typeof req.query.cursor === 'string' ? req.query.cursor : '';
+      const isFirstPage = rawCursor === '' && limit === 20;
       const cacheKey = `feed:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
       const { redis } = await import('../lib/redis');
 
       try {
         const cached = await redis.get(cacheKey);
-        if (cached) { req.result = JSON.parse(cached); return next(); }
+        if (cached) {
+          req.result = JSON.parse(cached);
+          if (isFirstPage) this.scheduleFeedFirstPageRefresh(redis);
+          return next();
+        }
       } catch { /* non-fatal — fall through to DB */ }
 
       const page = await this.trips.listFeed(cursor, limit);
 
-      try { await redis.set(cacheKey, JSON.stringify(page), 'EX', 300); } catch { /* non-fatal */ }
+      try {
+        await redis.set(
+          cacheKey, JSON.stringify(page), 'EX',
+          isFirstPage ? TripController.FEED_FIRST_PAGE_TTL : TripController.FEED_CACHE_TTL,
+        );
+      } catch { /* non-fatal */ }
 
       req.result = page;
       next();
     } catch (err) { next(err); }
   };
+
+  /** Best-effort background refresh of the first feed page, throttled to roughly once per
+   *  FEED_FIRST_PAGE_REFRESH_LOCK_TTL via a short-lived Redis lock (SET NX) so concurrent
+   *  requests don't all trigger their own recompute. Never blocks the response — scheduled
+   *  via waitUntil() (same fire-and-forget pattern as the email middlewares and the AI-plan
+   *  background job). */
+  private scheduleFeedFirstPageRefresh(redis: Redis): void {
+    waitUntil((async () => {
+      try {
+        const got = await redis.set(
+          TripController.FEED_FIRST_PAGE_LOCK_KEY, '1', 'EX',
+          TripController.FEED_FIRST_PAGE_REFRESH_LOCK_TTL, 'NX',
+        );
+        if (got !== 'OK') return; // another request already refreshed recently
+        const page = await this.trips.listFeed(null, 20);
+        const cacheKey = `feed:20:${createHash('sha256').update('first').digest('hex')}`;
+        await redis.set(cacheKey, JSON.stringify(page), 'EX', TripController.FEED_FIRST_PAGE_TTL);
+      } catch { /* best-effort only */ }
+    })());
+  }
 
   /** GET /seo/shared/:shareId — Redis cache-aside (hits only; 404s are never cached). Sets req.seoRow. */
   seoShared = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {

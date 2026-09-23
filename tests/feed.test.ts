@@ -1,5 +1,6 @@
 import request from 'supertest';
 import express from 'express';
+import { createHash } from 'crypto';
 import { StubTripRepository } from './helpers/stubs';
 import { TripController } from '../src/controllers/trip.controller';
 import { createFeedRouter } from '../src/routes/landing.routes';
@@ -134,9 +135,18 @@ describe('GET /feed', () => {
 
   it('serves a Redis cache hit without touching the repository', async () => {
     const { app, tripStub } = buildApp();
+    // Seed enough data to have a next cursor when limit=5
+    for (let i = 0; i < 6; i++) {
+      await seed(tripStub, { title: String.fromCharCode(65 + i), fav: i, createdAt: `2026-09-01T${String(10 + i).padStart(2, '0')}:00:00.000Z` });
+    }
+    // Get a valid cursor from a first request (limit=5 to ensure there's a next page and avoid default limit 20)
+    const p1 = await request(app).get('/feed?limit=5').set('Authorization', `Bearer ${TOKEN}`);
+    const cursor = p1.body.nextCursor;
+    expect(cursor).toBeDefined(); // verify there is a cursor
+    // Now test cache hit with the same limit (non-first-page, so no background refresh)
     const spy = jest.spyOn(tripStub, 'listFeed');
     (redis.get as jest.Mock).mockResolvedValueOnce(JSON.stringify({ items: [], nextCursor: 'from-cache' }));
-    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
+    const res = await request(app).get(`/feed?limit=5&cursor=${cursor}`).set('Authorization', `Bearer ${TOKEN}`);
     expect(res.body).toEqual({ items: [], nextCursor: 'from-cache' });
     expect(spy).not.toHaveBeenCalled();
   });
@@ -154,5 +164,67 @@ describe('GET /feed', () => {
     (redis.incr as jest.Mock).mockResolvedValueOnce(61);
     const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.status).toBe(429);
+  });
+});
+
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+const flush = () => new Promise(resolve => setTimeout(resolve, 20));
+
+describe('GET /feed — first-page cache warming (feedback T1)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (redis.get as jest.Mock).mockResolvedValue(null);
+    (redis.set as jest.Mock).mockResolvedValue('OK');
+    (redis.incr as jest.Mock).mockResolvedValue(1);
+  });
+
+  it('writes a first-page cache miss with a 7200 s TTL, not the normal 300 s', async () => {
+    const { app } = buildApp();
+    await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
+    const call = (redis.set as jest.Mock).mock.calls.find(c => c[0] === `feed:20:${sha256('first')}`);
+    expect(call).toBeDefined();
+    expect([call![2], call![3]]).toEqual(['EX', 7200]);
+  });
+
+  it('background-refreshes the first page on a cache hit and re-caches it with a 7200 s TTL', async () => {
+    const { app, tripStub } = buildApp();
+    await seed(tripStub, { title: 'A', fav: 1, createdAt: '2026-09-01T10:00:00.000Z' });
+    (redis.get as jest.Mock).mockResolvedValueOnce(JSON.stringify({ items: [], nextCursor: null }));
+    const spy = jest.spyOn(tripStub, 'listFeed');
+
+    const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
+    expect(res.body).toEqual({ items: [], nextCursor: null }); // served from the stale cache immediately
+
+    await flush(); // let the fire-and-forget waitUntil() promise run
+    expect(spy).toHaveBeenCalledWith(null, 20);
+    const refreshCall = (redis.set as jest.Mock).mock.calls.find(
+      c => c[0] === `feed:20:${sha256('first')}` && c[3] === 7200,
+    );
+    expect(refreshCall).toBeDefined();
+  });
+
+  it('skips the background refresh when another request already holds the lock', async () => {
+    const { app, tripStub } = buildApp();
+    (redis.get as jest.Mock).mockResolvedValue(JSON.stringify({ items: [], nextCursor: null }));
+    (redis.set as jest.Mock).mockResolvedValueOnce(null); // NX lock already held elsewhere
+    const spy = jest.spyOn(tripStub, 'listFeed');
+
+    await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
+    await flush();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('does not background-refresh a page that has a cursor, even at the default page size', async () => {
+    const { app, tripStub } = buildApp();
+    await seed(tripStub, { title: 'A', fav: 1, createdAt: '2026-09-01T10:00:00.000Z' });
+    await seed(tripStub, { title: 'B', fav: 2, createdAt: '2026-09-01T11:00:00.000Z' });
+    const p1 = await request(app).get('/feed?limit=1').set('Authorization', `Bearer ${TOKEN}`);
+    const cursor = p1.body.nextCursor as string;
+
+    const spy = jest.spyOn(tripStub, 'listFeed');
+    (redis.get as jest.Mock).mockResolvedValueOnce(JSON.stringify({ items: [], nextCursor: null }));
+    await request(app).get(`/feed?cursor=${cursor}`).set('Authorization', `Bearer ${TOKEN}`); // default limit = 20
+    await flush();
+    expect(spy).not.toHaveBeenCalled();
   });
 });
