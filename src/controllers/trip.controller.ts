@@ -4,6 +4,7 @@ import { waitUntil } from '@vercel/functions';
 import type { Redis } from 'ioredis';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TripStop, TransitLeg } from '../types';
+import { FEED_DEFAULT_LIMIT } from '../middleware/feed/validate-feed-query.middleware';
 import {
   SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT, SEO_SITEMAP_CACHE_KEY,
   SEO_SHARED_CACHE_TTL, SEO_SITEMAP_CACHE_TTL, seoSharedCacheKey, hasKnownCity,
@@ -147,7 +148,7 @@ export class TripController {
     try {
       const { cursor, limit } = req.feedQuery!;
       const rawCursor = typeof req.query.cursor === 'string' ? req.query.cursor : '';
-      const isFirstPage = rawCursor === '' && limit === 20;
+      const isFirstPage = rawCursor === '' && limit === FEED_DEFAULT_LIMIT;
       const cacheKey = `feed:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
       const { redis } = await import('../lib/redis');
 
@@ -187,8 +188,8 @@ export class TripController {
           TripController.FEED_FIRST_PAGE_REFRESH_LOCK_TTL, 'NX',
         );
         if (got !== 'OK') return; // another request already refreshed recently
-        const page = await this.trips.listFeed(null, 20);
-        const cacheKey = `feed:20:${createHash('sha256').update('first').digest('hex')}`;
+        const page = await this.trips.listFeed(null, FEED_DEFAULT_LIMIT);
+        const cacheKey = `feed:${FEED_DEFAULT_LIMIT}:${createHash('sha256').update('first').digest('hex')}`;
         await redis.set(cacheKey, JSON.stringify(page), 'EX', TripController.FEED_FIRST_PAGE_TTL);
       } catch { /* best-effort only */ }
     })());
