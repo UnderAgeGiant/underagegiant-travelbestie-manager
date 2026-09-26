@@ -3,7 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
 import { logAiUsage } from '../lib/ai-usage';
-import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason } from '../lib/ai-output';
+import { AI_MAX_TOKENS } from '../lib/ai-limits';
+import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, parseCompletionJson } from '../lib/ai-output';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 
@@ -102,6 +103,7 @@ export class AiController {
 
       const completion = await deepseekClient.chat.completions.create({
         model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.suggest,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
@@ -110,8 +112,7 @@ export class AiController {
       });
       logAiUsage('suggest', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      req.result = sanitizeSuggestOutput(JSON.parse(raw), cityIndex);
+      req.result = sanitizeSuggestOutput(parseCompletionJson(completion), cityIndex);
       next();
     } catch (err) { next(err); }
   };
@@ -141,6 +142,7 @@ export class AiController {
 
     const completion = await deepseekClient.chat.completions.create({
       model: AI_MODEL,
+      max_tokens: AI_MAX_TOKENS.plan,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
@@ -149,8 +151,7 @@ export class AiController {
     });
     logAiUsage('plan', AI_MODEL, completion.usage);
 
-    const raw = completion.choices[0].message.content ?? '{}';
-    return sanitizePlanOutput(JSON.parse(raw), cityCatalog);
+    return sanitizePlanOutput(parseCompletionJson(completion), cityCatalog);
   };
 
   suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -174,6 +175,7 @@ export class AiController {
 
       const completion = await deepseekClient.chat.completions.create({
         model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.suggestAttractions,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
@@ -182,8 +184,7 @@ export class AiController {
       });
       logAiUsage('suggestAttractions', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      const parsed = JSON.parse(raw) as SuggestCityAttractionsResponse;
+      const parsed = parseCompletionJson(completion) as SuggestCityAttractionsResponse;
 
       // Reinforce the prompt's "no collisions" instruction with a hard server-side filter —
       // the model can still slip, and this is the same collision/departure/catalog validation
@@ -228,6 +229,7 @@ export class AiController {
 
       const completion = await deepseekClient.chat.completions.create({
         model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.companionSuggest,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
@@ -236,8 +238,7 @@ export class AiController {
       });
       logAiUsage('companionSuggest', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      const parsed = JSON.parse(raw) as CompanionSuggestion;
+      const parsed = parseCompletionJson(completion) as CompanionSuggestion;
 
       const validIds = new Set(cityCatalog.map(c => c.id));
       const inCatalog = !!parsed.attractionId && validIds.has(parsed.attractionId);

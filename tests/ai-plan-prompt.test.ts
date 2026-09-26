@@ -91,3 +91,20 @@ describe('plan output validation', () => {
     expect(out.stops[0].lodging?.url).toBe('');
   });
 });
+
+import { AI_MAX_TOKENS } from '../src/lib/ai-limits';
+
+describe('plan output cap', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('caps plan output tokens', async () => {
+    mockPlanResponse();
+    await new AiController().generatePlan(body);
+    expect(create.mock.calls[0][0].max_tokens).toBe(AI_MAX_TOKENS.plan);
+  });
+
+  it('fails with a clear error when the model hits the cap', async () => {
+    create.mockResolvedValue({ choices: [{ finish_reason: 'length', message: { content: '{"title":"T","stops":[' } }] });
+    await expect(new AiController().generatePlan(body)).rejects.toThrow('DeepSeek output truncated at max_tokens');
+  });
+});

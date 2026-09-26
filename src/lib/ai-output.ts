@@ -37,3 +37,12 @@ export const REASON_MAX_CHARS = 300;
 export function hasValidReason(s: { reason?: unknown }): boolean {
   return typeof s.reason === 'string' && s.reason.length > 0 && s.reason.length <= REASON_MAX_CHARS;
 }
+
+/** Reads the first choice's JSON content. A 'length' finish means the output was cut at max_tokens and cannot be valid JSON. */
+export function parseCompletionJson(
+  completion: { choices: Array<{ finish_reason?: string | null; message: { content?: string | null } }> },
+): unknown {
+  const choice = completion.choices[0];
+  if (choice?.finish_reason === 'length') throw new Error('DeepSeek output truncated at max_tokens');
+  return JSON.parse(choice?.message.content ?? '{}');
+}

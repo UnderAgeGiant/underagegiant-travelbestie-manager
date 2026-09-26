@@ -214,4 +214,12 @@ describe('POST /ai/suggest', () => {
     expect(JSON.parse(setCalls[0][1])).toHaveLength(2);
     expect(setCalls[0].slice(2)).toEqual(['EX', 86400]);
   });
+
+  it('caps suggest output tokens', async () => {
+    await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'historia y arte' });
+    expect(create.mock.calls[0][0].max_tokens).toBe(2000);
+  });
 });

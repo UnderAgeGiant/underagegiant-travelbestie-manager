@@ -94,7 +94,7 @@ describe('sanitizePlanOutput', () => {
   });
 });
 
-import { hasValidReason, REASON_MAX_CHARS } from '../src/lib/ai-output';
+import { hasValidReason, REASON_MAX_CHARS, parseCompletionJson } from '../src/lib/ai-output';
 
 describe('hasValidReason', () => {
   it('accepts a short sentence and a reason exactly at the cap', () => {
@@ -107,5 +107,16 @@ describe('hasValidReason', () => {
     expect(hasValidReason({ reason: '' })).toBe(false);
     expect(hasValidReason({ reason: 42 })).toBe(false);
     expect(hasValidReason({})).toBe(false);
+  });
+});
+
+describe('parseCompletionJson', () => {
+  it('parses the first choice', () => {
+    expect(parseCompletionJson({ choices: [{ finish_reason: 'stop', message: { content: '{"a":1}' } }] })).toEqual({ a: 1 });
+  });
+
+  it('throws a clear error when the model hit max_tokens', () => {
+    expect(() => parseCompletionJson({ choices: [{ finish_reason: 'length', message: { content: '{"a":' } }] }))
+      .toThrow('DeepSeek output truncated at max_tokens');
   });
 });
