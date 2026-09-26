@@ -60,3 +60,20 @@ describe('plan usage logging', () => {
     }));
   });
 });
+
+describe('plan catalog placement', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPlanResponse();
+  });
+
+  it('sends the catalog in the user message, never the system prompt', async () => {
+    await new AiController().generatePlan({ ...body, cityCatalog: { paris: [{ id: 'paris_0', name: 'Torre Eiffel' }] } });
+    const systemMessage = create.mock.calls[0][0].messages[0].content as string;
+    const userMessage   = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('paris_0=Torre Eiffel');
+    expect(userMessage).toContain('{cityId}_0'); // fallback-format sentence inside the block is not re-substituted
+    expect(systemMessage).not.toContain('Torre Eiffel');
+    expect(systemMessage).not.toContain('<catalog>');
+  });
+});

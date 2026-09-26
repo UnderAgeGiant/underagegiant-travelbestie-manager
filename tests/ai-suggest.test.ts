@@ -94,7 +94,7 @@ describe('POST /ai/suggest', () => {
     token = await getToken(app);
   });
 
-  it('injects the cityIndex into the system prompt as {cityIndexBlock}', async () => {
+  it('injects the cityIndex into the user message, never the system prompt', async () => {
     await request(app)
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
@@ -104,18 +104,21 @@ describe('POST /ai/suggest', () => {
       });
 
     const systemMessage = create.mock.calls[0][0].messages[0].content as string;
-    expect(systemMessage).toContain('paris = Paris');
-    expect(systemMessage).toContain('tokyo = Tokyo');
+    const userMessage   = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('paris = Paris');
+    expect(userMessage).toContain('tokyo = Tokyo');
+    expect(systemMessage).not.toContain('paris = Paris');
+    expect(systemMessage).not.toContain('<city_index>');
   });
 
-  it('falls back to a generic instruction when no cityIndex is sent', async () => {
+  it('falls back to a generic instruction in the user message when no cityIndex is sent', async () => {
     await request(app)
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
 
-    const systemMessage = create.mock.calls[0][0].messages[0].content as string;
-    expect(systemMessage).toContain('kebab-case');
+    const userMessage = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('kebab-case');
   });
 
   it('returns cityIds per option, passed through unchanged from the model response', async () => {

@@ -208,8 +208,10 @@ describe('POST /ai/suggest-companion', () => {
 
     const systemMessage = create.mock.calls[0][0].messages[0].content as string;
     const userMessage   = create.mock.calls[0][0].messages[1].content as string;
-    expect(systemMessage).toContain('paris_0=Torre Eiffel');
-    expect(systemMessage).toContain('paris_1=Louvre');
+    expect(userMessage).toContain('paris_0=Torre Eiffel');
+    expect(userMessage).toContain('paris_1=Louvre');
+    expect(systemMessage).not.toContain('Torre Eiffel');
+    expect(systemMessage).not.toContain('<catalog>');
     expect(userMessage).toContain('paris_0');
     expect(userMessage).toContain('paris');
   });

@@ -90,12 +90,13 @@ export class AiController {
       const { preferences, duration, budget, cityIndex } = req.body as AiSuggestBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.suggest.system, { cityIndexBlock: buildCityIndexBlock(cityIndex) });
+      const systemPrompt = prompts.suggest.system;
 
       const userMessage = fillTemplate(prompts.suggest.userTemplate, {
         preferences,
         duration: duration != null ? String(duration) : 'not specified',
         budget:   budget ?? 'not specified',
+        cityIndexBlock: buildCityIndexBlock(cityIndex),
       });
 
       const completion = await deepseekClient.chat.completions.create({
@@ -124,7 +125,7 @@ export class AiController {
     const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = body;
 
     const prompts = loadPrompts();
-    const systemPrompt = fillTemplate(prompts.plan.system, { catalogBlock: buildCatalogBlock(cityCatalog) });
+    const systemPrompt = prompts.plan.system;
 
     const userMessage = fillTemplate(prompts.plan.userTemplate, {
       selectedOptionTitle:      selectedOption.title,
@@ -134,6 +135,7 @@ export class AiController {
       duration:  duration != null ? String(duration) : 'not specified',
       budget:    budget ?? 'not specified',
       startDate: startDate ?? 'not specified',
+      catalogBlock: buildCatalogBlock(cityCatalog),
     });
 
     const completion = await deepseekClient.chat.completions.create({
@@ -155,9 +157,7 @@ export class AiController {
       const { cityId, checkIn, checkOut, existingAttractionIds, existingSchedule, departureTimes, cityCatalog } = req.body as AiSuggestAttractionsBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.suggestAttractions.system, {
-        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
-      });
+      const systemPrompt = prompts.suggestAttractions.system;
 
       const userMessage = fillTemplate(prompts.suggestAttractions.userTemplate, {
         cityId,
@@ -168,6 +168,7 @@ export class AiController {
           : 'ninguna',
         scheduleBlock: buildScheduleBlock(existingSchedule),
         departureBlock: buildDepartureBlock(departureTimes),
+        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
       });
 
       const completion = await deepseekClient.chat.completions.create({
@@ -209,9 +210,7 @@ export class AiController {
       const { cityId, addedAttractionId, checkIn, checkOut, existingAttractionIds, existingSchedule, departureTimes, cityCatalog } = req.body as SuggestCompanionBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.companionSuggest.system, {
-        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
-      });
+      const systemPrompt = prompts.companionSuggest.system;
 
       const userMessage = fillTemplate(prompts.companionSuggest.userTemplate, {
         cityId,
@@ -223,6 +222,7 @@ export class AiController {
           : 'ninguna',
         scheduleBlock: buildScheduleBlock(existingSchedule),
         departureBlock: buildDepartureBlock(departureTimes),
+        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
       });
 
       const completion = await deepseekClient.chat.completions.create({
