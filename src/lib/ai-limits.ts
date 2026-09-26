@@ -8,3 +8,10 @@ export const AI_MAX_TOKENS: Record<AiEndpoint, number> = {
   suggestAttractions: 2000,
   companionSuggest:   1000,
 };
+
+// Per-user request limits (existing rateLimitMiddleware, Redis-backed, fails open).
+// These bound DeepSeek spend even where karma doesn't (suggest-attractions with isFollowUp: true is free).
+export const AI_RATE_LIMIT_WINDOW_SECONDS      = 3600;
+export const AI_SUGGEST_RATE_LIMIT             = 20;
+export const AI_PLAN_RATE_LIMIT                = 20;
+export const AI_SUGGEST_ATTRACTIONS_RATE_LIMIT = 30;

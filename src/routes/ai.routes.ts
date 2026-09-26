@@ -22,6 +22,9 @@ import { makeDeleteAiPlanRequest }      from '../middleware/ai/delete-ai-plan-re
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { rollCompanionSuggestion } from '../middleware/ai/roll-companion-suggestion.middleware';
 import { COMPANION_SUGGEST_RATE_LIMIT } from '../lib/companion-suggest';
+import {
+  AI_RATE_LIMIT_WINDOW_SECONDS, AI_SUGGEST_RATE_LIMIT, AI_PLAN_RATE_LIMIT, AI_SUGGEST_ATTRACTIONS_RATE_LIMIT,
+} from '../lib/ai-limits';
 import { logCtaEvent } from '../lib/log-event';
 import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
 import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
@@ -37,8 +40,18 @@ export function createAiRouter(
 
   router.use(requireAuth);
 
+  // Per-user DeepSeek spend bound. Placed after validateBody and before any karma
+  // check in each chain, so a 429 never charges karma.
+  const perUserAiLimit = (name: string, maxRequests: number) => rateLimitMiddleware({
+    keyPrefix:     `rl:ai-${name}`,
+    windowSeconds: AI_RATE_LIMIT_WINDOW_SECONDS,
+    maxRequests,
+    getKey:        req => req.user!.userId,
+  });
+
   router.post('/suggest',
     validateBody(aiSuggestSchema),
+    perUserAiLimit('suggest', AI_SUGGEST_RATE_LIMIT),
     karma.requireKarma(KARMA_COST_AI_SUGGEST),
     karma.spendForAiSuggest,
     ai.suggest,
@@ -61,6 +74,7 @@ export function createAiRouter(
   // just a requestId; the frontend polls the /status route below.
   router.post('/plan',
     validateBody(aiPlanSchema),
+    perUserAiLimit('plan', AI_PLAN_RATE_LIMIT),
     resolveSelectedOption,             // replaces client selectedOption with the stored /ai/suggest copy
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
     generateAiPlanRequestId,           // req.aiPlanRequestId — shared by the charge and the insert below
@@ -109,6 +123,7 @@ export function createAiRouter(
 
   router.post('/suggest-attractions',
     validateBody(aiSuggestAttractionsSchema),
+    perUserAiLimit('suggest-attractions', AI_SUGGEST_ATTRACTIONS_RATE_LIMIT),
     requireKarmaForCitySuggestIfNeeded,
     spendForCitySuggestIfNeeded,
     ai.suggestCityAttractions,
