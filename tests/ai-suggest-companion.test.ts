@@ -208,9 +208,21 @@ describe('POST /ai/suggest-companion', () => {
 
     const systemMessage = create.mock.calls[0][0].messages[0].content as string;
     const userMessage   = create.mock.calls[0][0].messages[1].content as string;
-    expect(systemMessage).toContain('paris_0=Torre Eiffel');
-    expect(systemMessage).toContain('paris_1=Louvre');
+    expect(userMessage).toContain('paris_0=Torre Eiffel');
+    expect(userMessage).toContain('paris_1=Louvre');
+    expect(systemMessage).not.toContain('Torre Eiffel');
+    expect(systemMessage).not.toContain('<catalog>');
     expect(userMessage).toContain('paris_0');
     expect(userMessage).toContain('paris');
+  });
+
+  it('falls back to 204 when the model returns a reason over 300 characters', async () => {
+    mockDeepseekReturns({ attractionId: 'paris_1', date: '02/07/2026', startTime: '10:00', endTime: '11:00', reason: 'x'.repeat(301) });
+    const token = await getToken(app);
+    const res = await request(app)
+      .post('/ai/suggest-companion')
+      .set('Authorization', `Bearer ${token}`)
+      .send(VALID_BODY);
+    expect(res.status).toBe(204);
   });
 });

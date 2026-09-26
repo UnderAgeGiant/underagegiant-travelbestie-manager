@@ -2,8 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
+import { logAiUsage } from '../lib/ai-usage';
+import { AI_MAX_TOKENS } from '../lib/ai-limits';
+import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, parseCompletionJson } from '../lib/ai-output';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
+
+const AI_MODEL = 'deepseek-v4-flash';
 
 interface PromptsFile {
   suggest:            { system: string; userTemplate: string };
@@ -87,25 +92,27 @@ export class AiController {
       const { preferences, duration, budget, cityIndex } = req.body as AiSuggestBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.suggest.system, { cityIndexBlock: buildCityIndexBlock(cityIndex) });
+      const systemPrompt = prompts.suggest.system;
 
       const userMessage = fillTemplate(prompts.suggest.userTemplate, {
         preferences,
         duration: duration != null ? String(duration) : 'not specified',
         budget:   budget ?? 'not specified',
+        cityIndexBlock: buildCityIndexBlock(cityIndex),
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.suggest,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('suggest', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      req.result = JSON.parse(raw) as SuggestTripsResponse;
+      req.result = sanitizeSuggestOutput(parseCompletionJson(completion), cityIndex);
       next();
     } catch (err) { next(err); }
   };
@@ -120,7 +127,7 @@ export class AiController {
     const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = body;
 
     const prompts = loadPrompts();
-    const systemPrompt = fillTemplate(prompts.plan.system, { catalogBlock: buildCatalogBlock(cityCatalog) });
+    const systemPrompt = prompts.plan.system;
 
     const userMessage = fillTemplate(prompts.plan.userTemplate, {
       selectedOptionTitle:      selectedOption.title,
@@ -130,19 +137,21 @@ export class AiController {
       duration:  duration != null ? String(duration) : 'not specified',
       budget:    budget ?? 'not specified',
       startDate: startDate ?? 'not specified',
+      catalogBlock: buildCatalogBlock(cityCatalog),
     });
 
     const completion = await deepseekClient.chat.completions.create({
-      model: 'deepseek-v4-flash',
+      model: AI_MODEL,
+      max_tokens: AI_MAX_TOKENS.plan,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userMessage },
       ],
     });
+    logAiUsage('plan', AI_MODEL, completion.usage);
 
-    const raw = completion.choices[0].message.content ?? '{}';
-    return JSON.parse(raw) as PlanTripResponse;
+    return sanitizePlanOutput(parseCompletionJson(completion), cityCatalog);
   };
 
   suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -150,9 +159,7 @@ export class AiController {
       const { cityId, checkIn, checkOut, existingAttractionIds, existingSchedule, departureTimes, cityCatalog } = req.body as AiSuggestAttractionsBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.suggestAttractions.system, {
-        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
-      });
+      const systemPrompt = prompts.suggestAttractions.system;
 
       const userMessage = fillTemplate(prompts.suggestAttractions.userTemplate, {
         cityId,
@@ -163,19 +170,21 @@ export class AiController {
           : 'ninguna',
         scheduleBlock: buildScheduleBlock(existingSchedule),
         departureBlock: buildDepartureBlock(departureTimes),
+        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.suggestAttractions,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('suggestAttractions', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      const parsed = JSON.parse(raw) as SuggestCityAttractionsResponse;
+      const parsed = parseCompletionJson(completion) as SuggestCityAttractionsResponse;
 
       // Reinforce the prompt's "no collisions" instruction with a hard server-side filter —
       // the model can still slip, and this is the same collision/departure/catalog validation
@@ -190,7 +199,7 @@ export class AiController {
         const pastDeparture = (departureTimes ?? []).some(
           d => d.date === s.date && s.endTime > d.time,
         );
-        return inCatalog && !collidesWithSchedule && !pastDeparture;
+        return inCatalog && !collidesWithSchedule && !pastDeparture && hasValidReason(s);
       });
 
       req.result = { suggestions } as SuggestCityAttractionsResponse;
@@ -203,9 +212,7 @@ export class AiController {
       const { cityId, addedAttractionId, checkIn, checkOut, existingAttractionIds, existingSchedule, departureTimes, cityCatalog } = req.body as SuggestCompanionBody;
 
       const prompts = loadPrompts();
-      const systemPrompt = fillTemplate(prompts.companionSuggest.system, {
-        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
-      });
+      const systemPrompt = prompts.companionSuggest.system;
 
       const userMessage = fillTemplate(prompts.companionSuggest.userTemplate, {
         cityId,
@@ -217,19 +224,21 @@ export class AiController {
           : 'ninguna',
         scheduleBlock: buildScheduleBlock(existingSchedule),
         departureBlock: buildDepartureBlock(departureTimes),
+        catalogBlock: buildCatalogBlock({ [cityId]: cityCatalog }),
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS.companionSuggest,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('companionSuggest', AI_MODEL, completion.usage);
 
-      const raw = completion.choices[0].message.content ?? '{}';
-      const parsed = JSON.parse(raw) as CompanionSuggestion;
+      const parsed = parseCompletionJson(completion) as CompanionSuggestion;
 
       const validIds = new Set(cityCatalog.map(c => c.id));
       const inCatalog = !!parsed.attractionId && validIds.has(parsed.attractionId);
@@ -240,7 +249,7 @@ export class AiController {
         d => d.date === parsed.date && parsed.endTime > d.time,
       );
 
-      if (!inCatalog || collidesWithSchedule || pastDeparture) {
+      if (!inCatalog || collidesWithSchedule || pastDeparture || !hasValidReason(parsed)) {
         res.status(204).send();
         return;
       }
