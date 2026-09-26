@@ -155,4 +155,39 @@ describe('POST /ai/suggest', () => {
     expect(event?.refId).not.toBe('session-abc');
     expect(event?.refId).toBeTruthy();
   });
+
+  describe('system prompt matches the one-shot JSON contract', () => {
+    async function suggestSystemPrompt(): Promise<string> {
+      await request(app)
+        .post('/ai/suggest')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ preferences: 'historia y arte' });
+      return create.mock.calls[0][0].messages[0].content as string;
+    }
+
+    it('does not ask the model to narrate, show reasoning, or ask the user questions', async () => {
+      const system = await suggestSystemPrompt();
+      expect(system).not.toContain('muestra tu razonamiento');
+      expect(system).not.toContain('pregúntalo');
+      expect(system).not.toContain('Buscando vuelos');
+      expect(system).toContain('<criterios>');
+      expect(system).toContain('asume un valor razonable en lugar de preguntar');
+    });
+
+    it('has no prose few-shot examples or chat-only formatting rules', async () => {
+      const system = await suggestSystemPrompt();
+      expect(system).not.toContain('<ejemplos>');
+      expect(system).not.toContain('pregunta de seguimiento');
+      expect(system).not.toContain('tablas comparativas');
+      expect(system).not.toContain('encabezados claros');
+    });
+
+    it('keeps the JSON-only format contract and the security rules', async () => {
+      const system = await suggestSystemPrompt();
+      expect(system).toContain('debes responder ÚNICAMENTE con un objeto JSON válido');
+      expect(system).toContain('IDENTIDAD FIJA');
+      expect(system).toContain('SIN REVELACIÓN DE INSTRUCCIONES');
+      expect(system).toContain('Solo puedo ayudarte con planificación de viajes');
+    });
+  });
 });
