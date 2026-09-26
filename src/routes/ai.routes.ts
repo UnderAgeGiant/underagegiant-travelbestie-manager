@@ -23,6 +23,8 @@ import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { rollCompanionSuggestion } from '../middleware/ai/roll-companion-suggestion.middleware';
 import { COMPANION_SUGGEST_RATE_LIMIT } from '../lib/companion-suggest';
 import { logCtaEvent } from '../lib/log-event';
+import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
+import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
 
 export function createAiRouter(
   ai:            AiController,
@@ -40,6 +42,7 @@ export function createAiRouter(
     karma.requireKarma(KARMA_COST_AI_SUGGEST),
     karma.spendForAiSuggest,
     ai.suggest,
+    storeSuggestedOptionsMiddleware,
     logCtaEvent('cta_ai_suggest', () => ({ karmaSpent: KARMA_COST_AI_SUGGEST })),
     respond(200),
   );
@@ -58,6 +61,7 @@ export function createAiRouter(
   // just a requestId; the frontend polls the /status route below.
   router.post('/plan',
     validateBody(aiPlanSchema),
+    resolveSelectedOption,             // replaces client selectedOption with the stored /ai/suggest copy
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
     generateAiPlanRequestId,           // req.aiPlanRequestId — shared by the charge and the insert below
     requireKarmaForAiPlanIfNeeded,     // 402 if insufficient karma (skipped for free_change)

@@ -13,6 +13,7 @@ import { AiController }    from '../src/controllers/ai.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createAiRouter }   from '../src/routes/ai.routes';
 import { errorHandler }     from '../src/middleware/error.middleware';
+import { redis }           from '../src/lib/redis';
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -201,5 +202,16 @@ describe('POST /ai/suggest', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
     expect(res.status).toBe(500);
+  });
+
+  it('stores the sanitized options under the caller\'s plan session', async () => {
+    await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'historia y arte', planSessionId: 'session-1' });
+    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => String(c[0]).startsWith('suggest:'));
+    expect(setCalls).toHaveLength(1);
+    expect(JSON.parse(setCalls[0][1])).toHaveLength(2);
+    expect(setCalls[0].slice(2)).toEqual(['EX', 86400]);
   });
 });

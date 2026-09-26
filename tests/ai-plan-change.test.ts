@@ -25,6 +25,11 @@ jest.mock('../src/middleware/auth/verify-otp.middleware', () => ({
   verifyOtpMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+// Option resolution has its own suite (tests/ai-selected-option.test.ts); these tests exercise the rest of the chain.
+jest.mock('../src/middleware/ai/resolve-selected-option.middleware', () => ({
+  resolveSelectedOption: (_req: any, _res: any, next: any) => next(),
+}));
+
 jest.mock('../src/middleware/rate-limit.middleware', () => ({
   rateLimitMiddleware: () => (_req: any, _res: any, next: any) => next(),
 }));
