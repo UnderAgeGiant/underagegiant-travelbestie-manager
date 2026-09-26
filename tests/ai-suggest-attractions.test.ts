@@ -264,4 +264,17 @@ describe('POST /ai/suggest-attractions', () => {
     expect(event?.refId).not.toBe('trip-abc-123');
     expect(event?.refId).toBeTruthy();
   });
+
+  it('drops a suggestion whose reason is over 300 characters, keeping the rest', async () => {
+    create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ suggestions: [
+      { attractionId: 'paris_0', date: '02/07/2026', startTime: '10:00', endTime: '11:00', reason: 'x'.repeat(301) },
+      { attractionId: 'paris_1', date: '03/07/2026', startTime: '10:00', endTime: '11:00', reason: 'Cerca de tu hotel.' },
+    ] }) } }] });
+    const res = await request(app)
+      .post('/ai/suggest-attractions')
+      .set('Authorization', `Bearer ${token}`)
+      .send(VALID_BODY);
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions.map((s: { attractionId: string }) => s.attractionId)).toEqual(['paris_1']);
+  });
 });

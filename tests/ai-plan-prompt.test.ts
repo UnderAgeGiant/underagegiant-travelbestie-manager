@@ -77,3 +77,17 @@ describe('plan catalog placement', () => {
     expect(systemMessage).not.toContain('<catalog>');
   });
 });
+
+describe('plan output validation', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns the sanitized plan (hostile lodging URL blanked)', async () => {
+    mockPlanResponse({
+      title: 'T',
+      stops: [{ cityId: 'paris', checkIn: '01/07/2026', checkOut: '02/07/2026', selectedAttractions: [], lodging: { name: 'H', url: 'javascript:alert(1)' } }],
+      transits: [],
+    });
+    const out = await new AiController().generatePlan(body);
+    expect(out.stops[0].lodging?.url).toBe('');
+  });
+});

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
 import { logAiUsage } from '../lib/ai-usage';
+import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason } from '../lib/ai-output';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 
@@ -110,7 +111,7 @@ export class AiController {
       logAiUsage('suggest', AI_MODEL, completion.usage);
 
       const raw = completion.choices[0].message.content ?? '{}';
-      req.result = JSON.parse(raw) as SuggestTripsResponse;
+      req.result = sanitizeSuggestOutput(JSON.parse(raw), cityIndex);
       next();
     } catch (err) { next(err); }
   };
@@ -149,7 +150,7 @@ export class AiController {
     logAiUsage('plan', AI_MODEL, completion.usage);
 
     const raw = completion.choices[0].message.content ?? '{}';
-    return JSON.parse(raw) as PlanTripResponse;
+    return sanitizePlanOutput(JSON.parse(raw), cityCatalog);
   };
 
   suggestCityAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -197,7 +198,7 @@ export class AiController {
         const pastDeparture = (departureTimes ?? []).some(
           d => d.date === s.date && s.endTime > d.time,
         );
-        return inCatalog && !collidesWithSchedule && !pastDeparture;
+        return inCatalog && !collidesWithSchedule && !pastDeparture && hasValidReason(s);
       });
 
       req.result = { suggestions } as SuggestCityAttractionsResponse;
@@ -247,7 +248,7 @@ export class AiController {
         d => d.date === parsed.date && parsed.endTime > d.time,
       );
 
-      if (!inCatalog || collidesWithSchedule || pastDeparture) {
+      if (!inCatalog || collidesWithSchedule || pastDeparture || !hasValidReason(parsed)) {
         res.status(204).send();
         return;
       }

@@ -193,4 +193,13 @@ describe('POST /ai/suggest', () => {
       expect(system).toContain('Solo puedo ayudarte con planificación de viajes');
     });
   });
+
+  it('returns 500 when the model output breaks the response schema', async () => {
+    create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ options: [] }) } }] });
+    const res = await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'historia y arte' });
+    expect(res.status).toBe(500);
+  });
 });
