@@ -2,8 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
+import { logAiUsage } from '../lib/ai-usage';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
+
+const AI_MODEL = 'deepseek-v4-flash';
 
 interface PromptsFile {
   suggest:            { system: string; userTemplate: string };
@@ -96,13 +99,14 @@ export class AiController {
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('suggest', AI_MODEL, completion.usage);
 
       const raw = completion.choices[0].message.content ?? '{}';
       req.result = JSON.parse(raw) as SuggestTripsResponse;
@@ -133,13 +137,14 @@ export class AiController {
     });
 
     const completion = await deepseekClient.chat.completions.create({
-      model: 'deepseek-v4-flash',
+      model: AI_MODEL,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userMessage },
       ],
     });
+    logAiUsage('plan', AI_MODEL, completion.usage);
 
     const raw = completion.choices[0].message.content ?? '{}';
     return JSON.parse(raw) as PlanTripResponse;
@@ -166,13 +171,14 @@ export class AiController {
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('suggestAttractions', AI_MODEL, completion.usage);
 
       const raw = completion.choices[0].message.content ?? '{}';
       const parsed = JSON.parse(raw) as SuggestCityAttractionsResponse;
@@ -220,13 +226,14 @@ export class AiController {
       });
 
       const completion = await deepseekClient.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: AI_MODEL,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userMessage },
         ],
       });
+      logAiUsage('companionSuggest', AI_MODEL, completion.usage);
 
       const raw = completion.choices[0].message.content ?? '{}';
       const parsed = JSON.parse(raw) as CompanionSuggestion;

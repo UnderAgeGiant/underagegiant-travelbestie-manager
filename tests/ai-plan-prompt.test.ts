@@ -45,3 +45,18 @@ describe('plan system prompt', () => {
     expect(system).toContain('IDENTIDAD FIJA');
   });
 });
+
+import { logger } from '../src/lib/logger';
+
+describe('plan usage logging', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs DeepSeek usage for the plan endpoint', async () => {
+    const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    mockPlanResponse(undefined, { prompt_tokens: 900, completion_tokens: 400, total_tokens: 1300 });
+    await new AiController().generatePlan(body);
+    expect(info).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'ai_usage', endpoint: 'plan', model: 'deepseek-v4-flash', totalTokens: 1300,
+    }));
+  });
+});
