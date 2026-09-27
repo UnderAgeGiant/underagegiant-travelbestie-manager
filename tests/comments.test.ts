@@ -62,11 +62,10 @@ async function getToken(app: express.Express, email = 'ana@test.com'): Promise<s
   return res.body.token as string;
 }
 
-describe('GET /comments/:attractionId', () => {
-  it('returns empty array when no comments (public)', async () => {
+describe('GET /comments/:attractionId (removed — batch GET /comments?ids= is the only read path)', () => {
+  it('is no longer routed', async () => {
     const res = await request(buildApp().app).get('/comments/paris_0');
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -102,7 +101,7 @@ describe('POST /comments/:attractionId', () => {
     await request(app).post('/comments/rome_0')
       .set('Authorization', `Bearer ${token}`)
       .send({ text: 'Lovely!', rating: 4, color: '#34D399', date: 'Apr 24' });
-    expect((await request(app).get('/comments/rome_0')).body[0].name).toBe('Ana');
+    expect((await request(app).get('/comments?ids=rome_0')).body.rome_0[0].name).toBe('Ana');
   });
 
   it('awards +1 karma with reason attraction_comment_first on a user\'s first comment on an attraction', async () => {

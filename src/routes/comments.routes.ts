@@ -31,11 +31,6 @@ export function createCommentsRouter(
     respond(200),
   );
 
-  router.get('/:attractionId',
-    comment.findByAttraction,
-    respond(200),
-  );
-
   router.post('/:attractionId',
     requireAuth,
     checkCommentCooldown,

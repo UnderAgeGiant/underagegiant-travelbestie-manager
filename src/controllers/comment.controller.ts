@@ -18,13 +18,6 @@ export class CommentController {
     } catch (err) { next(err); }
   };
 
-  findByAttraction = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-    try {
-      req.result = await this.comments.findByAttraction(req.params.attractionId);
-      next();
-    } catch (err) { next(err); }
-  };
-
   findByAttractions = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const raw = req.query.ids;

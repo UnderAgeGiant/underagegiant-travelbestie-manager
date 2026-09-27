@@ -25,18 +25,6 @@ export class PgCommentRepository implements ICommentRepository {
     };
   }
 
-  async findByAttraction(attractionId: string): Promise<Comment[]> {
-    const { rows } = await this.pool.query(
-      `SELECT ac.comment_id, ac.attraction_id, u.name, ac.text, ac.rating, ac.color, ac.created_at
-       FROM attraction_comments ac
-       JOIN users u ON u.user_id = ac.user_id
-       WHERE ac.attraction_id = $1
-       ORDER BY ac.created_at DESC`,
-      [attractionId],
-    );
-    return rows.map(r => this.toComment(r));
-  }
-
   async findByAttractions(ids: string[]): Promise<Record<string, Comment[]>> {
     const result: Record<string, Comment[]> = {};
     for (const id of ids) result[id] = [];
