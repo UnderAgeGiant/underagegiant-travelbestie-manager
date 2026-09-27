@@ -220,6 +220,6 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
-    expect(create.mock.calls[0][0].max_tokens).toBe(2000);
+    expect(create.mock.calls[0][0].max_tokens).toBe(4000);
   });
 });

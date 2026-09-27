@@ -108,3 +108,11 @@ describe('plan output cap', () => {
     await expect(new AiController().generatePlan(body)).rejects.toThrow('DeepSeek output truncated at max_tokens');
   });
 });
+
+// 2026-09-27: a 6-city / 13-night trip needed 12,529 plan output tokens (and a suggest reply
+// went past 2000) — the caps must leave headroom for long multi-city requests.
+describe('output caps fit long multi-city trips', () => {
+  it('plan cap covers a measured 12.5k-token plan with headroom', () => {
+    expect(AI_MAX_TOKENS.plan).toBeGreaterThanOrEqual(25000);
+  });
+});

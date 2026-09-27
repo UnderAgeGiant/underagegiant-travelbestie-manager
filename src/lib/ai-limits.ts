@@ -3,8 +3,8 @@ import type { AiEndpoint } from './ai-usage';
 // Output-token caps per endpoint. Sized well above normal replies; tune from the
 // ai_usage log's completionTokens. plan: keep ≤ DeepSeek's documented maximum.
 export const AI_MAX_TOKENS: Record<AiEndpoint, number> = {
-  suggest:            2000,
-  plan:               8000,
+  suggest:            4000,  // 2026-09-27: a 6-city request went past 2000 (another run: 1047)
+  plan:               32000, // 2026-09-27: 6 cities / 13 nights used 12,529; ~250 tok/s → ~2 min worst case, under Vercel's 300 s
   suggestAttractions: 2000,
   companionSuggest:   1000,
 };
