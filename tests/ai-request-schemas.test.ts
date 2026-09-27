@@ -59,3 +59,35 @@ describe('AI request schemas', () => {
     expect(aiSuggestSchema.safeParse({ preferences: 'x', cityIndex: [{ id: 'paris', name: 'Paris {x}' }] }).success).toBe(false);
   });
 });
+
+// 2026-09-27: the frontend textarea gets maxlength=2000 (PR #150) — these pin the server side
+// of that contract on both endpoints that receive the text.
+describe('preferences length (suggest + plan)', () => {
+  const plan = { selectedOption: { id: 1, title: 't', summary: 's', highlights: [] } };
+  const schemas = [
+    ['aiSuggestSchema', (p: unknown) => aiSuggestSchema.safeParse({ preferences: p })],
+    ['aiPlanSchema',    (p: unknown) => aiPlanSchema.safeParse({ ...plan, preferences: p })],
+  ] as const;
+
+  it.each(schemas)('%s accepts exactly 2000 chars and rejects 2001', (_name, parse) => {
+    expect(parse('x'.repeat(2000)).success).toBe(true);
+    expect(parse('x'.repeat(2001)).success).toBe(false);
+  });
+
+  it.each(schemas)('%s counts after trim and rejects blank text', (_name, parse) => {
+    const r = parse('   ' + 'x'.repeat(2000) + '\n ');
+    expect(r.success).toBe(true);
+    expect(r.success && (r.data as { preferences: string }).preferences).toHaveLength(2000);
+    expect(parse('   \n ').success).toBe(false);
+    expect(parse(42).success).toBe(false);
+  });
+});
+
+describe('selectedOption.title bound (plan)', () => {
+  const body = (title: unknown) => ({ preferences: 'x', selectedOption: { id: 1, title, summary: 's', highlights: [] } });
+  it('accepts up to 300 chars (the resolver then cuts it to 60) and rejects longer or non-strings', () => {
+    expect(aiPlanSchema.safeParse(body('t'.repeat(300))).success).toBe(true);
+    expect(aiPlanSchema.safeParse(body('t'.repeat(301))).success).toBe(false);
+    expect(aiPlanSchema.safeParse(body(7)).success).toBe(false);
+  });
+});

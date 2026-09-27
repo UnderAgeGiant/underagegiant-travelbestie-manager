@@ -133,6 +133,22 @@ describe('POST /ai/suggest', () => {
     expect(res.body.options[1].cityIds).toEqual(['tokyo']);
   });
 
+  it('400s a description over 2000 chars before calling DeepSeek or spending karma', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    create.mockClear();
+
+    const res = await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'x'.repeat(2001) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('preferences');
+    expect(create).not.toHaveBeenCalled();
+    expect(karmaRepo.events.find((e: any) => e.reason === 'ai_suggest')).toBeUndefined();
+  });
+
   it('records the ai_suggest karma event ref_id as the given planSessionId', async () => {
     const { app, karmaRepo } = buildApp();
     const token = await getToken(app);
