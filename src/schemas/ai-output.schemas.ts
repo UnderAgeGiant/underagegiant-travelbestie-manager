@@ -9,12 +9,18 @@ const idString = z.string().max(120).regex(ID_PATTERN);
 
 // Model-output schemas. z.object() strips unknown keys; .catch() replaces an invalid
 // value instead of failing the whole response.
+// Display text the prompt gives no length for: over-long values are cut to `max`
+// (ending in '…') rather than failing the response — the size bound still holds, and
+// /ai/suggest charges karma before the model call, so a throw here costs the user.
+const clampedText = (max: number) =>
+  z.string().transform(s => (s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s));
+
 export const suggestOutputSchema = z.object({
   options: z.array(z.object({
     id:         z.number().int(),
-    title:      z.string().min(1).max(150),
-    summary:    z.string().min(1).max(1000),
-    highlights: z.array(z.string().max(150)).max(10),
+    title:      z.string().min(1).pipe(clampedText(150)),
+    summary:    z.string().min(1).pipe(clampedText(1000)),
+    highlights: z.array(clampedText(150)).max(10),
     cityIds:    z.array(z.string().max(120)).max(20).optional(),
   })).length(2),
 });

@@ -39,10 +39,30 @@ describe('sanitizeSuggestOutput', () => {
     expect(out).not.toHaveProperty('extra');
   });
 
-  it('throws on the wrong number of options or oversized text', () => {
+  it('throws on the wrong number of options or a non-JSON-object reply', () => {
     expect(() => sanitizeSuggestOutput({ options: [option(1, [])] })).toThrow();
-    expect(() => sanitizeSuggestOutput({ options: [{ ...option(1, []), title: 'x'.repeat(151) }, option(2, [])] })).toThrow();
     expect(() => sanitizeSuggestOutput('Solo puedo ayudarte con planificación de viajes.')).toThrow();
+  });
+
+  // Real DeepSeek output exceeded the highlight cap (2026-09-27 prod-like log): over-long
+  // display text is truncated to its cap, never a 500 (the 8 karma is spent before the call).
+  it('truncates over-long title, summary and highlights instead of throwing', () => {
+    const out = sanitizeSuggestOutput({ options: [
+      { ...option(1, []), title: 't'.repeat(151), summary: 's'.repeat(1001), highlights: ['ok', 'h'.repeat(200)] },
+      option(2, []),
+    ] });
+    const o = out.options[0];
+    expect(o.title).toHaveLength(150);
+    expect(o.title.endsWith('…')).toBe(true);
+    expect(o.summary).toHaveLength(1000);
+    expect(o.highlights[0]).toBe('ok');
+    expect(o.highlights[1]).toHaveLength(150);
+    expect(o.highlights[1].endsWith('…')).toBe(true);
+  });
+
+  it('leaves text at exactly the cap untouched', () => {
+    const out = sanitizeSuggestOutput({ options: [{ ...option(1, []), highlights: ['h'.repeat(150)] }, option(2, [])] });
+    expect(out.options[0].highlights[0]).toBe('h'.repeat(150));
   });
 });
 
