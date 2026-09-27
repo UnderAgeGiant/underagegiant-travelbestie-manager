@@ -216,8 +216,21 @@ describe('POST /ai/suggest-companion', () => {
     expect(userMessage).toContain('paris');
   });
 
-  it('falls back to 204 when the model returns a reason over 300 characters', async () => {
+  it('keeps the suggestion when the reason is over 160 characters, cutting it with an ellipsis', async () => {
     mockDeepseekReturns({ attractionId: 'paris_1', date: '02/07/2026', startTime: '10:00', endTime: '11:00', reason: 'x'.repeat(301) });
+    const token = await getToken(app);
+    const res = await request(app)
+      .post('/ai/suggest-companion')
+      .set('Authorization', `Bearer ${token}`)
+      .send(VALID_BODY);
+    expect(res.status).toBe(200);
+    expect(res.body.attractionId).toBe('paris_1');
+    expect(res.body.reason).toHaveLength(160);
+    expect(res.body.reason.endsWith('…')).toBe(true);
+  });
+
+  it('still falls back to 204 when the reason is missing', async () => {
+    mockDeepseekReturns({ attractionId: 'paris_1', date: '02/07/2026', startTime: '10:00', endTime: '11:00' });
     const token = await getToken(app);
     const res = await request(app)
       .post('/ai/suggest-companion')

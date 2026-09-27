@@ -265,7 +265,7 @@ describe('POST /ai/suggest-attractions', () => {
     expect(event?.refId).toBeTruthy();
   });
 
-  it('drops a suggestion whose reason is over 300 characters, keeping the rest', async () => {
+  it('keeps a suggestion whose reason is over 160 characters, cutting the reason with an ellipsis', async () => {
     create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ suggestions: [
       { attractionId: 'paris_0', date: '02/07/2026', startTime: '10:00', endTime: '11:00', reason: 'x'.repeat(301) },
       { attractionId: 'paris_1', date: '03/07/2026', startTime: '10:00', endTime: '11:00', reason: 'Cerca de tu hotel.' },
@@ -275,6 +275,9 @@ describe('POST /ai/suggest-attractions', () => {
       .set('Authorization', `Bearer ${token}`)
       .send(VALID_BODY);
     expect(res.status).toBe(200);
-    expect(res.body.suggestions.map((s: { attractionId: string }) => s.attractionId)).toEqual(['paris_1']);
+    expect(res.body.suggestions.map((s: { attractionId: string }) => s.attractionId)).toEqual(['paris_0', 'paris_1']);
+    expect(res.body.suggestions[0].reason).toHaveLength(160);
+    expect(res.body.suggestions[0].reason.endsWith('…')).toBe(true);
+    expect(res.body.suggestions[1].reason).toBe('Cerca de tu hotel.');
   });
 });

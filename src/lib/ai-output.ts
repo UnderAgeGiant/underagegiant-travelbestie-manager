@@ -1,5 +1,6 @@
 import { suggestOutputSchema, planOutputSchema } from '../schemas/ai-output.schemas';
 import { ID_PATTERN } from '../schemas/ai.schemas';
+import { clampText } from './clamp-text';
 import type { SuggestTripsResponse, PlanTripResponse, CatalogEntry, CityCatalog } from '../types';
 
 /** Validates /ai/suggest model output. Throws ZodError on structural violations; drops cityIds not in the sent index (or malformed ones when no index was sent). */
@@ -31,11 +32,16 @@ export function sanitizePlanOutput(raw: unknown, cityCatalog?: CityCatalog): Pla
   };
 }
 
-/** Cap on the free-text `reason` of /ai/suggest-attractions and /ai/suggest-companion suggestions. The prompts ask for one short sentence; anything longer is treated as invalid output. */
-export const REASON_MAX_CHARS = 300;
+/** Hard cap on the free-text `reason` of /ai/suggest-attractions and /ai/suggest-companion (frontend chat bubbles; the prompts target ≤110). Longer reasons are cut, not rejected. */
+export const REASON_MAX_CHARS = 160;
 
+/** A suggestion needs a non-empty string reason; length is handled by clampReason, never by dropping. */
 export function hasValidReason(s: { reason?: unknown }): boolean {
-  return typeof s.reason === 'string' && s.reason.length > 0 && s.reason.length <= REASON_MAX_CHARS;
+  return typeof s.reason === 'string' && s.reason.length > 0;
+}
+
+export function clampReason(reason: string): string {
+  return clampText(reason, REASON_MAX_CHARS);
 }
 
 /** Reads the first choice's JSON content. A 'length' finish means the output was cut at max_tokens and cannot be valid JSON. */

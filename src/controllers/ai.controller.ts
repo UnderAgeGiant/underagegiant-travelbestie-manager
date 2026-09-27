@@ -4,7 +4,7 @@ import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
 import { logAiUsage } from '../lib/ai-usage';
 import { AI_MAX_TOKENS } from '../lib/ai-limits';
-import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, parseCompletionJson } from '../lib/ai-output';
+import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, clampReason, parseCompletionJson } from '../lib/ai-output';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 
@@ -200,7 +200,7 @@ export class AiController {
           d => d.date === s.date && s.endTime > d.time,
         );
         return inCatalog && !collidesWithSchedule && !pastDeparture && hasValidReason(s);
-      });
+      }).map(s => ({ ...s, reason: clampReason(s.reason) }));
 
       req.result = { suggestions } as SuggestCityAttractionsResponse;
       next();
@@ -254,7 +254,7 @@ export class AiController {
         return;
       }
 
-      req.result = parsed;
+      req.result = { ...parsed, reason: clampReason(parsed.reason) };
       next();
     } catch (err) { next(err); }
   };

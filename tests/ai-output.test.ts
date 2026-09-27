@@ -44,25 +44,39 @@ describe('sanitizeSuggestOutput', () => {
     expect(() => sanitizeSuggestOutput('Solo puedo ayudarte con planificación de viajes.')).toThrow();
   });
 
-  // Real DeepSeek output exceeded the highlight cap (2026-09-27 prod-like log): over-long
-  // display text is truncated to its cap, never a 500 (the 8 karma is spent before the call).
-  it('truncates over-long title, summary and highlights instead of throwing', () => {
+  // Caps come from the frontend's layout (2026-09-27): over-long display text is cut to its
+  // cap with '…', never a 500 (the 8 karma is spent before the call).
+  it('cuts over-long title (60), summary (300) and highlights (40) instead of throwing', () => {
     const out = sanitizeSuggestOutput({ options: [
-      { ...option(1, []), title: 't'.repeat(151), summary: 's'.repeat(1001), highlights: ['ok', 'h'.repeat(200)] },
+      { ...option(1, []), title: 't'.repeat(61), summary: 's'.repeat(301), highlights: ['ok', 'h'.repeat(200)] },
       option(2, []),
     ] });
     const o = out.options[0];
-    expect(o.title).toHaveLength(150);
+    expect(o.title).toHaveLength(60);
     expect(o.title.endsWith('…')).toBe(true);
-    expect(o.summary).toHaveLength(1000);
+    expect(o.summary).toHaveLength(300);
+    expect(o.summary.endsWith('…')).toBe(true);
     expect(o.highlights[0]).toBe('ok');
-    expect(o.highlights[1]).toHaveLength(150);
+    expect(o.highlights[1]).toHaveLength(40);
     expect(o.highlights[1].endsWith('…')).toBe(true);
   });
 
   it('leaves text at exactly the cap untouched', () => {
-    const out = sanitizeSuggestOutput({ options: [{ ...option(1, []), highlights: ['h'.repeat(150)] }, option(2, [])] });
-    expect(out.options[0].highlights[0]).toBe('h'.repeat(150));
+    const out = sanitizeSuggestOutput({ options: [
+      { ...option(1, []), title: 't'.repeat(60), summary: 's'.repeat(300), highlights: ['h'.repeat(40)] },
+      option(2, []),
+    ] });
+    expect(out.options[0].title).toBe('t'.repeat(60));
+    expect(out.options[0].summary).toBe('s'.repeat(300));
+    expect(out.options[0].highlights[0]).toBe('h'.repeat(40));
+  });
+
+  it('keeps only the first 4 highlights', () => {
+    const out = sanitizeSuggestOutput({ options: [
+      { ...option(1, []), highlights: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'] },
+      option(2, []),
+    ] });
+    expect(out.options[0].highlights).toEqual(['a', 'b', 'c', 'd']);
   });
 });
 
@@ -105,8 +119,23 @@ describe('sanitizePlanOutput', () => {
   it('throws on structural violations', () => {
     const seg = plan().transits[0].segments[0];
     expect(() => sanitizePlanOutput(plan({ transits: [{ ...plan().transits[0], segments: [{ ...seg, mode: 'teleport' }] }] }))).toThrow();
-    expect(() => sanitizePlanOutput(plan({ title: 'x'.repeat(151) }))).toThrow();
     expect(() => sanitizePlanOutput(plan({ stops: [{ ...plan().stops[0], cityId: 'Paris!' }] }))).toThrow();
+  });
+
+  it('cuts over-long plan text to the frontend caps instead of failing or blanking', () => {
+    const seg = plan().transits[0].segments[0];
+    const out = sanitizePlanOutput(plan({
+      title: 'x'.repeat(200),
+      stops: [{ ...plan().stops[0], lodging: { name: 'n'.repeat(200), url: '', address: 'a'.repeat(400), notes: 'o'.repeat(600) } }],
+      transits: [{ ...plan().transits[0], segments: [{ ...seg, notes: 'v'.repeat(600), carrier: 'c'.repeat(200) }] }],
+    }), catalog);
+    const cut = (s: string | undefined, n: number) => { expect(s).toHaveLength(n); expect(s!.endsWith('…')).toBe(true); };
+    cut(out.title, 60);
+    cut(out.stops[0].lodging?.name, 80);
+    cut(out.stops[0].lodging?.address, 150);
+    cut(out.stops[0].lodging?.notes, 200);
+    cut(out.transits[0].segments[0].notes, 80);
+    cut(out.transits[0].segments[0].carrier, 40);
   });
 
   it('accepts the empty plan shape used by existing tests', () => {
@@ -114,16 +143,26 @@ describe('sanitizePlanOutput', () => {
   });
 });
 
-import { hasValidReason, REASON_MAX_CHARS, parseCompletionJson } from '../src/lib/ai-output';
+import { hasValidReason, clampReason, REASON_MAX_CHARS, parseCompletionJson } from '../src/lib/ai-output';
 
-describe('hasValidReason', () => {
-  it('accepts a short sentence and a reason exactly at the cap', () => {
-    expect(hasValidReason({ reason: 'Queda a 5 minutos a pie.' })).toBe(true);
-    expect(hasValidReason({ reason: 'x'.repeat(REASON_MAX_CHARS) })).toBe(true);
+describe('reason handling', () => {
+  it('caps reason at 160 characters', () => {
+    expect(REASON_MAX_CHARS).toBe(160);
   });
 
-  it('rejects a reason over the cap, an empty one, or a non-string', () => {
-    expect(hasValidReason({ reason: 'x'.repeat(REASON_MAX_CHARS + 1) })).toBe(false);
+  it('accepts any non-empty string reason, however long', () => {
+    expect(hasValidReason({ reason: 'Queda a 5 minutos a pie.' })).toBe(true);
+    expect(hasValidReason({ reason: 'x'.repeat(REASON_MAX_CHARS + 500) })).toBe(true);
+  });
+
+  it('cuts a reason over the cap with an ellipsis and leaves a short one alone', () => {
+    const cut = clampReason('x'.repeat(REASON_MAX_CHARS + 1));
+    expect(cut).toHaveLength(REASON_MAX_CHARS);
+    expect(cut.endsWith('…')).toBe(true);
+    expect(clampReason('Cerca de tu hotel.')).toBe('Cerca de tu hotel.');
+  });
+
+  it('rejects an empty reason or a non-string', () => {
     expect(hasValidReason({ reason: '' })).toBe(false);
     expect(hasValidReason({ reason: 42 })).toBe(false);
     expect(hasValidReason({})).toBe(false);

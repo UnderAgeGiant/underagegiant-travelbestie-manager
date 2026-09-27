@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ID_PATTERN } from './ai.schemas';
+import { clampText } from '../lib/clamp-text';
 
 const DATE = /^\d{1,2}\/\d{1,2}\/\d{4}$/;   // dd/mm/yyyy (model sometimes drops a leading zero)
 const TIME = /^\d{1,2}:\d{2}$/;             // HH:mm
@@ -9,18 +10,34 @@ const idString = z.string().max(120).regex(ID_PATTERN);
 
 // Model-output schemas. z.object() strips unknown keys; .catch() replaces an invalid
 // value instead of failing the whole response.
-// Display text the prompt gives no length for: over-long values are cut to `max`
-// (ending in '…') rather than failing the response — the size bound still holds, and
-// /ai/suggest charges karma before the model call, so a throw here costs the user.
-const clampedText = (max: number) =>
-  z.string().transform(s => (s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s));
+
+/**
+ * Hard caps (chars) on AI-generated display text, chosen by the frontend from its layout
+ * (2026-09-27). The prompts ask for a shorter target; anything over the cap is cut with '…'
+ * — never failed, blanked or dropped over length alone (/ai/suggest charges karma before
+ * the model call, and a failed /ai/plan throws away a whole long generation).
+ */
+export const AI_TEXT_CAPS = {
+  suggestTitle:     60,
+  suggestSummary:   300,
+  highlight:        40,
+  highlightsCount:  4,
+  planTitle:        60,
+  lodgingName:      80,
+  lodgingAddress:   150,
+  lodgingNotes:     200,
+  segmentNotes:     80,
+  segmentCarrier:   40,
+} as const;
+
+const clampedText = (max: number) => z.string().transform(s => clampText(s, max));
 
 export const suggestOutputSchema = z.object({
   options: z.array(z.object({
     id:         z.number().int(),
-    title:      z.string().min(1).pipe(clampedText(150)),
-    summary:    z.string().min(1).pipe(clampedText(1000)),
-    highlights: z.array(clampedText(150)).max(10),
+    title:      z.string().min(1).pipe(clampedText(AI_TEXT_CAPS.suggestTitle)),
+    summary:    z.string().min(1).pipe(clampedText(AI_TEXT_CAPS.suggestSummary)),
+    highlights: z.array(clampedText(AI_TEXT_CAPS.highlight)).transform(h => h.slice(0, AI_TEXT_CAPS.highlightsCount)),
     cityIds:    z.array(z.string().max(120)).max(20).optional(),
   })).length(2),
 });
@@ -33,10 +50,10 @@ const plannedAttractionOutputSchema = z.object({
 });
 
 const lodgingOutputSchema = z.object({
-  name:    z.string().max(200),
+  name:    clampedText(AI_TEXT_CAPS.lodgingName),
   url:     z.string().max(500).regex(HTTPS_URL).catch(''),
-  address: z.string().max(300).optional(),
-  notes:   z.string().max(500).optional(),
+  address: clampedText(AI_TEXT_CAPS.lodgingAddress).optional(),
+  notes:   clampedText(AI_TEXT_CAPS.lodgingNotes).optional(),
 });
 
 const segmentOutputSchema = z.object({
@@ -45,14 +62,14 @@ const segmentOutputSchema = z.object({
   departureTime:   z.string().regex(TIME),
   arrivalDate:     z.string().regex(DATE),
   arrivalTime:     z.string().regex(TIME),
-  notes:           z.string().max(500).catch(''),
+  notes:           clampedText(AI_TEXT_CAPS.segmentNotes).catch(''),
   durationMinutes: z.number().int().min(0).max(10080).optional(),
-  carrier:         z.string().max(100).optional(),
+  carrier:         clampedText(AI_TEXT_CAPS.segmentCarrier).optional(),
   locationUrl:     z.string().max(500).regex(HTTPS_URL).optional().catch(undefined),
 });
 
 export const planOutputSchema = z.object({
-  title: z.string().min(1).max(150),
+  title: z.string().min(1).pipe(clampedText(AI_TEXT_CAPS.planTitle)),
   stops: z.array(z.object({
     cityId:              idString,
     checkIn:             z.string().regex(DATE),
