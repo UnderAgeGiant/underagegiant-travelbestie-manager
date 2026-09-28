@@ -16,3 +16,10 @@ describe('CORS preflight caching', () => {
     expect(res.headers['access-control-max-age']).toBe('86400');
   });
 });
+
+describe('CORS exposed headers', () => {
+  it('exposes ETag to the browser on cross-origin responses (weather caching)', async () => {
+    const res = await request(app).get('/health').set('Origin', 'http://localhost:4200');
+    expect(res.headers['access-control-expose-headers']).toMatch(/ETag/);
+  });
+});
