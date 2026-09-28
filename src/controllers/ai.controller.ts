@@ -17,9 +17,13 @@ interface PromptsFile {
   companionSuggest:   { system: string; userTemplate: string };
 }
 
-function loadPrompts(): PromptsFile {
-  const promptsPath = path.join(__dirname, '../../prompts/ai-trip-prompts.json');
-  return JSON.parse(fs.readFileSync(promptsPath, 'utf-8')) as PromptsFile;
+// Immutable within a deployment; read once per process. Restart the dev server after editing it.
+let promptsCache: PromptsFile | null = null;
+
+export function loadPrompts(): PromptsFile {
+  return promptsCache ??= JSON.parse(
+    fs.readFileSync(path.join(__dirname, '../../prompts/ai-trip-prompts.json'), 'utf-8'),
+  ) as PromptsFile;
 }
 
 function fillTemplate(template: string, vars: Record<string, string>): string {

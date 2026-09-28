@@ -50,7 +50,8 @@ const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.tri
 // falls back to a 5s cache, and since every request now carries X-Anonymous-Id (see
 // AuthInterceptor in the frontend repo, 2026-09-09), even anonymous GETs on public paths
 // like /featured, /stats, /shared/:id, /comments/:id trigger a preflight on nearly every call.
-app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400 }));
+// exposedHeaders: ETag is readable cross-origin only when listed here — WeatherService caches/revalidates weather by it.
+app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400, exposedHeaders: ['ETag'] }));
 app.use(cookieParser());
 app.use(express.json());
 
