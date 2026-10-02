@@ -185,7 +185,7 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy';
 
 export interface NotificationRecord {
   notificationId: string;
@@ -196,6 +196,23 @@ export interface NotificationRecord {
   url:            string;   // relative deep link, e.g. /?share=abc
   read:           boolean;
   createdAt:      string;   // ISO-8601
+}
+
+// ─── Trophies (Feature 69) ───────────────────────────────────────────────────
+export type TrophyType =
+  | 'ai_plans' | 'comments' | 'favorites' | 'clones'
+  | 'excel_export' | 'publish_plan' | 'share_plan' | 'plan_visited';
+export type TrophyTier = 'bronze' | 'silver' | 'gold' | 'single';
+
+export interface EarnedTrophy {
+  type:     TrophyType;
+  tier:     TrophyTier;
+  earnedAt: string;   // ISO-8601
+}
+
+export interface TrophiesResponse {
+  earned:   EarnedTrophy[];
+  progress: Partial<Record<TrophyType, number>>;   // favorites = max over the user's plans
 }
 
 export interface AppStats {
