@@ -5,7 +5,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -14,6 +14,7 @@ import { IHighlightRepository } from '../../src/repositories/interfaces/highligh
 import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-plan-request.repository';
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
 import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
+import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repository';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -570,5 +571,47 @@ export class StubCollaboratorRepository implements ICollaboratorRepository {
       result.push({ tripId: r.tripId, tripTitle: trip?.title ?? '', ownerName: owner?.name ?? '', invitedAt: r.invitedAt });
     }
     return result;
+  }
+}
+
+export class StubTrophyRepository implements ITrophyRepository {
+  events: { userId: string; type: TrophyType; refId: string; scopeId?: string }[] = [];
+  earned: { userId: string; type: TrophyType; tier: TrophyTier; earnedAt: string }[] = [];
+
+  async addEvent(userId: string, type: TrophyType, refId: string, scopeId?: string): Promise<boolean> {
+    if (this.events.some(e => e.userId === userId && e.type === type && e.refId === refId)) return false;
+    this.events.push({ userId, type, refId, scopeId });
+    return true;
+  }
+  async countEvents(userId: string, type: TrophyType, scopeId?: string): Promise<number> {
+    return this.events.filter(e => e.userId === userId && e.type === type && (scopeId === undefined || e.scopeId === scopeId)).length;
+  }
+  async awardTiers(userId: string, type: TrophyType, tiers: TrophyTier[]): Promise<EarnedTrophy[]> {
+    const fresh = tiers.filter(t => !this.earned.some(e => e.userId === userId && e.type === type && e.tier === t));
+    const rows = fresh.map(tier => ({ userId, type, tier, earnedAt: new Date().toISOString() }));
+    this.earned.push(...rows);
+    return rows.map(({ type: ty, tier, earnedAt }) => ({ type: ty, tier, earnedAt }));
+  }
+  async hasTrophy(userId: string, type: TrophyType): Promise<boolean> {
+    return this.earned.some(e => e.userId === userId && e.type === type);
+  }
+  async listEarned(userId: string): Promise<EarnedTrophy[]> {
+    return this.earned.filter(e => e.userId === userId).map(({ type, tier, earnedAt }) => ({ type, tier, earnedAt }));
+  }
+  async progress(userId: string): Promise<Partial<Record<TrophyType, number>>> {
+    const groups = new Map<string, number>();
+    for (const e of this.events.filter(ev => ev.userId === userId)) {
+      const k = `${e.type}|${e.scopeId ?? ''}`;
+      groups.set(k, (groups.get(k) ?? 0) + 1);
+    }
+    const out: Partial<Record<TrophyType, number>> = {};
+    for (const [k, n] of groups) {
+      const type = k.split('|')[0] as TrophyType;
+      out[type] = Math.max(out[type] ?? 0, n);
+    }
+    return out;
+  }
+  async listEarnedSince(userId: string, type: TrophyType, sinceIso: string): Promise<EarnedTrophy[]> {
+    return (await this.listEarned(userId)).filter(e => e.type === type && e.earnedAt >= sinceIso);
   }
 }
