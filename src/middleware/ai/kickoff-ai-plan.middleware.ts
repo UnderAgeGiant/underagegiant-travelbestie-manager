@@ -6,6 +6,7 @@ import { IAiPlanRequestRepository } from '../../repositories/interfaces/ai-plan-
 import { INotificationRepository } from '../../repositories/interfaces/notification.repository';
 import { runAiPlanJob } from '../../lib/ai-plan-job';
 import { AiPlanBody } from '../../schemas/ai.schemas';
+import { TrophyRecorder } from '../../lib/trophy-recorder';
 
 /**
  * Fast phase of POST /ai/plan: persists a 'pending' ai_plan_requests row,
@@ -20,6 +21,7 @@ export function createKickoffAiPlanMiddleware(
   karma:         IKarmaRepository,
   aiPlanRequests: IAiPlanRequestRepository,
   notifications: INotificationRepository,
+  trophies?:     TrophyRecorder,
 ) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -43,7 +45,7 @@ export function createKickoffAiPlanMiddleware(
 
       waitUntil(
         runAiPlanJob(
-          { ai, aiPlanRequests, karma, notifications },
+          { ai, aiPlanRequests, karma, notifications, trophies },
           {
             requestId: record.requestId,
             userId:    req.user!.userId,

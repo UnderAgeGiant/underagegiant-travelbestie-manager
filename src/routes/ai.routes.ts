@@ -4,6 +4,8 @@ import { KarmaController, KARMA_COST_AI_SUGGEST } from '../controllers/karma.con
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { ITrophyRepository } from '../repositories/interfaces/trophy.repository';
+import { TrophyRecorder } from '../lib/trophy-recorder';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
 import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
@@ -17,6 +19,7 @@ import { createKickoffAiPlanMiddleware }    from '../middleware/ai/kickoff-ai-pl
 import { makeFindAiPlanRequest }        from '../middleware/ai/find-ai-plan-request.middleware';
 import { checkAiPlanRequestOwnership }  from '../middleware/ai/check-ai-plan-request-ownership.middleware';
 import { aiPlanStatusResponse }         from '../middleware/ai/ai-plan-status-response.middleware';
+import { makeAttachAiPlanTrophies }     from '../middleware/ai/attach-ai-plan-trophies.middleware';
 import { makeListAiPlanHistory }        from '../middleware/ai/list-ai-plan-history.middleware';
 import { makeDeleteAiPlanRequest }      from '../middleware/ai/delete-ai-plan-request.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
@@ -35,6 +38,8 @@ export function createAiRouter(
   karmaRepo:     IKarmaRepository,
   aiPlanRequests: IAiPlanRequestRepository,
   notifications: INotificationRepository,
+  trophies?:     TrophyRecorder,
+  trophyRepo?:   ITrophyRepository,
 ): Router {
   const router = Router();
 
@@ -67,7 +72,7 @@ export function createAiRouter(
     return karma.requireKarma(1)(req, res, next);
   };
 
-  const kickoffAiPlan = createKickoffAiPlanMiddleware(ai, karmaRepo, aiPlanRequests, notifications);
+  const kickoffAiPlan = createKickoffAiPlanMiddleware(ai, karmaRepo, aiPlanRequests, notifications, trophies);
 
   // Fast phase only — the actual DeepSeek call runs in the background (see
   // kickoff-ai-plan.middleware.ts / src/lib/ai-plan-job.ts). Responds 202 with
@@ -95,6 +100,7 @@ export function createAiRouter(
   router.get('/plan/:requestId/status',
     makeFindAiPlanRequest(aiPlanRequests),
     checkAiPlanRequestOwnership,       // 404 if missing or not owned by the caller
+    makeAttachAiPlanTrophies(trophyRepo),
     aiPlanStatusResponse,
     respond(200),
   );

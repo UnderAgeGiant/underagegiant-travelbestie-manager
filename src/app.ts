@@ -12,7 +12,7 @@ import {
   statsController, favoriteRepository, notificationRepo,
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
-  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder,
+  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -78,7 +78,7 @@ app.use('/shared/:shareId/comments',
 app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder));
 app.use('/comments', createCommentsRouter(commentController, commentRepo, karmaRepo));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
-app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo));
+app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo, trophyRecorder, trophyRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
