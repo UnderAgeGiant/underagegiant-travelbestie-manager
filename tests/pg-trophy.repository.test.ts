@@ -30,6 +30,7 @@ describe('PgTrophyRepository', () => {
       { type: 'ai_plans', tier: 'bronze', earnedAt: '2026-10-01T10:00:00.000Z' },
     ]);
     expect((query.mock.calls[0] as any)[1]).toEqual(['u1', 'ai_plans', ['bronze']]);
+    expect((query.mock.calls[0] as any)[0]).toContain('$1::uuid');
   });
 
   it('progress turns rows into a type → count map', async () => {

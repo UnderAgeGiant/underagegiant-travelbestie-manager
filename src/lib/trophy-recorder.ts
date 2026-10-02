@@ -18,7 +18,10 @@ export class TrophyRecorder {
   async record(userId: string, type: TrophyType, refId: string, scopeId?: string): Promise<EarnedTrophy[]> {
     let earned: EarnedTrophy[];
     try {
-      if (!(await this.repo.addEvent(userId, type, refId, scopeId))) return [];
+      if (!(await this.repo.addEvent(userId, type, refId, scopeId))) {
+        // ponytail: a transient failure between addEvent and awardTiers consumes the event; tiered types self-heal on the next event, single trophies are lost. Recount on duplicates if that ever matters.
+        return [];
+      }
       const count = await this.repo.countEvents(userId, type, scopeId);
       earned = await this.repo.awardTiers(userId, type, tiersReached(type, count));
     } catch (err) {

@@ -31,7 +31,7 @@ export class PgTrophyRepository implements ITrophyRepository {
     if (!tiers.length) return [];
     const { rows } = await this.pool.query(
       `INSERT INTO user_trophies (user_id, trophy_type, tier)
-       SELECT $1, $2, unnest($3::text[])
+       SELECT $1::uuid, $2::text, unnest($3::text[])
        ON CONFLICT DO NOTHING
        RETURNING trophy_type AS type, tier, earned_at AS "earnedAt"`,
       [userId, type, tiers],
