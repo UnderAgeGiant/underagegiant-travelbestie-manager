@@ -6,6 +6,9 @@ import { ICollaboratorRepository } from '../repositories/interfaces/collaborator
 import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { TrophyRecorder } from '../lib/trophy-recorder';
+import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middleware';
+import { exportTarget, publishTarget } from '../middleware/trophies/trophy-targets';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
 import { createTripSchema } from '../schemas/trip.schemas';
@@ -43,6 +46,7 @@ export function createTripsRouter(
   userRepo: IUserRepository,
   tripRepo: ITripRepository,
   notificationRepo: INotificationRepository,
+  trophies?: TrophyRecorder,
 ): Router {
   const router = Router();
 
@@ -76,6 +80,9 @@ export function createTripsRouter(
     skipIfExported(karma.requireForTrip),
     skipIfExported(karma.spend),
     skipIfExported(trip.recordExport),
+    // generateItinerary ends the response itself (res.end(buffer)), so the header must be set here.
+    // Accepted edge: if generation then fails, the trophy is already recorded.
+    makeRecordTrophy(trophies, 'excel_export', exportTarget),
     generateItinerary,
   );
 
@@ -97,8 +104,9 @@ export function createTripsRouter(
   router.post('/:id/share',
     trip.findById,
     checkTripOwnership,
-    trip.shareIfAlreadyShared,
+    trip.shareIfAlreadyShared,          // already-shared trips short-circuit: only a first publish counts
     trip.createShare,
+    makeRecordTrophy(trophies, 'publish_plan', publishTarget),
     logCtaEvent('cta_trip_share', req => ({ tripId: req.params.id })),
     respond(200),
   );
