@@ -11,6 +11,8 @@ import { PgNotificationRepository }  from './repositories/pg/pg-notification.rep
 import { PgCollaboratorRepository }  from './repositories/pg/pg-collaborator.repository';
 import { PgAiPlanRequestRepository }  from './repositories/pg/pg-ai-plan-request.repository';
 import { PgHighlightRepository }     from './repositories/pg/pg-highlight.repository';
+import { PgTrophyRepository }        from './repositories/pg/pg-trophy.repository';
+import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
 import { CommentController }         from './controllers/comment.controller';
@@ -33,6 +35,8 @@ export const aiPlanRequestRepo       = new PgAiPlanRequestRepository(pool);
 export const karmaRepo               = new PgKarmaRepository(pool);
 export const karmaPurchaseRepo       = new PgKarmaPurchaseRepository(pool);
 export const stepCommentRepo         = new PgStepCommentRepository(pool);
+export const trophyRepo              = new PgTrophyRepository(pool);
+export const trophyRecorder          = new TrophyRecorder(trophyRepo, notificationRepo);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);

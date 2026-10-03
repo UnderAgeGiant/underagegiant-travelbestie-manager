@@ -3,6 +3,9 @@ import { TripController } from '../controllers/trip.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { IFavoriteRepository } from '../repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { TrophyRecorder } from '../lib/trophy-recorder';
+import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middleware';
+import { favoriteTarget, cloneTarget, visitTarget } from '../middleware/trophies/trophy-targets';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { optionalAuth } from '../middleware/auth/optional-auth.middleware';
 import { prepareSharedClone } from '../middleware/trips/prepare-shared-clone.middleware';
@@ -22,6 +25,7 @@ export function createSharedRouter(
   karma: KarmaController,
   favoriteRepo: IFavoriteRepository,
   notificationRepo: INotificationRepository,
+  trophies?: TrophyRecorder,
 ): Router {
   const router = Router();
   const favoriteToggle     = makeFavoriteToggle(favoriteRepo);
@@ -40,6 +44,7 @@ export function createSharedRouter(
     rateLimitMiddleware({ keyPrefix: 'rl:shared:get', windowSeconds: 60, maxRequests: 60 }),
     optionalAuth,
     trip.findByShareId,
+    makeRecordTrophy(trophies, 'plan_visited', visitTarget),   // must run before stripOwnerPii (needs ownerId)
     attachFavoriteMeta,
     stripOwnerPii,
     respond(200),
@@ -56,6 +61,7 @@ export function createSharedRouter(
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
     notifyClone,
+    makeRecordTrophy(trophies, 'clones', cloneTarget),
     respond(201),
   );
 
@@ -66,6 +72,7 @@ export function createSharedRouter(
     favoriteToggle,
     logCtaEvent('cta_favorite_toggle', req => ({ tripId: req.params.shareId, favorited: (req.result as { favorited?: boolean } | undefined)?.favorited })),
     notifyFavorite,
+    makeRecordTrophy(trophies, 'favorites', favoriteTarget),
     respond(200),
   );
 

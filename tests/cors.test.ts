@@ -22,4 +22,9 @@ describe('CORS exposed headers', () => {
     const res = await request(app).get('/health').set('Origin', 'http://localhost:4200');
     expect(res.headers['access-control-expose-headers']).toMatch(/ETag/);
   });
+
+  it('exposes X-New-Trophies to the browser on cross-origin responses (trophy celebration)', async () => {
+    const res = await request(app).get('/health').set('Origin', 'http://localhost:4200');
+    expect(res.headers['access-control-expose-headers']).toMatch(/X-New-Trophies/);
+  });
 });

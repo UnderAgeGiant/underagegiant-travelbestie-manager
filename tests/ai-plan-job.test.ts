@@ -1,8 +1,9 @@
 import { runAiPlanJob } from '../src/lib/ai-plan-job';
 import { AiController } from '../src/controllers/ai.controller';
-import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepository } from './helpers/stubs';
+import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepository, StubTrophyRepository } from './helpers/stubs';
 import { PlanChangeResult } from '../src/types';
 import { AiPlanBody } from '../src/schemas/ai.schemas';
+import { TrophyRecorder } from '../src/lib/trophy-recorder';
 
 jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
 
@@ -113,5 +114,40 @@ describe('runAiPlanJob', () => {
     const notified = await notifications.listByUser('u1');
     expect(notified[0].body).not.toContain('karma');
     expect(notified[0].body).toContain('Puedes intentarlo de nuevo');
+  });
+
+  it('records an ai_plans trophy event for a paid successful plan', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [], transits: [] });
+    const trophyRepo = new StubTrophyRepository();
+    const trophies = new TrophyRecorder(trophyRepo, notifications);
+    const body = makeBody();
+    const record = await aiPlanRequests.insert({
+      requestId: 'req-t1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+    });
+    await runAiPlanJob(
+      { ai, aiPlanRequests, karma, notifications, trophies },
+      { requestId: record.requestId, userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 1 },
+    );
+    expect(trophyRepo.events).toEqual([expect.objectContaining({ userId: 'u1', type: 'ai_plans', refId: 'req-t1' })]);
+  });
+
+  it('does not count free re-plans or failed plans', async () => {
+    const trophyRepo = new StubTrophyRepository();
+    const trophies = new TrophyRecorder(trophyRepo, notifications);
+    const body = makeBody();
+    const params = { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate };
+
+    jest.spyOn(ai, 'generatePlan').mockResolvedValueOnce({ title: 'P', stops: [], transits: [] });
+    await aiPlanRequests.insert({ requestId: 'free', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
+    await runAiPlanJob({ ai, aiPlanRequests, karma, notifications, trophies },
+      { requestId: 'free', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2, originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' } } as any, karmaCharged: 0 });
+
+    jest.spyOn(ai, 'generatePlan').mockRejectedValueOnce(new Error('boom'));
+    await aiPlanRequests.insert({ requestId: 'fail', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
+    await runAiPlanJob({ ai, aiPlanRequests, karma, notifications, trophies },
+      { requestId: 'fail', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 1 });
+
+    expect(trophyRepo.events).toEqual([]);
   });
 });

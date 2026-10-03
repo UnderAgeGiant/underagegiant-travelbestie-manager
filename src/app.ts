@@ -12,7 +12,7 @@ import {
   statsController, favoriteRepository, notificationRepo,
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
-  highlightRepo, aiPlanRequestRepo, weatherController,
+  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -28,6 +28,7 @@ import { createCompanionRouter }       from './routes/companion.routes';
 import { createHighlightsRouter }      from './routes/highlights.routes';
 import { createWeatherRouter }         from './routes/weather.routes';
 import { createSeoRouter }             from './routes/seo.routes';
+import { createTrophiesRouter }        from './routes/trophies.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { noIndexApi, robotsTxt } from './middleware/no-index.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
@@ -50,8 +51,9 @@ const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.tri
 // falls back to a 5s cache, and since every request now carries X-Anonymous-Id (see
 // AuthInterceptor in the frontend repo, 2026-09-09), even anonymous GETs on public paths
 // like /featured, /stats, /shared/:id, /comments/:id trigger a preflight on nearly every call.
-// exposedHeaders: ETag is readable cross-origin only when listed here — WeatherService caches/revalidates weather by it.
-app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400, exposedHeaders: ['ETag'] }));
+// exposedHeaders: ETag (WeatherService revalidation) and X-New-Trophies (instant trophy celebration)
+// are readable cross-origin only when listed here.
+app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400, exposedHeaders: ['ETag', 'X-New-Trophies'] }));
 app.use(cookieParser());
 app.use(express.json());
 
@@ -69,20 +71,21 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use('/auth',       createAuthRouter(userController, highlightRepo));
-app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo));
+app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo, trophyRecorder));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
-  createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo),
+  createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo, trophyRecorder),
 );
-app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo));
+app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder));
 app.use('/comments', createCommentsRouter(commentController, commentRepo, karmaRepo));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
-app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo));
+app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo, trophyRecorder, trophyRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
 app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
+app.use('/trophies', createTrophiesRouter(trophyRepo, tripController, trophyRecorder));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
 app.use('/seo',     createSeoRouter(tripController));

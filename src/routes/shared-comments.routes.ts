@@ -4,9 +4,12 @@ import { StepCommentController } from '../controllers/step-comment.controller';
 import { IStepCommentRepository } from '../repositories/interfaces/step-comment.repository';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { TrophyRecorder } from '../lib/trophy-recorder';
 import { makeResolveSharedTrip } from '../middleware/shared-comments/resolve-shared-trip.middleware';
 import { makeAwardStepCommentKarma } from '../middleware/shared-comments/award-step-comment-karma.middleware';
 import { makeNotifyStepComment } from '../middleware/notifications/notify-step-comment.middleware';
+import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middleware';
+import { commentTarget } from '../middleware/trophies/trophy-targets';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
 import { addStepCommentSchema } from '../schemas/comment.schemas';
@@ -21,6 +24,7 @@ export function createSharedCommentsRouter(
   stepCommentRepo: IStepCommentRepository,
   karmaRepo: IKarmaRepository,
   notificationRepo: INotificationRepository,
+  trophies?: TrophyRecorder,
 ): Router {
   const router = Router({ mergeParams: true });
   const resolveSharedTrip     = makeResolveSharedTrip(pool);
@@ -45,6 +49,7 @@ export function createSharedCommentsRouter(
     awardStepCommentKarma,
     storeCommentRedis,
     notifyStepComment,
+    makeRecordTrophy(trophies, 'comments', commentTarget),
     respond(201),
   );
 

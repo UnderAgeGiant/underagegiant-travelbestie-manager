@@ -7,12 +7,14 @@ import { PlanChangeResult } from '../types';
 import { buildPlanChangeInfo, toSessionOptions } from './plan-change-detector';
 import { writePlanSession } from './plan-session-store';
 import { logger } from './logger';
+import { TrophyRecorder } from './trophy-recorder';
 
 export interface AiPlanJobDeps {
   ai:            AiController;
   aiPlanRequests: IAiPlanRequestRepository;
   karma:         IKarmaRepository;
   notifications: INotificationRepository;
+  trophies?:     TrophyRecorder;
 }
 
 export interface AiPlanJobParams {
@@ -44,6 +46,9 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
 
     const changeInfo = buildPlanChangeInfo(planChangeResult);
     await deps.aiPlanRequests.markCompleted(requestId, result, changeInfo);
+
+    // Only paid plans count toward the AI trophy (free re-plans could be farmed). record() never throws.
+    if (karmaCharged > 0 && deps.trophies) await deps.trophies.record(userId, 'ai_plans', requestId);
 
     logger.info({ event: 'cta_ai_plan', flowId, userId, changeType: planChangeResult.type, requestId });
 
