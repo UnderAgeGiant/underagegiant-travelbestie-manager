@@ -31,7 +31,7 @@ export class TrophyRecorder {
     for (const t of earned) {
       try {
         await this.notifications.add({
-          userId, type: 'trophy', title: '🏆 ¡Nuevo trofeo!', body: trophyLabel(t.type, t.tier), url: '/profile#trofeos',
+          userId, type: 'trophy', title: '🏆 ¡Nuevo trofeo!', body: trophyLabel(t.type, t.tier), url: `/profile?focus=${encodeURIComponent(`${t.type}:${t.tier}`)}#trofeos`,
         });
       } catch (err) {
         logger.warn({ msg: 'trophy notification failed', userId, type, error: (err as Error).message });

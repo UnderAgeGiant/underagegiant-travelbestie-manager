@@ -17,7 +17,7 @@ describe('TrophyRecorder', () => {
     expect(earned.map(e => e.tier)).toEqual(['bronze']);
     const n = await notifications.listByUser('u1');
     expect(n).toHaveLength(1);
-    expect(n[0]).toMatchObject({ type: 'trophy', title: '🏆 ¡Nuevo trofeo!', body: 'Mejor planeador con IA — Bronce', url: '/profile#trofeos' });
+    expect(n[0]).toMatchObject({ type: 'trophy', title: '🏆 ¡Nuevo trofeo!', body: 'Mejor planeador con IA — Bronce', url: '/profile?focus=ai_plans%3Abronze#trofeos' });
   });
 
   it('a duplicate ref counts once and awards nothing', async () => {
