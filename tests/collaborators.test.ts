@@ -87,6 +87,7 @@ describe('Collaborators', () => {
 
     const invitee = notifications.items.find(n => n.type === 'collaborator_invite');
     expect(invitee).toBeDefined();
+    expect(invitee!.url).toBe(`/my-trips?tab=invites&focus=${encodeURIComponent(tripId)}`);
     expect(invitee!.body).toContain('Europe 2026');
   });
 
@@ -199,6 +200,7 @@ describe('Collaborators', () => {
 
     const ownerNotif = notifications.items.find(n => n.type === 'collaborator_accepted');
     expect(ownerNotif).toBeDefined();
+    expect(ownerNotif!.url).toBe(`/my-trips?tab=trips&focus=${encodeURIComponent(tripId)}`);
   });
 
   it('404s accepting an invite that does not exist', async () => {

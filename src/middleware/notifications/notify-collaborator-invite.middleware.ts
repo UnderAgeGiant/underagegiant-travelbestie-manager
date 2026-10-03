@@ -11,7 +11,7 @@ export function makeNotifyCollaboratorInvite(notificationRepo: INotificationRepo
         type:  'collaborator_invite',
         title: '🤝 Te invitaron a colaborar',
         body:  `${req.user!.name} te invitó a colaborar en "${req.trip!.title}"`,
-        url:   '/',
+        url:   `/my-trips?tab=invites&focus=${encodeURIComponent(req.trip!.id)}`,
       });
     } catch (err) {
       logger.warn({ msg: 'notification insert failed', flowId: req.flowId, error: (err as Error).message });
