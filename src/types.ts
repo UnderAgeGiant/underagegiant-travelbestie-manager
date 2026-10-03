@@ -193,7 +193,7 @@ export interface NotificationRecord {
   type:           NotificationType;
   title:          string;
   body:           string;
-  url:            string;   // relative deep link, e.g. /?share=abc
+  url:            string;   // in-app route the bell navigates to; may carry ?focus=<itemId> (contracts §9)
   read:           boolean;
   createdAt:      string;   // ISO-8601
 }

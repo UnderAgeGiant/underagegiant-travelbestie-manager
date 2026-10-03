@@ -101,9 +101,24 @@ describe('notification on step comment', () => {
     const rows = await notificationRepo.listByUser('owner-456');
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('comment');
-    expect(rows[0].url).toBe(`/?share=${VALID_SHARE_ID}`);
+    expect(rows[0].url).toBe(`/shared/${VALID_SHARE_ID}?focus=step-1`);
     expect(rows[0].body).toContain('Ana');
     expect(rows[0].read).toBe(false);
+  });
+
+  it('1b — the step key is URL-encoded into ?focus= so it cannot inject params', async () => {
+    const { app, notificationRepo } = buildApp();
+    const token = await getToken(app);
+    setPoolFound('owner-456');
+
+    const res = await request(app)
+      .post(`/shared/${VALID_SHARE_ID}/comments/${encodeURIComponent('att:x:1&tab=evil#frag')}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: LONG_TEXT });
+
+    expect(res.status).toBe(201);
+    const rows = await notificationRepo.listByUser('owner-456');
+    expect(rows[0].url).toBe(`/shared/${VALID_SHARE_ID}?focus=att%3Ax%3A1%26tab%3Devil%23frag`);
   });
 
   it('2 — owner comments on own trip → no notification', async () => {

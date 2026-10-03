@@ -17,7 +17,8 @@ export function makeNotifyStepComment(notificationRepo: INotificationRepository)
           type:  'comment',
           title: '💬 Nuevo comentario en tu plan',
           body:  `${req.user!.name}: "${(req.body.text as string).slice(0, 120)}"`,
-          url:   `/?share=${req.params.shareId}`,
+          // stepKey is the commenter's own path segment — always encode it (focus is untrusted on the frontend too).
+          url:   `/shared/${req.params.shareId}?focus=${encodeURIComponent(req.params.stepKey)}`,
         });
       }
     } catch (err) {

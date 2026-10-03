@@ -52,7 +52,7 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
       type:  'ai_plan_ready',
       title: '🐾 Tu plan está listo',
       body:  `Tu plan "${result.title}" ya está listo. Revísalo en Planes IA Pendientes.`,
-      url:   '/',
+      url:   `/my-trips?tab=aiplans&focus=${encodeURIComponent(requestId)}`,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error generating plan';
@@ -81,7 +81,7 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
         body:  karmaCharged > 0
           ? `No pudimos generar tu plan "${planTitle}". Te devolvimos ${karmaCharged} karma.`
           : `No pudimos generar tu plan "${planTitle}". Puedes intentarlo de nuevo.`,
-        url:   '/',
+        url:   `/my-trips?tab=aiplans&focus=${encodeURIComponent(requestId)}`,
       });
     } catch (notifyErr) {
       logger.error({ msg: 'Failed to insert ai_plan_failed notification', requestId, err: notifyErr });
