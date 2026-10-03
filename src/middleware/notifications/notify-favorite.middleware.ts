@@ -19,7 +19,7 @@ export function makeNotifyFavorite(notificationRepo: INotificationRepository) {
           type:  'favorite',
           title: '⭐ Nuevo favorito',
           body:  `A ${req.user!.name} le gustó "${meta.tripName ?? 'tu plan'}"`,
-          url:   `/?share=${req.params.shareId}`,
+          url:   `/shared/${req.params.shareId}`,
         });
       }
     } catch (err) {

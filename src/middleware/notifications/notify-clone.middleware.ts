@@ -16,7 +16,7 @@ export function makeNotifyClone(notificationRepo: INotificationRepository) {
           type:  'clone',
           title: '📋 Copiaron tu plan',
           body:  `${req.user!.name} clonó "${meta.tripName ?? 'tu plan'}" a sus viajes`,
-          url:   `/?share=${req.params.shareId}`,
+          url:   `/shared/${req.params.shareId}`,
         });
       }
     } catch (err) {
