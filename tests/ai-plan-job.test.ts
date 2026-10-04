@@ -60,6 +60,7 @@ describe('runAiPlanJob', () => {
     const notified = await notifications.listByUser('u1');
     expect(notified).toHaveLength(1);
     expect(notified[0].type).toBe('ai_plan_ready');
+    expect(notified[0].url).toBe(`/my-trips?tab=aiplans&focus=${encodeURIComponent(record.requestId)}`);
     expect(notified[0].body).toContain('Mi Plan Europa');
     expect(karma.awarded).toHaveLength(0);   // no refund on success
   });
@@ -88,6 +89,7 @@ describe('runAiPlanJob', () => {
     const notified = await notifications.listByUser('u1');
     expect(notified).toHaveLength(1);
     expect(notified[0].type).toBe('ai_plan_failed');
+    expect(notified[0].url).toBe(`/my-trips?tab=aiplans&focus=${encodeURIComponent(record.requestId)}`);
     expect(notified[0].body).toContain('Ruta Clásica por Europa');
     expect(notified[0].body).toContain('1 karma');
   });

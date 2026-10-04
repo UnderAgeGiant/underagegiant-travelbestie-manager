@@ -18,7 +18,7 @@ export function makeNotifyKarmaPurchase(notificationRepo: INotificationRepositor
           type:  'purchase',
           title: '✅ Compra confirmada',
           body:  `+${purchase.karmaAmount} karma acreditado${balance !== undefined ? ` · saldo: ${balance}` : ''}`,
-          url:   '/',
+          url:   '/karma-history',
         });
       }
     } catch (err) {

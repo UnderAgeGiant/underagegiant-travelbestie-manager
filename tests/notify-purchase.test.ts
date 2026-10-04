@@ -97,7 +97,7 @@ describe('notification on karma purchase', () => {
     const rows = await notificationRepo.listByUser(decodeUserId(token));
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('purchase');
-    expect(rows[0].url).toBe('/');
+    expect(rows[0].url).toBe('/karma-history');
     expect(rows[0].body).toContain('10');
   });
 

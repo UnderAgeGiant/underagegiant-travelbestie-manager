@@ -91,7 +91,7 @@ describe('notification on trip favorite', () => {
     const rows = await notificationRepo.listByUser(decodeUserId(ownerToken));
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('favorite');
-    expect(rows[0].url).toBe(`/?share=${shareId}`);
+    expect(rows[0].url).toBe(`/shared/${shareId}`);
     expect(rows[0].body).toContain('Fabián');
     expect(rows[0].body).toContain('Roma en 5 días');
   });
