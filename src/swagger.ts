@@ -1198,5 +1198,24 @@ Pass the \`planSessionId\` returned from \`/ai/suggest\` (or a generated UUID) t
         },
       },
     },
+
+    '/rankings': {
+      get: {
+        tags: ['Landing'],
+        summary: 'Weekly rankings (Feature 70)',
+        description: 'Top 3 planners, destinations, trophy earners and favorited plans for the current week (Mon 00:00 → Sun 23:59:59, America/Santiago). Redis-cached 2 h, key `rankings:{weekStart}`. Bearer JWT, 60 req/min per user.',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Weekly rankings' }, '401': { description: 'Unauthorized' } },
+      },
+    },
+    '/rankings/me': {
+      get: {
+        tags: ['Landing'],
+        summary: "Caller's weekly positions (Feature 70)",
+        description: '`{ weekStart, planners, trophies, favorited }`, each `{ rank, value }` or `null`. Redis-cached 2 h per user.',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'My positions' }, '401': { description: 'Unauthorized' } },
+      },
+    },
   },
 };

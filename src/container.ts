@@ -12,6 +12,7 @@ import { PgCollaboratorRepository }  from './repositories/pg/pg-collaborator.rep
 import { PgAiPlanRequestRepository }  from './repositories/pg/pg-ai-plan-request.repository';
 import { PgHighlightRepository }     from './repositories/pg/pg-highlight.repository';
 import { PgTrophyRepository }        from './repositories/pg/pg-trophy.repository';
+import { PgRankingRepository }       from './repositories/pg/pg-ranking.repository';
 import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
@@ -25,6 +26,7 @@ import { StatsController }           from './controllers/stats.controller';
 import { CompanionController }       from './controllers/companion.controller';
 import { CollaboratorController }    from './controllers/collaborator.controller';
 import { WeatherController }         from './controllers/weather.controller';
+import { RankingController }         from './controllers/ranking.controller';
 
 export { pool };
 
@@ -37,6 +39,7 @@ export const karmaPurchaseRepo       = new PgKarmaPurchaseRepository(pool);
 export const stepCommentRepo         = new PgStepCommentRepository(pool);
 export const trophyRepo              = new PgTrophyRepository(pool);
 export const trophyRecorder          = new TrophyRecorder(trophyRepo, notificationRepo);
+export const rankingRepository       = new PgRankingRepository(pool);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);
@@ -55,3 +58,4 @@ export const statsController         = new StatsController(new PgStatsRepository
 export const companionController     = new CompanionController();
 export const collaboratorController  = new CollaboratorController(collaboratorRepo);
 export const weatherController       = new WeatherController();
+export const rankingController       = new RankingController(rankingRepository);

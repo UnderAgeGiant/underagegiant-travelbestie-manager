@@ -12,7 +12,7 @@ import {
   statsController, favoriteRepository, notificationRepo,
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
-  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo,
+  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo, rankingController,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -29,6 +29,7 @@ import { createHighlightsRouter }      from './routes/highlights.routes';
 import { createWeatherRouter }         from './routes/weather.routes';
 import { createSeoRouter }             from './routes/seo.routes';
 import { createTrophiesRouter }        from './routes/trophies.routes';
+import { createRankingsRouter }       from './routes/rankings.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { noIndexApi, robotsTxt } from './middleware/no-index.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
@@ -83,6 +84,7 @@ app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, ai
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
+app.use('/rankings', createRankingsRouter(rankingController));
 app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/trophies', createTrophiesRouter(trophyRepo, tripController, trophyRecorder));
