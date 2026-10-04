@@ -221,6 +221,26 @@ export interface AppStats {
   plans:  number;
 }
 
+// ─── Rankings (Feature 70) ──────────────────────────────────────────────────
+export interface RankedUser { name: string; value: number }
+export interface RankedCity { cityId: string; value: number }
+export interface RankedPlan { title: string; shareId: string; ownerName: string; value: number }
+export interface WeeklyRankings {
+  weekStart: string;     // YYYY-MM-DD, Monday, America/Santiago
+  generatedAt: string;   // ISO instant the cached value was computed
+  topPlanners: RankedUser[];
+  topDestinations: RankedCity[];
+  topTrophies: RankedUser[];
+  topFavorited: RankedPlan[];
+}
+export interface MyRank { rank: number; value: number }
+export interface MyRankings {
+  weekStart: string;
+  planners: MyRank | null;
+  trophies: MyRank | null;
+  favorited: MyRank | null;
+}
+
 export interface Comment {
   id: string;
   attractionId: string;

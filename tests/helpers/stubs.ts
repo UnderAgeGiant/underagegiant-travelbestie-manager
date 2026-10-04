@@ -5,7 +5,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -15,6 +15,7 @@ import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-p
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
 import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
 import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repository';
+import { IRankingRepository } from '../../src/repositories/interfaces/ranking.repository';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -613,5 +614,25 @@ export class StubTrophyRepository implements ITrophyRepository {
   }
   async listEarnedSince(userId: string, type: TrophyType, sinceIso: string): Promise<EarnedTrophy[]> {
     return (await this.listEarned(userId)).filter(e => e.type === type && e.earnedAt >= sinceIso);
+  }
+}
+
+export class StubRankingRepository implements IRankingRepository {
+  weeklyCalls: string[] = [];
+  mineCalls: { weekStart: string; userId: string }[] = [];
+  weekly: Omit<WeeklyRankings, 'weekStart'> = {
+    generatedAt: '2026-10-04T10:00:00.000Z',
+    topPlanners: [{ name: 'Ana', value: 7 }],
+    topDestinations: [{ cityId: 'paris', value: 34 }],
+    topTrophies: [{ name: 'Luis', value: 3 }],
+    topFavorited: [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
+  };
+  async getWeekly(weekStart: string): Promise<WeeklyRankings> {
+    this.weeklyCalls.push(weekStart);
+    return { weekStart, ...this.weekly };
+  }
+  async getMine(weekStart: string, userId: string): Promise<MyRankings> {
+    this.mineCalls.push({ weekStart, userId });
+    return { weekStart, planners: { rank: 2, value: 3 }, trophies: null, favorited: null };
   }
 }
