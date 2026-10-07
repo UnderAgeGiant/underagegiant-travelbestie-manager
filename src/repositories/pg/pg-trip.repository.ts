@@ -98,7 +98,7 @@ export class PgTripRepository implements ITripRepository {
       [shareId],
     );
     if (!row) return null;
-    const trip = await hydrateTrip(this.pool, row);
+    const trip = await hydrateTrip(this.pool, row, true);
     return {
       id:         shareId,
       tripName:   trip.title,
@@ -123,7 +123,7 @@ export class PgTripRepository implements ITripRepository {
        WHERE t.share_id = ANY($1::text[])`,
       [shareIds],
     );
-    const trips = await hydrateTrips(this.pool, rows);
+    const trips = await hydrateTrips(this.pool, rows, true);
 
     const byShareId = new Map<string, SharedTripPayload>();
     trips.forEach((trip, i) => {
@@ -161,7 +161,7 @@ export class PgTripRepository implements ITripRepository {
        LIMIT 5`,
       [`%${q}%`],
     );
-    const trips = await hydrateTrips(this.pool, rows);
+    const trips = await hydrateTrips(this.pool, rows, true);
     return trips.map((trip, i) => ({
       id:            rows[i].share_id    as string,
       tripName:      trip.title,
@@ -202,7 +202,7 @@ export class PgTripRepository implements ITripRepository {
 
     const hasMore  = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
-    const trips    = await hydrateTrips(this.pool, pageRows);
+    const trips    = await hydrateTrips(this.pool, pageRows, true);
 
     const items: FeedPlan[] = trips.map((trip, i) => ({
       id:            pageRows[i].share_id as string,
@@ -213,7 +213,9 @@ export class PgTripRepository implements ITripRepository {
       stops: trip.stops.map(s => ({
         cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
         selectedAttractions: s.selectedAttractions.map(a => ({
-          attractionId: a.attractionId,
+          ...(a.activityType
+            ? { activityType: a.activityType, title: a.title, ...(a.mapsUrl ? { mapsUrl: a.mapsUrl } : {}) }
+            : { attractionId: a.attractionId }),
           ...(a.date ? { date: a.date } : {}),
           startTime: a.startTime,
           endTime:   a.endTime,
@@ -241,7 +243,7 @@ export class PgTripRepository implements ITripRepository {
                           FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids,
               (SELECT COUNT(*)::int FROM planned_attractions pa
                  JOIN trip_stops s ON s.stop_id = pa.stop_id
-                WHERE s.trip_id = t.trip_id) AS attraction_count
+                WHERE s.trip_id = t.trip_id AND pa.attraction_id IS NOT NULL) AS attraction_count
          FROM trips t
         WHERE t.share_id = $1`,
       [shareId],
@@ -267,7 +269,7 @@ export class PgTripRepository implements ITripRepository {
         WHERE t.share_id IS NOT NULL
           AND (SELECT COUNT(*) FROM planned_attractions pa
                  JOIN trip_stops s ON s.stop_id = pa.stop_id
-                WHERE s.trip_id = t.trip_id) >= $1
+                WHERE s.trip_id = t.trip_id AND pa.attraction_id IS NOT NULL) >= $1
         ORDER BY t.updated_at DESC, t.trip_id DESC
         LIMIT $2`,
       [minAttractions, limit],
@@ -290,7 +292,7 @@ export class PgTripRepository implements ITripRepository {
                             FROM trip_stops s WHERE s.trip_id = t.trip_id), '{}') AS city_ids,
                 (SELECT COUNT(*)::int FROM planned_attractions pa
                    JOIN trip_stops s2 ON s2.stop_id = pa.stop_id
-                  WHERE s2.trip_id = t.trip_id) AS attraction_count
+                  WHERE s2.trip_id = t.trip_id AND pa.attraction_id IS NOT NULL) AS attraction_count
            FROM trips t
            LEFT JOIN (SELECT trip_id, COUNT(*) AS c FROM trip_favorites GROUP BY trip_id) f ON f.trip_id = t.trip_id
           WHERE t.share_id IS NOT NULL
@@ -370,11 +372,15 @@ async function insertStops(client: PoolClient, tripId: string, stops: TripStop[]
     }
     for (let j = 0; j < s.selectedAttractions.length; j++) {
       const a = s.selectedAttractions[j];
+      const personal = !!a.activityType;   // Feature 71 — personal-only fields are nulled on catalog rows
       await client.query(
-        `INSERT INTO planned_attractions (stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [row.stop_id, a.attractionId, a.startTime ?? null, a.endTime ?? null,
-         a.date ? toISO(a.date) : null, a.category ?? null, a.ticketPurchased ?? false, j],
+        `INSERT INTO planned_attractions
+           (stop_id, attraction_id, activity_type, title, maps_url, is_private, start_time, end_time, date, category, ticket_purchased, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [row.stop_id, personal ? null : a.attractionId, personal ? a.activityType : null,
+         personal ? a.title : null, personal ? (a.mapsUrl ?? null) : null, personal ? (a.isPrivate ?? false) : false,
+         a.startTime ?? null, a.endTime ?? null, a.date ? toISO(a.date) : null,
+         personal ? null : (a.category ?? null), personal ? false : (a.ticketPurchased ?? false), j],
       );
     }
   }
@@ -402,7 +408,27 @@ async function insertLegs(client: PoolClient, tripId: string, legs: TransitLeg[]
   }
 }
 
-async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Trip> {
+const PLANNED_COLUMNS = 'stop_id, attraction_id, activity_type, title, maps_url, is_private, start_time, end_time, date, category, ticket_purchased';
+
+// One planned_attractions row → PlannedAttraction. Catalog rows carry attractionId; personal
+// rows (Feature 71) carry activityType/title (+ mapsUrl/isPrivate).
+function rowToPlanned(a: Record<string, unknown>): PlannedAttraction {
+  return {
+    ...(a.attraction_id ? { attractionId: a.attraction_id as string } : {}),
+    ...(a.activity_type ? { activityType: a.activity_type as string, title: a.title as string } : {}),
+    ...(a.maps_url   ? { mapsUrl: a.maps_url as string } : {}),
+    ...(a.is_private ? { isPrivate: true } : {}),
+    startTime: a.start_time ? toHM(a.start_time as string) : null,
+    endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
+    ...(a.date     ? { date:     toDMY(a.date as string) }          : {}),
+    ...(a.category ? { category: a.category as AttractionCategory } : {}),
+    ...(a.ticket_purchased ? { ticketPurchased: true } : {}),
+  };
+}
+
+// publicOnly = true strips is_private rows — set by every read that can reach a non-editor
+// (shared page, shared search/featured, feed, shared clone). Owner/collaborator reads keep them.
+async function hydrateTrip(pool: Pool, row: Record<string, unknown>, publicOnly = false): Promise<Trip> {
   const tripId = row.trip_id as string;
 
   const { rows: stopRows } = await pool.query(
@@ -429,20 +455,13 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
     }
 
     const { rows: attrRows } = await pool.query(
-      `SELECT stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased FROM planned_attractions
-       WHERE stop_id = ANY($1) ORDER BY stop_id, sort_order`,
+      `SELECT ${PLANNED_COLUMNS} FROM planned_attractions
+       WHERE stop_id = ANY($1)${publicOnly ? ' AND NOT is_private' : ''} ORDER BY stop_id, sort_order`,
       [stopIds],
     );
     for (const a of attrRows) {
       const list = attrMap.get(a.stop_id as string) ?? [];
-      list.push({
-        attractionId: a.attraction_id as string,
-        startTime: a.start_time ? toHM(a.start_time as string) : null,
-        endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
-        ...(a.date     ? { date:     toDMY(a.date as string) } : {}),
-        ...(a.category ? { category: a.category as AttractionCategory } : {}),
-        ...(a.ticket_purchased ? { ticketPurchased: true } : {}),
-      });
+      list.push(rowToPlanned(a));
       attrMap.set(a.stop_id as string, list);
     }
   }
@@ -504,7 +523,7 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>): Promise<Tr
   };
 }
 
-async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promise<Trip[]> {
+async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[], publicOnly = false): Promise<Trip[]> {
   if (rows.length === 0) return [];
 
   const tripIds = rows.map(r => r.trip_id as string);
@@ -535,8 +554,8 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
       : Promise.resolve([] as Record<string, unknown>[]),
     stopIds.length > 0
       ? pool.query(
-          `SELECT stop_id, attraction_id, start_time, end_time, date, category, ticket_purchased
-           FROM planned_attractions WHERE stop_id = ANY($1::uuid[]) ORDER BY stop_id, sort_order`,
+          `SELECT ${PLANNED_COLUMNS} FROM planned_attractions
+           WHERE stop_id = ANY($1::uuid[])${publicOnly ? ' AND NOT is_private' : ''} ORDER BY stop_id, sort_order`,
           [stopIds],
         ).then(r => r.rows)
       : Promise.resolve([] as Record<string, unknown>[]),
@@ -559,14 +578,7 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[]): Promis
   }
   for (const a of attrRows) {
     const list = attrMap.get(a.stop_id as string) ?? [];
-    list.push({
-      attractionId: a.attraction_id as string,
-      startTime: a.start_time ? toHM(a.start_time as string) : null,
-      endTime:   a.end_time   ? toHM(a.end_time   as string) : null,
-      ...(a.date     ? { date:     toDMY(a.date as string) }             : {}),
-      ...(a.category ? { category: a.category as AttractionCategory }    : {}),
-      ...(a.ticket_purchased ? { ticketPurchased: true } : {}),
-    });
+    list.push(rowToPlanned(a));
     attrMap.set(a.stop_id as string, list);
   }
   for (const s of segRows) {

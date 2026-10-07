@@ -10,7 +10,11 @@ export interface User {
 }
 
 export interface PlannedAttraction {
-  attractionId: string;
+  attractionId?: string;      // catalog id — absent on personal activities (Feature 71)
+  activityType?: string;      // personal activity type, /^[a-z_]{1,30}$/ — list owned by the frontend
+  title?: string;             // personal activities only (required there)
+  mapsUrl?: string;           // personal activities only, Google Maps https link
+  isPrivate?: boolean;        // personal activities only; hidden from every public read
   startTime: string | null;   // HH:mm — null when not set
   endTime:   string | null;   // HH:mm — null when not set
   date?: string;              // dd/mm/yyyy — which day within the stop
@@ -84,7 +88,10 @@ export interface SharedTripPayload {
 }
 
 export interface FeedPlanAttraction {
-  attractionId: string;
+  attractionId?: string;        // catalog entries only
+  activityType?: string;        // personal activities (Feature 71) — private ones never reach the feed
+  title?:        string;
+  mapsUrl?:      string;
   date?:        string;         // dd/mm/yyyy
   startTime:    string | null;  // HH:mm
   endTime:      string | null;  // HH:mm

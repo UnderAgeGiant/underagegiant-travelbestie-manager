@@ -141,4 +141,23 @@ describe('trip/ai/karma schemas', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('packageId');
   });
+
+  describe('planned entry shape (Feature 71)', () => {
+    const trip = (att: object) => ({ title: 'T', stops: [{ cityId: 'paris', checkIn: '01/10/2026', checkOut: '03/10/2026', selectedAttractions: [att] }] });
+    const post = (att: object) => request(appWith(createTripSchema)).post('/t').send(trip(att));
+
+    it('accepts a catalog entry', async () => expect((await post({ attractionId: 'paris_0', startTime: '10:00' })).status).toBe(200));
+    it('accepts a personal entry', async () =>
+      expect((await post({ activityType: 'lunch', title: 'Almuerzo', isPrivate: true, mapsUrl: 'https://maps.app.goo.gl/x', startTime: '13:00' })).status).toBe(200));
+    it('accepts an unknown but well-formed type', async () => expect((await post({ activityType: 'brunch', title: 'B' })).status).toBe(200));
+    it('rejects both ids', async () => expect((await post({ attractionId: 'paris_0', activityType: 'lunch', title: 'x' })).status).toBe(400));
+    it('rejects neither id', async () => expect((await post({ startTime: '10:00' })).status).toBe(400));
+    it('rejects personal without title', async () => expect((await post({ activityType: 'lunch' })).status).toBe(400));
+    it('rejects a blank title', async () => expect((await post({ activityType: 'lunch', title: '   ' })).status).toBe(400));
+    it('rejects an 81-char title', async () => expect((await post({ activityType: 'lunch', title: 'a'.repeat(81) })).status).toBe(400));
+    it.each(['Lunch', 'lun ch', 'a'.repeat(31), 'lunch-1'])('rejects activityType %s', async t =>
+      expect((await post({ activityType: t, title: 'x' })).status).toBe(400));
+    it.each(['javascript:alert(1)', 'https://google.com.evil.io/maps', 'http://maps.google.com'])('rejects mapsUrl %s', async u =>
+      expect((await post({ activityType: 'walk', title: 'x', mapsUrl: u })).status).toBe(400));
+  });
 });

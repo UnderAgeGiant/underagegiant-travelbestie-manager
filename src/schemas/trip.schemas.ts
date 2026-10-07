@@ -1,16 +1,29 @@
 import { z } from 'zod';
+import { isGoogleMapsUrl } from '../lib/maps-url';
 
 // Loose-but-bounded shapes for nested trip data. The repository owns the exact
 // domain conversion (dd/mm/yyyy etc.); here we only guard structure + bounds so a
 // malformed or oversized payload is rejected before it reaches the DB transaction.
 const plannedAttraction = z.object({
-  attractionId: z.string().min(1).max(200),
+  attractionId: z.string().min(1).max(200).optional(),
+  // Feature 71 — personal activity. Format-only check: the type list lives in the frontend.
+  activityType: z.string().regex(/^[a-z_]{1,30}$/).optional(),
+  title:        z.string().trim().min(1).max(80).optional(),
+  mapsUrl:      z.string().max(500).refine(isGoogleMapsUrl, 'mapsUrl must be a Google Maps https link').nullable().optional(),
+  isPrivate:    z.boolean().optional(),
   startTime: z.string().max(5).nullable().optional(),
   endTime:   z.string().max(5).nullable().optional(),
   date:      z.string().max(10).nullable().optional(),
   category:  z.enum(['poi', 'freetour', 'event_party', 'foodie']).optional(),
   ticketPurchased: z.boolean().optional(),
-}).passthrough();
+}).passthrough().superRefine((a, ctx) => {
+  if (!!a.attractionId === !!a.activityType) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'exactly one of attractionId or activityType is required' });
+  }
+  if (a.activityType && !a.title) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message: 'title is required for a personal activity' });
+  }
+});
 
 const tripStop = z.object({
   cityId:   z.string().min(1).max(120),
