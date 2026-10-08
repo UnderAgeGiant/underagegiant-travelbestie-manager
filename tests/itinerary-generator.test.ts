@@ -438,3 +438,19 @@ describe('buildItinerary — default block duration from attractionDurations', (
     expect(sheet.model.merges.some(m => m.startsWith('B16'))).toBe(false); // 10:00-11:00 → 1 row, no merge
   });
 });
+
+describe('buildItinerary — personal activities (Feature 71)', () => {
+  it('renders a personal entry by its stored title, never "undefined"', async () => {
+    const trip = baseTrip();
+    trip.stops[0].selectedAttractions = [
+      { activityType: 'lunch', title: 'Almuerzo con Rosa', startTime: '13:00', endTime: '14:00', date: '01/06/2026' },
+    ];
+    const buffer = await buildItinerary({ trip, ticketRequiredIds: ['paris_0'] });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.getWorksheet('Itinerario')!;
+    // 13:00 → row 6 (00:00) + 13 = row 19, day column B
+    expect(sheet.getCell(19, 2).text).toContain('Almuerzo con Rosa');
+    sheet.eachRow(row => row.eachCell(cell => expect(cell.text).not.toContain('undefined')));
+  });
+});

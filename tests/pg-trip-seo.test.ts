@@ -81,3 +81,19 @@ describe('PgTripRepository.update bumps updated_at (sitemap <lastmod> depends on
     expect(sqls.some(s => /UPDATE trips SET[^;]*updated_at = now\(\)/.test(s))).toBe(true);
   });
 });
+
+describe('PgTripRepository SEO counts (Feature 71)', () => {
+  it('counts only catalog rows (attraction_id IS NOT NULL) in every SEO query', async () => {
+    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const repo = new PgTripRepository({ query } as unknown as Pool);
+    await repo.findSeoRow('abc');
+    await repo.listSeoIndex(3, 5000);
+    await repo.listSeoCityPlans('paris', 3, 6);
+    const sqls = query.mock.calls.map(c => String(c[0]));
+    expect(sqls).toHaveLength(3);
+    for (const sql of sqls) {
+      expect(sql).toContain('planned_attractions');
+      expect(sql).toContain('pa.attraction_id IS NOT NULL');
+    }
+  });
+});

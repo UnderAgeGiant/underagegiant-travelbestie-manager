@@ -4,9 +4,13 @@ import { OpenAPIV3 } from 'openapi-types';
 
 const PlannedAttraction: OpenAPIV3.SchemaObject = {
   type: 'object',
-  required: ['attractionId'],
+  description: 'Exactly one of attractionId (catalog) or activityType (personal activity, Feature 71).',
   properties: {
     attractionId: { type: 'string', example: 'att-123' },
+    activityType: { type: 'string', example: 'lunch', description: '/^[a-z_]{1,30}$/ — personal activity type; list owned by the frontend' },
+    title:        { type: 'string', example: 'Almuerzo', description: 'Required with activityType; trimmed, 1–80 chars' },
+    mapsUrl:      { type: 'string', description: 'Optional Google Maps https link (personal only)' },
+    isPrivate:    { type: 'boolean', description: 'Personal only; private rows never appear in shared/feed/featured reads' },
     startTime:    { type: 'string', nullable: true, example: '09:00', description: 'HH:mm or null' },
     endTime:      { type: 'string', nullable: true, example: '11:00', description: 'HH:mm or null' },
     date:         { type: 'string', example: '15/07/2025', description: 'dd/mm/yyyy — which day within the stop' },

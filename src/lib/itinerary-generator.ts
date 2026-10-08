@@ -236,8 +236,10 @@ function buildRawAttractionSpans(
       const dayIdx = dayIndex.get(attDay);
       if (dayIdx === undefined || !att.startTime) continue;
       const startHour = Math.max(0, Math.min(23, parseHour(att.startTime)));
-      const name = resolveAttractionName(att.attractionId, cityName, attractionNames);
-      const ticketNeeded = !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased;
+      const name = att.activityType
+        ? (att.title ?? '')                                   // Feature 71 — personal activity, stored title
+        : resolveAttractionName(att.attractionId!, cityName, attractionNames);
+      const ticketNeeded = !!att.attractionId && !!ticketRequiredIds?.has(att.attractionId) && !att.ticketPurchased;
 
       // The attraction's own start hour already sits inside a merged overnight
       // transit block — there is no independent cell left to place it in, so
@@ -249,7 +251,7 @@ function buildRawAttractionSpans(
         continue;
       }
 
-      const defaultMinutes = attractionDurations?.[att.attractionId] ?? 60;
+      const defaultMinutes = (att.attractionId ? attractionDurations?.[att.attractionId] : undefined) ?? 60;
       const defaultHours = Math.max(1, Math.ceil(defaultMinutes / 60));
       const rawEndHour = att.endTime ? parseHour(att.endTime) : startHour + defaultHours;
       const endHour = Math.min(23, Math.max(startHour, rawEndHour - 1));
