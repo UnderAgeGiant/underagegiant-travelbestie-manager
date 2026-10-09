@@ -293,6 +293,19 @@ describe('POST /ai/suggest — batch of 8, served 2 at a time, never repeats (T1
     expect(JSON.parse(store.get(lastBatchKey)!).map((o: any) => o.title)).toEqual(['T3', 'T4']);
   });
 
+  it('makes a fresh call instead of serving a single leftover option from the queue', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    create.mockResolvedValue(completion(batch().slice(0, 7)));
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await post(); await post(); await post();          // T1-2, T3-4, T5-6 → T7 left alone
+    expect(create).toHaveBeenCalledTimes(1);
+    const res = await post();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(res.body.options).toHaveLength(1);          // fresh batch: only T7 is still unseen
+    expect(titles(res)).toEqual(['T7']);
+  });
+
   it('discards the queue when the inputs change', async () => {
     const { app } = buildApp();
     const token = await getToken(app);

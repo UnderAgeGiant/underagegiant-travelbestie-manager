@@ -20,7 +20,8 @@ export const serveQueuedSuggestionsMiddleware = async (req: Request, _res: Respo
   const userId = req.user!.userId;
   const queue = await loadSuggestQueue(userId, body.planSessionId);
   // Queued options are unseen by construction (saved from the unseen rest, replaced on every fresh batch).
-  if (queue && queue.options.length > 0 && queue.inputsHash === suggestInputsHash(body)) {
+  // A leftover smaller than a page triggers a fresh call rather than a one-card response.
+  if (queue && queue.options.length >= SUGGEST_PAGE_SIZE && queue.inputsHash === suggestInputsHash(body)) {
     const { page, rest } = takeSuggestionPage(queue.options, req.suggestHistory ?? [], SUGGEST_PAGE_SIZE);
     await saveSuggestQueue(userId, body.planSessionId, { inputsHash: queue.inputsHash, options: rest });
     req.result = { options: page };
