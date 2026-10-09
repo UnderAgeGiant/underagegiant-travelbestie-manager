@@ -120,10 +120,11 @@ export class StubTripRepository implements ITripRepository {
   }
 
   async searchShared(query: string): Promise<SharedTripPayload[]> {
-    const q = query.trim().toLowerCase();
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim();
+    const q = norm(query);
     if (!q) return [];
     return [...this.trips.values()]
-      .filter(t => t.shareId && t.title.toLowerCase().includes(q))
+      .filter(t => t.shareId && norm(t.title).includes(q))
       .slice(0, 5)
       .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
   }
