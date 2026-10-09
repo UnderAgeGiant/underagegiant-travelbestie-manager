@@ -12,6 +12,8 @@ function fakePool() {
     // listFeed's ranked CTE also contains 'FROM trip_stops' (its EXISTS) — route it first.
     if (sql.includes('WITH ranked')) return { rows: [{ ...TRIP, created_at_raw: '2026-10-01 00:00:00+00', favorite_count: 0 }] };
     if (sql.includes('FROM planned_attractions')) return { rows: [PERSONAL] };
+    // searchShared has a trip_stops subquery but is a top-level trips query — check the main FROM first
+    if (sql.includes('FROM trips t') && sql.includes('JOIN users u')) return { rows: [TRIP] };
     if (sql.includes('FROM trip_stops'))          return { rows: [STOP] };
     if (sql.includes('FROM trips'))               return { rows: [TRIP] };
     return { rows: [] };
