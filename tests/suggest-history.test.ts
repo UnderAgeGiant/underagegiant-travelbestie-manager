@@ -9,7 +9,7 @@ jest.mock('../src/lib/redis', () => ({
 
 import {
   suggestHistoryKey, routeKey, loadSuggestHistory, appendSuggestHistory,
-  dropRepeatedSuggestions, SUGGEST_HISTORY_MAX,
+  takeSuggestionPage, suggestInputsHash, loadSuggestQueue, saveSuggestQueue, SUGGEST_HISTORY_MAX,
 } from '../src/lib/suggest-history';
 import { redis } from '../src/lib/redis';
 
@@ -43,16 +43,44 @@ describe('suggest-history', () => {
     await expect(appendSuggestHistory('u1', 's1', [opt(1, 'a')])).resolves.toBeUndefined();
   });
 
-  it('drops options whose route was already shown', () => {
-    const out = dropRepeatedSuggestions(
-      [opt(1, 'Nuevo', ['tokyo']), opt(2, 'Viejo renombrado', ['paris', 'rome'])],
-      [{ title: 'Viejo', cityIds: ['paris', 'rome'] }],
+  it('takes the first unseen options as the page, renumbered 1..n, and keeps the other unseen as rest', () => {
+    const { page, rest } = takeSuggestionPage(
+      [opt(5, 'Viejo', ['paris', 'rome']), opt(6, 'A', ['tokyo']), opt(7, 'B', ['lima']), opt(8, 'C', ['cusco'])],
+      [{ title: 'Viejo renombrado', cityIds: ['paris', 'rome'] }],
+      2,
     );
-    expect(out.map(o => o.id)).toEqual([1]);
+    expect(page.map(o => [o.id, o.title])).toEqual([[1, 'A'], [2, 'B']]);
+    expect(rest.map(o => o.title)).toEqual(['C']);
   });
 
-  it('returns the unfiltered list when every option is a repeat', () => {
-    const opts = [opt(1, 'A', ['paris']), opt(2, 'B', ['rome'])];
-    expect(dropRepeatedSuggestions(opts, [{ title: 'x', cityIds: ['paris'] }, { title: 'y', cityIds: ['rome'] }])).toBe(opts);
+  it('falls back to the first options when every one is a repeat (never empty)', () => {
+    const { page, rest } = takeSuggestionPage(
+      [opt(1, 'A', ['paris']), opt(2, 'B', ['rome'])],
+      [{ title: 'x', cityIds: ['paris'] }, { title: 'y', cityIds: ['rome'] }],
+      2,
+    );
+    expect(page.map(o => o.title)).toEqual(['A', 'B']);
+    expect(rest).toEqual([]);
+  });
+
+  it('inputs hash changes with preferences, duration, budget or city index', () => {
+    const base = { preferences: 'cultura', duration: 7, budget: 'medio', cityIndex: [{ id: 'paris', name: 'París' }] };
+    const h = suggestInputsHash(base);
+    expect(suggestInputsHash({ ...base })).toBe(h);
+    expect(suggestInputsHash({ ...base, preferences: 'playa' })).not.toBe(h);
+    expect(suggestInputsHash({ ...base, duration: 8 })).not.toBe(h);
+    expect(suggestInputsHash({ ...base, budget: 'alto' })).not.toBe(h);
+    expect(suggestInputsHash({ ...base, cityIndex: [{ id: 'rome', name: 'Roma' }] })).not.toBe(h);
+  });
+
+  it('queue round-trips with a 24h TTL; load returns null on miss and on Redis error', async () => {
+    await saveSuggestQueue('u1', 's1', { inputsHash: 'h', options: [opt(3, 'C', ['lima'])] });
+    expect(await loadSuggestQueue('u1', 's1')).toEqual({ inputsHash: 'h', options: [opt(3, 'C', ['lima'])] });
+    expect((redis.set as jest.Mock).mock.calls[0][0]).toMatch(/^suggest:queue:u1:[0-9a-f]{64}$/);
+    expect((redis.set as jest.Mock).mock.calls[0].slice(2)).toEqual(['EX', 86400]);
+    expect(await loadSuggestQueue('u1', 'none')).toBeNull();
+    failRedis = true;
+    expect(await loadSuggestQueue('u1', 's1')).toBeNull();
+    await expect(saveSuggestQueue('u1', 's1', { inputsHash: 'h', options: [] })).resolves.toBeUndefined();
   });
 });

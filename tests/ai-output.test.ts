@@ -19,6 +19,12 @@ function plan(overrides: Record<string, unknown> = {}) {
 }
 
 describe('sanitizeSuggestOutput', () => {
+  it('keeps a batch of up to 8 options and cuts any extra', () => {
+    const many = (n: number) => ({ options: Array.from({ length: n }, (_, i) => option(i + 1, [])) });
+    expect(sanitizeSuggestOutput(many(8)).options).toHaveLength(8);
+    expect(sanitizeSuggestOutput(many(10)).options).toHaveLength(8);
+  });
+
   it('keeps a well-formed response and filters cityIds to the sent index', () => {
     const out = sanitizeSuggestOutput(
       { options: [option(1, ['paris', 'atlantis']), option(2, ['tokyo'])] },

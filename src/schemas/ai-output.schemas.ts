@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ID_PATTERN } from './ai.schemas';
 import { clampText } from '../lib/clamp-text';
+import { SUGGEST_BATCH_SIZE } from '../lib/ai-limits';
 
 const DATE = /^\d{1,2}\/\d{1,2}\/\d{4}$/;   // dd/mm/yyyy (model sometimes drops a leading zero)
 const TIME = /^\d{1,2}:\d{2}$/;             // HH:mm
@@ -39,7 +40,7 @@ export const suggestOutputSchema = z.object({
     summary:    z.string().min(1).pipe(clampedText(AI_TEXT_CAPS.suggestSummary)),
     highlights: z.array(clampedText(AI_TEXT_CAPS.highlight)).transform(h => h.slice(0, AI_TEXT_CAPS.highlightsCount)),
     cityIds:    z.array(z.string().max(120)).max(20).optional(),
-  })).length(2),
+  })).min(2).transform(o => o.slice(0, SUGGEST_BATCH_SIZE)),
 });
 
 const plannedAttractionOutputSchema = z.object({

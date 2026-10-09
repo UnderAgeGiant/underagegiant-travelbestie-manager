@@ -1,3 +1,4 @@
+import type { ShownSuggestion } from './lib/suggest-history';
 export type AttractionCategory = 'poi' | 'freetour' | 'event_party' | 'foodie';
 
 export interface User {
@@ -480,7 +481,8 @@ declare global {
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
-      suggestHistory?: import('./lib/suggest-history').ShownSuggestion[];  // ← suggest history for no-repeat filtering
+      suggestHistory?: ShownSuggestion[];
+      suggestServedFromQueue?: boolean;
       sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
       seoRow?: SeoSharedRow | null;      // set by TripController.seoShared
       invitedUser?: User;                // set by resolve-invitee.middleware.ts

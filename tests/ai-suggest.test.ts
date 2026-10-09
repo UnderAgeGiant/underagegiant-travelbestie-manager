@@ -225,7 +225,7 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte', planSessionId: 'session-1' });
-    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => String(c[0]).startsWith('suggest:') && !String(c[0]).startsWith('suggest:history:'));
+    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => /^suggest:(?!history:|queue:)/.test(String(c[0])));
     expect(setCalls).toHaveLength(1);
     expect(JSON.parse(setCalls[0][1])).toHaveLength(2);
     expect(setCalls[0].slice(2)).toEqual(['EX', 86400]);
@@ -236,48 +236,88 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
-    expect(create.mock.calls[0][0].max_tokens).toBe(4000);
+    expect(create.mock.calls[0][0].max_tokens).toBe(8000);
   });
 });
 
-describe('POST /ai/suggest — no repeats across a session (T1)', () => {
+describe('POST /ai/suggest — batch of 8, served 2 at a time, never repeats (T1)', () => {
   const completion = (options: any[]) => ({
     choices: [{ message: { content: JSON.stringify({ options }) } }],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   });
-  const o = (id: number, title: string, cityIds: string[]) => ({ id, title, summary: 'Resumen', highlights: ['h'], cityIds });
-  const cityIndex = [{ id: 'paris', name: 'París' }, { id: 'rome', name: 'Roma' }, { id: 'tokyo', name: 'Tokio' }];
+  const cities = ['paris', 'rome', 'tokyo', 'lima', 'cusco', 'quito', 'bogota', 'cairo'];
+  const batch = () => cities.map((c, i) => ({ id: i + 1, title: `T${i + 1}`, summary: 'Resumen', highlights: ['h'], cityIds: [c] }));
+  const cityIndex = cities.map(id => ({ id, name: id }));
+  const store = new Map<string, string>();
+  const body = { preferences: 'cultura', planSessionId: 's1', cityIndex };
+  const titles = (res: any) => res.body.options.map((x: any) => x.title);
 
-  beforeEach(() => { create.mockReset(); (redis.get as jest.Mock).mockReset().mockResolvedValue(null); });
-
-  it('puts previously shown routes in the USER prompt and drops exact repeats', async () => {
-    const { app } = buildApp();
-    const token = await getToken(app);
-    (redis.get as jest.Mock).mockImplementation(async (k: string) =>
-      k.startsWith('suggest:history:') ? JSON.stringify([{ title: 'Clásicos', cityIds: ['paris', 'rome'] }]) : null);
-    create.mockResolvedValue(completion([o(1, 'Repetido', ['paris', 'rome']), o(2, 'Nuevo', ['tokyo'])]));
-
-    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
-      .send({ preferences: 'cultura', planSessionId: 's1', cityIndex });
-
-    expect(res.status).toBe(200);
-    expect(res.body.options.map((x: any) => x.title)).toEqual(['Nuevo']);
-    const [{ messages }] = create.mock.calls[0];
-    expect(messages[0].content).not.toContain('Clásicos');
-    expect(messages[1].content).toContain('Clásicos (paris → rome)');
+  beforeEach(() => {
+    store.clear();
+    create.mockReset().mockResolvedValue(completion(batch()));
+    (redis.get as jest.Mock).mockReset().mockImplementation(async (k: string) => store.get(k) ?? null);
+    (redis.set as jest.Mock).mockReset().mockImplementation(async (k: string, v: string) => { store.set(k, v); });
   });
 
-  it('still answers with both options when Redis is down', async () => {
+  it('asks DeepSeek for 8 options with no avoid list, returns the first 2, then serves the rest from the queue', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+
+    const first = await post();
+    expect(first.status).toBe(200);
+    expect(titles(first)).toEqual(['T1', 'T2']);
+    expect(first.body.options.map((x: any) => x.id)).toEqual([1, 2]);
+    const userMessage = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('exactamente 8');
+    expect(userMessage).not.toContain('<ya_mostradas>');
+
+    expect(titles(await post())).toEqual(['T3', 'T4']);
+    const third = await post();
+    expect(titles(third)).toEqual(['T5', 'T6']);
+    expect(third.body.options.map((x: any) => x.id)).toEqual([1, 2]);
+    expect(titles(await post())).toEqual(['T7', 'T8']);
+    expect(create).toHaveBeenCalledTimes(1);
+
+    await post();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(karmaRepo.events.filter((e: any) => e.reason === 'ai_suggest')).toHaveLength(5);
+  });
+
+  it('stores the served page as the plan-resolvable options for each click', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    const lastBatchKey = [...store.keys()].find(k => /^suggest:(?!history:|queue:)/.test(k))!;
+    expect(JSON.parse(store.get(lastBatchKey)!).map((o: any) => o.title)).toEqual(['T3', 'T4']);
+  });
+
+  it('discards the queue when the inputs change', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips options already shown in the session when taking a fresh page', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(titles(res)).toEqual(['T3', 'T4']);
+  });
+
+  it('still answers with 2 options when Redis is down', async () => {
     const { app } = buildApp();
     const token = await getToken(app);
     (redis.get as jest.Mock).mockRejectedValue(new Error('down'));
-    create.mockResolvedValue(completion([o(1, 'A', ['paris']), o(2, 'B', ['rome'])]));
+    (redis.set as jest.Mock).mockRejectedValue(new Error('down'));
 
-    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
-      .send({ preferences: 'cultura', planSessionId: 's1', cityIndex });
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
 
     expect(res.status).toBe(200);
-    expect(res.body.options).toHaveLength(2);
-    expect(create.mock.calls[0][0].messages[1].content).not.toContain('<ya_mostradas>');
+    expect(titles(res)).toEqual(['T1', 'T2']);
   });
 });

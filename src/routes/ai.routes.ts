@@ -31,7 +31,9 @@ import {
 import { logCtaEvent } from '../lib/log-event';
 import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
 import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
-import { loadSuggestHistoryMiddleware, dropRepeatedSuggestionsMiddleware } from '../middleware/ai/suggest-history.middleware';
+import {
+  loadSuggestHistoryMiddleware, serveQueuedSuggestionsMiddleware, unlessServedFromQueue, takeFreshSuggestionPageMiddleware,
+} from '../middleware/ai/suggest-history.middleware';
 
 export function createAiRouter(
   ai:            AiController,
@@ -61,8 +63,9 @@ export function createAiRouter(
     karma.requireKarma(KARMA_COST_AI_SUGGEST),
     karma.spendForAiSuggest,
     loadSuggestHistoryMiddleware,
-    ai.suggest,
-    dropRepeatedSuggestionsMiddleware,
+    serveQueuedSuggestionsMiddleware,
+    unlessServedFromQueue(ai.suggest),
+    unlessServedFromQueue(takeFreshSuggestionPageMiddleware),
     storeSuggestedOptionsMiddleware,
     logCtaEvent('cta_ai_suggest', () => ({ karmaSpent: KARMA_COST_AI_SUGGEST })),
     respond(200),

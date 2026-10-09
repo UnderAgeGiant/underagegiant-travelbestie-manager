@@ -5,7 +5,6 @@ import { deepseekClient } from '../lib/deepseek';
 import { logAiUsage } from '../lib/ai-usage';
 import { AI_MAX_TOKENS } from '../lib/ai-limits';
 import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, clampReason, parseCompletionJson } from '../lib/ai-output';
-import type { ShownSuggestion } from '../lib/suggest-history';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 
@@ -87,17 +86,6 @@ function buildDepartureBlock(departures?: { date: string; time: string }[]): str
   ].join('\n');
 }
 
-function buildAvoidBlock(history: ShownSuggestion[]): string {
-  if (history.length === 0) return '';
-  const lines = history.map(h => `  - ${h.title}${h.cityIds?.length ? ` (${h.cityIds.join(' → ')})` : ''}`);
-  return [
-    '<ya_mostradas>',
-    'El viajero YA vio estas opciones en esta sesión. Cada opción nueva debe tener una ruta distinta (otro conjunto u orden de ciudades) a TODAS estas:',
-    ...lines,
-    '</ya_mostradas>',
-  ].join('\n');
-}
-
 function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
@@ -115,7 +103,6 @@ export class AiController {
         duration: duration != null ? String(duration) : 'not specified',
         budget:   budget ?? 'not specified',
         cityIndexBlock: buildCityIndexBlock(cityIndex),
-        avoidBlock: buildAvoidBlock(req.suggestHistory ?? []),
       });
 
       const completion = await deepseekClient.chat.completions.create({
