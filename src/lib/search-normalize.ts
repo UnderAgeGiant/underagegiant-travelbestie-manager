@@ -2,7 +2,7 @@ import { CITY_NAMES } from '../data/cities';
 
 /** Lowercase + strip diacritics — mirrors the frontend's core/utils/normalize-search.util.ts (plus trim). */
 export function normalizeSearch(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
 
 const MIN_CITY_QUERY = 3;
