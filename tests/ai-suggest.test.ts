@@ -281,7 +281,22 @@ describe('POST /ai/suggest — batch of 8, served 2 at a time, never repeats (T1
 
     await post();
     expect(create).toHaveBeenCalledTimes(2);
-    expect(karmaRepo.events.filter((e: any) => e.reason === 'ai_suggest')).toHaveLength(5);
+    // Only the 2 DeepSeek calls are charged; the 3 queue-served clicks are the free changes.
+    expect(karmaRepo.events.filter((e: any) => e.reason === 'ai_suggest')).toHaveLength(2);
+  });
+
+  it('serves queued options even with 0 karma, but a fresh call still needs karma', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await post();
+    karmaRepo.setScore(0);
+    const queued = await post();
+    expect(queued.status).toBe(200);
+    expect(titles(queued)).toEqual(['T3', 'T4']);
+    const fresh = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(fresh.status).toBe(402);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it('stores the served page as the plan-resolvable options for each click', async () => {
