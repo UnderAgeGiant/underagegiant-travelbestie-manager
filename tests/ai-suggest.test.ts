@@ -321,6 +321,26 @@ describe('POST /ai/suggest — batch of 8, served 2 at a time, never repeats (T1
     expect(titles(res)).toEqual(['T7']);
   });
 
+  it('keeps a named-city request inside that city across the whole batch', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    const index = [{ id: 'coquimbo', name: 'Coquimbo' }, { id: 'valparaiso', name: 'Valparaíso' }, { id: 'vinadelmar', name: 'Viña del Mar' }];
+    const c = (id: number, title: string, cityIds: string[]) => ({ id, title, summary: 'Resumen', highlights: ['h'], cityIds });
+    create.mockResolvedValue(completion([
+      c(1, 'Coquimbo playas', ['coquimbo']), c(2, 'Coquimbo gastronómico', ['coquimbo']),
+      c(3, 'Costa central', ['valparaiso', 'vinadelmar']), c(4, 'Coquimbo histórico', ['coquimbo']),
+      c(5, 'Coquimbo y Valpo', ['coquimbo', 'valparaiso']), c(6, 'Coquimbo aventura', ['coquimbo']),
+      c(7, 'Viña relax', ['vinadelmar']), c(8, 'Coquimbo nocturno', ['coquimbo']),
+    ]));
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'Un viaje a Coquimbo', planSessionId: 's-coq', cityIndex: index });
+
+    const shown = [...titles(await post()), ...titles(await post()), ...titles(await post())];
+
+    expect(shown).toEqual(['Coquimbo playas', 'Coquimbo gastronómico', 'Coquimbo histórico', 'Coquimbo aventura', 'Coquimbo nocturno']);
+    expect(create).toHaveBeenCalledTimes(2);   // 5 in-city options = 2 full pages from batch 1; the lone leftover triggers a fresh call
+  });
+
   it('discards the queue when the inputs change', async () => {
     const { app } = buildApp();
     const token = await getToken(app);

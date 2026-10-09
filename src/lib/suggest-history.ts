@@ -32,9 +32,40 @@ export function suggestInputsHash(body: Pick<AiSuggestBody, 'preferences' | 'dur
   return sha256(JSON.stringify([body.preferences, body.duration ?? null, body.budget ?? null, (body.cityIndex ?? []).map(c => c.id)]));
 }
 
-/** Identity of a suggestion's route: ordered city ids, else its normalized title. */
+/**
+ * Identity of a suggestion: ordered city ids + normalized title. Cities alone are not enough —
+ * a single-city request ("Coquimbo") yields many distinct options with the same cityIds.
+ */
 export function routeKey(o: ShownSuggestion): string {
-  return o.cityIds?.length ? o.cityIds.join('>') : o.title.trim().toLowerCase();
+  return `${(o.cityIds ?? []).join('>')}|${o.title.trim().toLowerCase()}`;
+}
+
+const fold = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * When the traveler names cities from the index ("Coquimbo"), keep only options that stay inside
+ * those cities. Names match accent/case-insensitively as whole words. Nothing named, no index,
+ * or no surviving option → the list is returned unchanged (never empty).
+ * ponytail: plain name matching — a city named like a common word ("Nice" in "a nice trip") can
+ * over-restrict; upgrade to an explicit destination field from the frontend if that bites.
+ */
+export function restrictToMentionedCities(
+  options: TripSuggestion[], preferences: string, cityIndex?: { id: string; name: string }[],
+): TripSuggestion[] {
+  const text = fold(preferences);
+  const named = new Set(
+    (cityIndex ?? [])
+      .filter(c => new RegExp(`(^|[^a-z0-9])${escapeRegExp(fold(c.name))}($|[^a-z0-9])`).test(text))
+      .map(c => c.id),
+  );
+  if (named.size === 0) return options;
+  const kept = options.filter(o => (o.cityIds?.length ?? 0) > 0 && o.cityIds!.every(id => named.has(id)));
+  if (kept.length === 0) {
+    logger.warn({ msg: 'AI suggest: no option stayed inside the named cities; returning unfiltered', named: [...named] });
+    return options;
+  }
+  return kept;
 }
 
 export async function loadSuggestHistory(userId: string, planSessionId: string): Promise<ShownSuggestion[]> {

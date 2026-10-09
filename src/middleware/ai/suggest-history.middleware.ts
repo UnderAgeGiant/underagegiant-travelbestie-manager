@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import {
-  loadSuggestHistory, loadSuggestQueue, saveSuggestQueue, suggestInputsHash, takeSuggestionPage,
+  loadSuggestHistory, loadSuggestQueue, saveSuggestQueue, suggestInputsHash, takeSuggestionPage, restrictToMentionedCities,
 } from '../../lib/suggest-history';
 import { SUGGEST_PAGE_SIZE } from '../../lib/ai-limits';
 import type { AiSuggestBody } from '../../schemas/ai.schemas';
@@ -35,10 +35,11 @@ export function unlessServedFromQueue(fn: RequestHandler): RequestHandler {
   return (req, res, next) => (req.suggestServedFromQueue ? next() : fn(req, res, next));
 }
 
-/** After a fresh ai.suggest: show the first unseen page, queue the unseen rest for the next clicks. */
+/** After a fresh ai.suggest: keep only options inside the cities the traveler named, show the first unseen page, queue the unseen rest. */
 export const takeFreshSuggestionPageMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const body = req.body as AiSuggestBody;
-  const { page, rest } = takeSuggestionPage((req.result as SuggestTripsResponse).options, req.suggestHistory ?? [], SUGGEST_PAGE_SIZE);
+  const inScope = restrictToMentionedCities((req.result as SuggestTripsResponse).options, body.preferences, body.cityIndex);
+  const { page, rest } = takeSuggestionPage(inScope, req.suggestHistory ?? [], SUGGEST_PAGE_SIZE);
   req.result = { options: page };
   if (body.planSessionId) {
     await saveSuggestQueue(req.user!.userId, body.planSessionId, { inputsHash: suggestInputsHash(body), options: rest });

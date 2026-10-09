@@ -9,7 +9,7 @@ jest.mock('../src/lib/redis', () => ({
 
 import {
   suggestHistoryKey, routeKey, loadSuggestHistory, appendSuggestHistory,
-  takeSuggestionPage, suggestInputsHash, loadSuggestQueue, saveSuggestQueue, SUGGEST_HISTORY_MAX,
+  takeSuggestionPage, restrictToMentionedCities, suggestInputsHash, loadSuggestQueue, saveSuggestQueue, SUGGEST_HISTORY_MAX,
 } from '../src/lib/suggest-history';
 import { redis } from '../src/lib/redis';
 
@@ -22,10 +22,48 @@ describe('suggest-history', () => {
     expect(suggestHistoryKey('u1', 's1')).toMatch(/^suggest:history:u1:[0-9a-f]{64}$/);
   });
 
-  it('routeKey uses ordered cityIds, else lower-cased trimmed title', () => {
-    expect(routeKey({ title: 'X', cityIds: ['paris', 'rome'] })).toBe('paris>rome');
-    expect(routeKey({ title: '  Europa Clásica ', cityIds: [] })).toBe('europa clásica');
-    expect(routeKey({ title: 'A' })).toBe('a');
+  it('routeKey is ordered cityIds plus the lower-cased trimmed title', () => {
+    expect(routeKey({ title: 'X', cityIds: ['paris', 'rome'] })).toBe('paris>rome|x');
+    expect(routeKey({ title: '  Europa Clásica ', cityIds: [] })).toBe('|europa clásica');
+    expect(routeKey({ title: 'A' })).toBe('|a');
+  });
+
+  it('same city, different theme is NOT a repeat (single-city sessions)', () => {
+    const { page } = takeSuggestionPage(
+      [opt(1, 'Coquimbo de playas', ['coquimbo']), opt(2, 'Coquimbo gastronómico', ['coquimbo'])],
+      [{ title: 'Coquimbo clásico', cityIds: ['coquimbo'] }],
+      2,
+    );
+    expect(page.map(o => o.title)).toEqual(['Coquimbo de playas', 'Coquimbo gastronómico']);
+  });
+
+  describe('restrictToMentionedCities', () => {
+    const cityIndex = [
+      { id: 'coquimbo', name: 'Coquimbo' }, { id: 'valparaiso', name: 'Valparaíso' },
+      { id: 'vinadelmar', name: 'Viña del Mar' }, { id: 'lima', name: 'Lima' },
+    ];
+    const opts = [
+      opt(1, 'A', ['coquimbo']), opt(2, 'B', ['valparaiso', 'vinadelmar']),
+      opt(3, 'C', ['coquimbo', 'valparaiso']), opt(4, 'D', []),
+    ];
+
+    it('keeps only options whose every city was named by the traveler', () => {
+      expect(restrictToMentionedCities(opts, 'Quiero ir a Coquimbo con mi familia', cityIndex).map(o => o.title)).toEqual(['A']);
+    });
+
+    it('matches names ignoring accents and case, as whole words', () => {
+      expect(restrictToMentionedCities(opts, 'VALPARAISO y vina del mar', cityIndex).map(o => o.title)).toEqual(['B']);
+      expect(restrictToMentionedCities(opts, 'quiero limar asperezas en la playa', cityIndex)).toBe(opts);
+    });
+
+    it('leaves the options untouched when no indexed city is named, or no index was sent', () => {
+      expect(restrictToMentionedCities(opts, 'playa y sol', cityIndex)).toBe(opts);
+      expect(restrictToMentionedCities(opts, 'Coquimbo', undefined)).toBe(opts);
+    });
+
+    it('returns the unfiltered list when no option survives (never empty)', () => {
+      expect(restrictToMentionedCities(opts, 'Lima', cityIndex)).toBe(opts);
+    });
   });
 
   it('appends across calls with a 24h TTL and caps at SUGGEST_HISTORY_MAX', async () => {
@@ -46,7 +84,7 @@ describe('suggest-history', () => {
   it('takes the first unseen options as the page, renumbered 1..n, and keeps the other unseen as rest', () => {
     const { page, rest } = takeSuggestionPage(
       [opt(5, 'Viejo', ['paris', 'rome']), opt(6, 'A', ['tokyo']), opt(7, 'B', ['lima']), opt(8, 'C', ['cusco'])],
-      [{ title: 'Viejo renombrado', cityIds: ['paris', 'rome'] }],
+      [{ title: ' viejo ', cityIds: ['paris', 'rome'] }],
       2,
     );
     expect(page.map(o => [o.id, o.title])).toEqual([[1, 'A'], [2, 'B']]);
@@ -56,7 +94,7 @@ describe('suggest-history', () => {
   it('falls back to the first options when every one is a repeat (never empty)', () => {
     const { page, rest } = takeSuggestionPage(
       [opt(1, 'A', ['paris']), opt(2, 'B', ['rome'])],
-      [{ title: 'x', cityIds: ['paris'] }, { title: 'y', cityIds: ['rome'] }],
+      [{ title: 'A', cityIds: ['paris'] }, { title: 'B', cityIds: ['rome'] }],
       2,
     );
     expect(page.map(o => o.title)).toEqual(['A', 'B']);
