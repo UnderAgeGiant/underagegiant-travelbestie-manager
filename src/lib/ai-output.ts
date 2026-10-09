@@ -11,7 +11,7 @@ export function sanitizeSuggestOutput(raw: unknown, cityIndex?: CatalogEntry[]):
     ...o,
     cityIds: (o.cityIds ?? []).filter(id => ID_PATTERN.test(id) && (!allowed || allowed.has(id))),
   }));
-  return { options: [options[0], options[1]] };
+  return { options };
 }
 
 /** Validates /ai/plan model output. Throws ZodError on structural violations; drops attractions whose ID is outside the sent catalog (catalogued cities) or malformed (uncatalogued cities). */

@@ -225,7 +225,7 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte', planSessionId: 'session-1' });
-    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => String(c[0]).startsWith('suggest:'));
+    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => /^suggest:(?!history:|queue:)/.test(String(c[0])));
     expect(setCalls).toHaveLength(1);
     expect(JSON.parse(setCalls[0][1])).toHaveLength(2);
     expect(setCalls[0].slice(2)).toEqual(['EX', 86400]);
@@ -236,6 +236,136 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
-    expect(create.mock.calls[0][0].max_tokens).toBe(4000);
+    expect(create.mock.calls[0][0].max_tokens).toBe(8000);
+  });
+});
+
+describe('POST /ai/suggest — batch of 8, served 2 at a time, never repeats (T1)', () => {
+  const completion = (options: any[]) => ({
+    choices: [{ message: { content: JSON.stringify({ options }) } }],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+  });
+  const cities = ['paris', 'rome', 'tokyo', 'lima', 'cusco', 'quito', 'bogota', 'cairo'];
+  const batch = () => cities.map((c, i) => ({ id: i + 1, title: `T${i + 1}`, summary: 'Resumen', highlights: ['h'], cityIds: [c] }));
+  const cityIndex = cities.map(id => ({ id, name: id }));
+  const store = new Map<string, string>();
+  const body = { preferences: 'cultura', planSessionId: 's1', cityIndex };
+  const titles = (res: any) => res.body.options.map((x: any) => x.title);
+
+  beforeEach(() => {
+    store.clear();
+    create.mockReset().mockResolvedValue(completion(batch()));
+    (redis.get as jest.Mock).mockReset().mockImplementation(async (k: string) => store.get(k) ?? null);
+    (redis.set as jest.Mock).mockReset().mockImplementation(async (k: string, v: string) => { store.set(k, v); });
+  });
+
+  it('asks DeepSeek for 8 options with no avoid list, returns the first 2, then serves the rest from the queue', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+
+    const first = await post();
+    expect(first.status).toBe(200);
+    expect(titles(first)).toEqual(['T1', 'T2']);
+    expect(first.body.options.map((x: any) => x.id)).toEqual([1, 2]);
+    const userMessage = create.mock.calls[0][0].messages[1].content as string;
+    expect(userMessage).toContain('exactamente 8');
+    expect(userMessage).not.toContain('<ya_mostradas>');
+
+    expect(titles(await post())).toEqual(['T3', 'T4']);
+    const third = await post();
+    expect(titles(third)).toEqual(['T5', 'T6']);
+    expect(third.body.options.map((x: any) => x.id)).toEqual([1, 2]);
+    expect(titles(await post())).toEqual(['T7', 'T8']);
+    expect(create).toHaveBeenCalledTimes(1);
+
+    await post();
+    expect(create).toHaveBeenCalledTimes(2);
+    // Only the 2 DeepSeek calls are charged; the 3 queue-served clicks are the free changes.
+    expect(karmaRepo.events.filter((e: any) => e.reason === 'ai_suggest')).toHaveLength(2);
+  });
+
+  it('serves queued options even with 0 karma, but a fresh call still needs karma', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await post();
+    karmaRepo.setScore(0);
+    const queued = await post();
+    expect(queued.status).toBe(200);
+    expect(titles(queued)).toEqual(['T3', 'T4']);
+    const fresh = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(fresh.status).toBe(402);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores the served page as the plan-resolvable options for each click', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    const lastBatchKey = [...store.keys()].find(k => /^suggest:(?!history:|queue:)/.test(k))!;
+    expect(JSON.parse(store.get(lastBatchKey)!).map((o: any) => o.title)).toEqual(['T3', 'T4']);
+  });
+
+  it('makes a fresh call instead of serving a single leftover option from the queue', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    create.mockResolvedValue(completion(batch().slice(0, 7)));
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await post(); await post(); await post();          // T1-2, T3-4, T5-6 → T7 left alone
+    expect(create).toHaveBeenCalledTimes(1);
+    const res = await post();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(res.body.options).toHaveLength(1);          // fresh batch: only T7 is still unseen
+    expect(titles(res)).toEqual(['T7']);
+  });
+
+  it('keeps a named-city request inside that city across the whole batch', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    const index = [{ id: 'coquimbo', name: 'Coquimbo' }, { id: 'valparaiso', name: 'Valparaíso' }, { id: 'vinadelmar', name: 'Viña del Mar' }];
+    const c = (id: number, title: string, cityIds: string[]) => ({ id, title, summary: 'Resumen', highlights: ['h'], cityIds });
+    create.mockResolvedValue(completion([
+      c(1, 'Coquimbo playas', ['coquimbo']), c(2, 'Coquimbo gastronómico', ['coquimbo']),
+      c(3, 'Costa central', ['valparaiso', 'vinadelmar']), c(4, 'Coquimbo histórico', ['coquimbo']),
+      c(5, 'Coquimbo y Valpo', ['coquimbo', 'valparaiso']), c(6, 'Coquimbo aventura', ['coquimbo']),
+      c(7, 'Viña relax', ['vinadelmar']), c(8, 'Coquimbo nocturno', ['coquimbo']),
+    ]));
+    const post = () => request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'Un viaje a Coquimbo', planSessionId: 's-coq', cityIndex: index });
+
+    const shown = [...titles(await post()), ...titles(await post()), ...titles(await post())];
+
+    expect(shown).toEqual(['Coquimbo playas', 'Coquimbo gastronómico', 'Coquimbo histórico', 'Coquimbo aventura', 'Coquimbo nocturno']);
+    expect(create).toHaveBeenCalledTimes(2);   // 5 in-city options = 2 full pages from batch 1; the lone leftover triggers a fresh call
+  });
+
+  it('discards the queue when the inputs change', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips options already shown in the session when taking a fresh page', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send({ ...body, preferences: 'playa' });
+    expect(titles(res)).toEqual(['T3', 'T4']);
+  });
+
+  it('still answers with 2 options when Redis is down', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    (redis.get as jest.Mock).mockRejectedValue(new Error('down'));
+    (redis.set as jest.Mock).mockRejectedValue(new Error('down'));
+
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`).send(body);
+
+    expect(res.status).toBe(200);
+    expect(titles(res)).toEqual(['T1', 'T2']);
   });
 });

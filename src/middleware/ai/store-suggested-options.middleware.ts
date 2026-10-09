@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { storeSuggestedOptions } from '../../lib/suggested-options-store';
+import { appendSuggestHistory } from '../../lib/suggest-history';
 import type { AiSuggestBody } from '../../schemas/ai.schemas';
 import type { SuggestTripsResponse } from '../../types';
 
@@ -7,7 +8,9 @@ import type { SuggestTripsResponse } from '../../types';
 export const storeSuggestedOptionsMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const planSessionId = (req.body as AiSuggestBody).planSessionId;
   if (planSessionId) {
-    await storeSuggestedOptions(req.user!.userId, planSessionId, (req.result as SuggestTripsResponse).options);
+    const { options } = req.result as SuggestTripsResponse;
+    await storeSuggestedOptions(req.user!.userId, planSessionId, options);
+    await appendSuggestHistory(req.user!.userId, planSessionId, options);
   }
   next();
 };
