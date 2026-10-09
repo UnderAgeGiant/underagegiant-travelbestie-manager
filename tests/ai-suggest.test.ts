@@ -225,7 +225,7 @@ describe('POST /ai/suggest', () => {
       .post('/ai/suggest')
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte', planSessionId: 'session-1' });
-    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => String(c[0]).startsWith('suggest:'));
+    const setCalls = (redis.set as jest.Mock).mock.calls.filter(c => String(c[0]).startsWith('suggest:') && !String(c[0]).startsWith('suggest:history:'));
     expect(setCalls).toHaveLength(1);
     expect(JSON.parse(setCalls[0][1])).toHaveLength(2);
     expect(setCalls[0].slice(2)).toEqual(['EX', 86400]);
@@ -237,5 +237,47 @@ describe('POST /ai/suggest', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
     expect(create.mock.calls[0][0].max_tokens).toBe(4000);
+  });
+});
+
+describe('POST /ai/suggest — no repeats across a session (T1)', () => {
+  const completion = (options: any[]) => ({
+    choices: [{ message: { content: JSON.stringify({ options }) } }],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+  });
+  const o = (id: number, title: string, cityIds: string[]) => ({ id, title, summary: 'Resumen', highlights: ['h'], cityIds });
+  const cityIndex = [{ id: 'paris', name: 'París' }, { id: 'rome', name: 'Roma' }, { id: 'tokyo', name: 'Tokio' }];
+
+  beforeEach(() => { create.mockReset(); (redis.get as jest.Mock).mockReset().mockResolvedValue(null); });
+
+  it('puts previously shown routes in the USER prompt and drops exact repeats', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    (redis.get as jest.Mock).mockImplementation(async (k: string) =>
+      k.startsWith('suggest:history:') ? JSON.stringify([{ title: 'Clásicos', cityIds: ['paris', 'rome'] }]) : null);
+    create.mockResolvedValue(completion([o(1, 'Repetido', ['paris', 'rome']), o(2, 'Nuevo', ['tokyo'])]));
+
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'cultura', planSessionId: 's1', cityIndex });
+
+    expect(res.status).toBe(200);
+    expect(res.body.options.map((x: any) => x.title)).toEqual(['Nuevo']);
+    const [{ messages }] = create.mock.calls[0];
+    expect(messages[0].content).not.toContain('Clásicos');
+    expect(messages[1].content).toContain('Clásicos (paris → rome)');
+  });
+
+  it('still answers with both options when Redis is down', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    (redis.get as jest.Mock).mockRejectedValue(new Error('down'));
+    create.mockResolvedValue(completion([o(1, 'A', ['paris']), o(2, 'B', ['rome'])]));
+
+    const res = await request(app).post('/ai/suggest').set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'cultura', planSessionId: 's1', cityIndex });
+
+    expect(res.status).toBe(200);
+    expect(res.body.options).toHaveLength(2);
+    expect(create.mock.calls[0][0].messages[1].content).not.toContain('<ya_mostradas>');
   });
 });

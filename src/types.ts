@@ -311,7 +311,7 @@ export interface TripSuggestion {
 }
 
 export interface SuggestTripsResponse {
-  options: [TripSuggestion, TripSuggestion];
+  options: TripSuggestion[];
 }
 
 export interface CatalogEntry { id: string; name: string; }
@@ -480,6 +480,7 @@ declare global {
       karmaPurchase?: KarmaPurchase;
       result?: unknown;
       planChangeResult?: PlanChangeResult;   // ← plan change management
+      suggestHistory?: import('./lib/suggest-history').ShownSuggestion[];  // ← suggest history for no-repeat filtering
       sharedTripMeta?: { tripId: string; ownerId: string; tripName?: string };
       seoRow?: SeoSharedRow | null;      // set by TripController.seoShared
       invitedUser?: User;                // set by resolve-invitee.middleware.ts
