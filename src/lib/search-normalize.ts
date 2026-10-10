@@ -18,6 +18,7 @@ export function matchCityIds(q: string): string[] {
 
 // Built from normalizeSearch itself, so SQL translate() and the JS normalizer agree char-for-char
 // over Latin-1 Supplement + Latin Extended-A/B (U+00C0–U+024F), upper and lower case — no collation dependence.
+// Maps every character whose normalized form is a single letter (ASCII or non-ASCII like æ/ø).
 // Combining marks U+0300–U+036F go in FROM only: translate() deletes FROM chars with no TO counterpart (NFD-stored titles).
 // ponytail: Latin scripts only; CREATE EXTENSION unaccent + an immutable wrapper if other scripts ever matter.
 const accentFrom: string[] = [];
@@ -25,7 +26,7 @@ const accentTo: string[] = [];
 for (let cp = 0xc0; cp <= 0x24f; cp++) {
   const ch = String.fromCodePoint(cp);
   const n = normalizeSearch(ch);
-  if (n !== ch.toLowerCase() && /^[a-z]$/.test(n)) { accentFrom.push(ch); accentTo.push(n); }
+  if (n !== ch.toLowerCase() && n.length === 1) { accentFrom.push(ch); accentTo.push(n); }
 }
 for (let cp = 0x300; cp <= 0x36f; cp++) accentFrom.push(String.fromCodePoint(cp));
 export const SQL_ACCENT_FROM = accentFrom.join('');
