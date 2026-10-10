@@ -30,9 +30,24 @@ describe('matchCityIds', () => {
 });
 
 describe('SQL accent maps', () => {
-  it('are the same length and map lowercase accented chars to ascii', () => {
-    expect([...SQL_ACCENT_FROM].length).toBe([...SQL_ACCENT_TO].length);
-    const map = (s: string) => [...s].map(c => { const i = [...SQL_ACCENT_FROM].indexOf(c); return i < 0 ? c : [...SQL_ACCENT_TO][i]; }).join('');
-    expect(map('parís ñandú são')).toBe('paris nandu sao');
+  // Emulates Postgres translate(lower(x), FROM, TO): chars past TO's length are deleted.
+  const from = [...SQL_ACCENT_FROM];
+  const to = [...SQL_ACCENT_TO];
+  const translate = (s: string) => [...s].map(c => { const i = from.indexOf(c); return i < 0 ? c : (to[i] ?? ''); }).join('');
+
+  it('strips accents like the JS normalizer', () => {
+    expect(translate('parís ñandú são český')).toBe('paris nandu sao cesky');
+    expect(translate('parís')).toBe('paris'); // NFD-stored title
+    expect(translate('PARÍS'.toLowerCase())).toBe('paris');
+  });
+
+  it('agrees with normalizeSearch for every single-letter result in U+00C0–U+024F', () => {
+    const mismatches: string[] = [];
+    for (let cp = 0xc0; cp <= 0x24f; cp++) {
+      const ch = String.fromCodePoint(cp);
+      if (normalizeSearch(ch).length !== 1) continue;
+      if (translate(ch.toLowerCase()) !== normalizeSearch(ch)) mismatches.push(ch);
+    }
+    expect(mismatches).toEqual([]);
   });
 });
