@@ -2,6 +2,7 @@ import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
 import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow } from '../../types';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
+import { normalizeSearch, matchCityIds, SQL_ACCENT_FROM, SQL_ACCENT_TO } from '../../lib/search-normalize';
 
 // dd/mm/yyyy → yyyy-mm-dd
 function toISO(dmy: string): string {
@@ -147,8 +148,9 @@ export class PgTripRepository implements ITripRepository {
   }
 
   async searchShared(query: string): Promise<SharedTripPayload[]> {
-    const q = query.trim();
+    const q = normalizeSearch(query);
     if (!q) return [];
+    const like = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
               u.email AS owner_email, u.name AS owner_name,
@@ -156,10 +158,12 @@ export class PgTripRepository implements ITripRepository {
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
        WHERE t.share_id IS NOT NULL
-         AND (t.title ILIKE $1 OR u.name ILIKE $1)
+         AND (translate(lower(t.title), $2, $3) LIKE $1 ESCAPE '\\'
+              OR translate(lower(u.name), $2, $3) LIKE $1 ESCAPE '\\'
+              OR EXISTS (SELECT 1 FROM trip_stops s WHERE s.trip_id = t.trip_id AND s.city_id = ANY($4::text[])))
        ORDER BY t.created_at DESC
        LIMIT 5`,
-      [`%${q}%`],
+      [like, SQL_ACCENT_FROM, SQL_ACCENT_TO, matchCityIds(query)],
     );
     const trips = await hydrateTrips(this.pool, rows, true);
     return trips.map((trip, i) => ({
