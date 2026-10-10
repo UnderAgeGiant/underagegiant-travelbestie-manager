@@ -119,6 +119,19 @@ describe('GET /shared?q=', () => {
     expect(res.body[0].ownerName).toBeDefined();
   });
 
+  it('matches accent-insensitive (París query finds Paris ❤️ title)', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    const { tripId } = await createAndShareTrip(app, token, 'Paris ❤️');
+
+    const res = await request(app).get('/shared?q=PAR%C3%8DS');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].tripName).toBe('Paris ❤️');
+    expect(res.body[0].planId).toBe(tripId);
+  });
+
   it('returns empty array for blank query', async () => {
     const { app } = buildApp();
     const res = await request(app).get('/shared?q=');

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { normalizeSearch } from '../../src/lib/search-normalize';
 import { IUserRepository } from '../../src/repositories/interfaces/user.repository';
 import { ITripRepository } from '../../src/repositories/interfaces/trip.repository';
 import { ICommentRepository } from '../../src/repositories/interfaces/comment.repository';
@@ -120,11 +121,10 @@ export class StubTripRepository implements ITripRepository {
   }
 
   async searchShared(query: string): Promise<SharedTripPayload[]> {
-    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim();
-    const q = norm(query);
+    const q = normalizeSearch(query);
     if (!q) return [];
     return [...this.trips.values()]
-      .filter(t => t.shareId && norm(t.title).includes(q))
+      .filter(t => t.shareId && normalizeSearch(t.title).includes(q))
       .slice(0, 5)
       .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
   }
