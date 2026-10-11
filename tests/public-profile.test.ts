@@ -37,6 +37,7 @@ function buildApp() {
   const trips = new StubTripRepository();
   const follows = new StubFollowRepository();
   const notifications = new StubNotificationRepository();
+  const trophies = new StubTrophyRepository();
   const userCtrl = new UserController(users);
   const collab = new StubCollaboratorRepository(users, trips);
   const app = express();
@@ -45,9 +46,9 @@ function buildApp() {
   app.use('/trips', createTripsRouter(new TripController(trips), new KarmaController(new StubKarmaRepository()),
     new CollaboratorController(collab), collab, users, trips, notifications));
   app.use('/users', createUsersRouter(userCtrl, follows, notifications));
-  app.use('/u', createPublicProfileRouter(userCtrl, trips, follows, new StubTrophyRepository()));
+  app.use('/u', createPublicProfileRouter(userCtrl, trips, follows, trophies));
   app.use(errorHandler);
-  return { app };
+  return { app, users, trophies };
 }
 
 async function account(app: express.Express, email: string, username?: string): Promise<string> {
@@ -58,15 +59,19 @@ async function account(app: express.Express, email: string, username?: string): 
 
 describe('GET /u/:username', () => {
   it('returns the public profile without PII', async () => {
-    const { app } = buildApp();
+    const { app, users, trophies } = buildApp();
     const t = await account(app, 'ana@x.com', 'ana');
+    const ana = await users.findByUsername('ana');
+    await trophies.awardTiers(ana!.id, 'favorites', ['bronze']);
+    await trophies.addEvent(ana!.id, 'favorites', 'trip-1', 'trip-1:fan-1');
     const trip = await request(app).post('/trips').set('Authorization', `Bearer ${t}`)
       .send({ title: 'Lima', stops: [{ cityId: 'lima', checkIn: '01/11/2026', checkOut: '03/11/2026', selectedAttractions: [] }], transits: [] });
     await request(app).post(`/trips/${trip.body.id}/share`).set('Authorization', `Bearer ${t}`);
 
     const res = await request(app).get('/u/Ana');
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ username: 'ana', name: 'Ana', followerCount: 0, followingCount: 0, trophies: [], visitedCityIds: ['lima'] });
+    expect(res.body).toMatchObject({ username: 'ana', name: 'Ana', followerCount: 0, followingCount: 0, visitedCityIds: ['lima'] });
+    expect(res.body.trophies).toHaveLength(1);
     expect(res.body.trips).toHaveLength(1);
     expect(res.body).not.toHaveProperty('isFollowedByMe');
     const raw = JSON.stringify(res.body);
