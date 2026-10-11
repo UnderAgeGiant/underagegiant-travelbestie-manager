@@ -80,6 +80,7 @@ export interface SharedTripPayload {
   ownerId?:         string;   // internal user UUID — populated by findByShareId; consumed by notify middleware
   ownerEmail:       string;
   ownerName:        string;
+  ownerUsername?:   string | null;
   createdAt:        string;
   stops:            TripStop[];
   transits:         TransitLeg[];
@@ -111,6 +112,7 @@ export interface FeedPlan {
   id:            string;        // shareId
   tripName:      string;
   ownerName:     string;
+  ownerUsername: string | null;
   createdAt:     string;        // ISO
   favoriteCount: number;
   stops:         FeedPlanStop[];

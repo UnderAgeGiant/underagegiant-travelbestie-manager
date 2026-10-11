@@ -58,7 +58,7 @@ describe('PgTripRepository.listFeed', () => {
       attractions: [{ stop_id: 'st1', attraction_id: 'rome_0', start_time: '09:00:00', end_time: null, date: '2026-06-02', category: 'poi', ticket_purchased: false }],
     });
     const [item] = (await new PgTripRepository(pool).listFeed(null, 20)).items;
-    expect(Object.keys(item).sort()).toEqual(['createdAt', 'favoriteCount', 'id', 'ownerName', 'stops', 'tripName']);
+    expect(Object.keys(item).sort()).toEqual(['createdAt', 'favoriteCount', 'id', 'ownerName', 'ownerUsername', 'stops', 'tripName']);
     expect(item.stops).toEqual([{
       cityId: 'rome', checkIn: '01/06/2026', checkOut: '05/06/2026',
       selectedAttractions: [{ attractionId: 'rome_0', date: '02/06/2026', startTime: '09:00', endTime: null }],

@@ -6,7 +6,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -177,6 +177,18 @@ export class StubTripRepository implements ITripRepository {
       .slice(0, limit);
   }
 
+  async listSharedByOwner(ownerId: string, limit: number): Promise<FeedPlan[]> {
+    return [...this.trips.values()].filter(t => t.ownerId === ownerId && t.shareId && t.stops.length > 0).slice(0, limit)
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerName: '', ownerUsername: null, createdAt: t.createdAt, favoriteCount: 0,
+        stops: t.stops.map(s => ({ cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut, selectedAttractions: [] })) }));
+  }
+  followees = new Map<string, Set<string>>();   // followerId → followee ids; tests seed it
+  async listFollowingFeed(followerId: string, _cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
+    const ids = this.followees.get(followerId) ?? new Set<string>();
+    const items = (await Promise.all([...ids].map(id => this.listSharedByOwner(id, limit)))).flat().slice(0, limit);
+    return { items, nextCursor: null };
+  }
+
   async listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
     const eligible = [...this.trips.values()]
       .filter(t => t.shareId && t.stops.length > 0)
@@ -197,7 +209,7 @@ export class StubTripRepository implements ITripRepository {
     const hasMore = slice.length > limit;
     const page    = hasMore ? slice.slice(0, limit) : slice;
     const items = page.map(({ t, fav }) => ({
-      id: t.shareId!, tripName: t.title, ownerName: '', createdAt: t.createdAt, favoriteCount: fav,
+      id: t.shareId!, tripName: t.title, ownerName: '', ownerUsername: null, createdAt: t.createdAt, favoriteCount: fav,
       stops: t.stops.map(s => ({
         cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
         selectedAttractions: s.selectedAttractions.map(a => ({

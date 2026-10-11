@@ -149,7 +149,7 @@ export class TripController {
       const { cursor, limit } = req.feedQuery!;
       const rawCursor = typeof req.query.cursor === 'string' ? req.query.cursor : '';
       const isFirstPage = rawCursor === '' && limit === FEED_DEFAULT_LIMIT;
-      const cacheKey = `feed:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
+      const cacheKey = `feed:v2:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
       const { redis } = await import('../lib/redis');
 
       try {
@@ -175,6 +175,15 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
+  /** GET /feed/following — per viewer, never shared-cached. */
+  listFollowingFeed = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { cursor, limit } = req.feedQuery!;
+      req.result = await this.trips.listFollowingFeed(req.user!.userId, cursor, limit);
+      next();
+    } catch (err) { next(err); }
+  };
+
   /** Best-effort background refresh of the first feed page, throttled to roughly once per
    *  FEED_FIRST_PAGE_REFRESH_LOCK_TTL via a short-lived Redis lock (SET NX) so concurrent
    *  requests don't all trigger their own recompute. Never blocks the response — scheduled
@@ -189,7 +198,7 @@ export class TripController {
         );
         if (got !== 'OK') return; // another request already refreshed recently
         const page = await this.trips.listFeed(null, FEED_DEFAULT_LIMIT);
-        const cacheKey = `feed:${FEED_DEFAULT_LIMIT}:${createHash('sha256').update('first').digest('hex')}`;
+        const cacheKey = `feed:v2:${FEED_DEFAULT_LIMIT}:${createHash('sha256').update('first').digest('hex')}`;
         await redis.set(cacheKey, JSON.stringify(page), 'EX', TripController.FEED_FIRST_PAGE_TTL);
       } catch { /* best-effort only */ }
     })());
