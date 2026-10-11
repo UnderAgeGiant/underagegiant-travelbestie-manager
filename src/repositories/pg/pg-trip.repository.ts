@@ -141,7 +141,7 @@ export class PgTripRepository implements ITripRepository {
     if (shareIds.length === 0) return [];
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name
+              u.email AS owner_email, u.name AS owner_name, u.username AS owner_username
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
        WHERE t.share_id = ANY($1::text[])`,
@@ -157,6 +157,7 @@ export class PgTripRepository implements ITripRepository {
         tripName:   trip.title,
         ownerEmail: row.owner_email as string,
         ownerName:  row.owner_name  as string,
+        ownerUsername: (row.owner_username as string | null) ?? null,
         createdAt:  trip.createdAt,
         stops:      trip.stops,
         transits:   trip.transits,
@@ -176,7 +177,7 @@ export class PgTripRepository implements ITripRepository {
     const like = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name,
+              u.email AS owner_email, u.name AS owner_name, u.username AS owner_username,
               (SELECT COUNT(*) FROM trip_favorites f WHERE f.trip_id = t.trip_id)::int AS favorite_count
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
@@ -194,6 +195,7 @@ export class PgTripRepository implements ITripRepository {
       tripName:      trip.title,
       ownerEmail:    rows[i].owner_email as string,
       ownerName:     rows[i].owner_name  as string,
+      ownerUsername: (rows[i].owner_username as string | null) ?? null,
       createdAt:     trip.createdAt,
       stops:         trip.stops,
       transits:      trip.transits,

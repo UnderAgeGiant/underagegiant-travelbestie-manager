@@ -42,3 +42,36 @@ describe('PgTripRepository social reads', () => {
     expect(items[0]).toMatchObject({ id: 's1', ownerUsername: 'ana' });
   });
 });
+
+describe('PgTripRepository owner username on shared payloads', () => {
+  // Only the owner-joined share queries return a trip row; hydrate sub-queries get [].
+  const sharedPool = (main: object[]) => {
+    const query = jest.fn(async (sql: string, _p?: unknown[]) =>
+      ({ rows: sql.includes('u.email AS owner_email') ? main : [] }));
+    return { pool: { query } as unknown as Pool, query };
+  };
+  const sharedRow = {
+    trip_id: T1, title: 'Europa', owner_id: ME, created_at: new Date('2026-10-01T10:00:00Z'),
+    share_id: 's1', owner_email: 'a@x.test', owner_name: 'Ana', owner_username: 'ana', favorite_count: 2,
+  };
+
+  it('findManyByShareIds selects u.username and maps ownerUsername', async () => {
+    const { pool, query } = sharedPool([sharedRow]);
+    const [p] = await new PgTripRepository(pool).findManyByShareIds(['s1']);
+    expect(query.mock.calls[0][0]).toContain('u.username AS owner_username');
+    expect(p).toMatchObject({ id: 's1', ownerUsername: 'ana' });
+  });
+
+  it('searchShared selects u.username and maps ownerUsername', async () => {
+    const { pool, query } = sharedPool([sharedRow]);
+    const [p] = await new PgTripRepository(pool).searchShared('Europa');
+    expect(query.mock.calls[0][0]).toContain('u.username AS owner_username');
+    expect(p).toMatchObject({ id: 's1', ownerUsername: 'ana' });
+  });
+
+  it('maps a null username to ownerUsername: null', async () => {
+    const { pool } = sharedPool([{ ...sharedRow, owner_username: null }]);
+    const [p] = await new PgTripRepository(pool).findManyByShareIds(['s1']);
+    expect(p.ownerUsername).toBeNull();
+  });
+});

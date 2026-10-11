@@ -114,7 +114,7 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
   }
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
@@ -132,7 +132,7 @@ export class StubTripRepository implements ITripRepository {
     return [...this.trips.values()]
       .filter(t => t.shareId && normalizeSearch(t.title).includes(q))
       .slice(0, 5)
-      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
   }
 
   private favoriteCounts = new Map<string, number>(); // shareId -> favorite count
