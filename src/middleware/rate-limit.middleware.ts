@@ -24,6 +24,8 @@ export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
       // good. The next request's NX expire closes that window immediately.
       await redis.expire(key, windowSeconds, 'NX');
       if (count > maxRequests) {
+        // ponytail: whole window, not the key's remaining TTL — over-estimates by < windowSeconds, saves a Redis call.
+        res.setHeader('Retry-After', String(windowSeconds));
         respondError(req, res, 429, { error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.' });
         return;
       }

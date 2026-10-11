@@ -50,6 +50,12 @@ describe('rateLimitMiddleware', () => {
     expect(mockRedis.expire).toHaveBeenCalledWith(expect.any(String), 60, 'NX');
   });
 
+  it('sets Retry-After to the window on 429', async () => {
+    mockRedis.incr.mockResolvedValue(4);
+    const res = await request(buildLimitedApp(3)).get('/ping');
+    expect(res.headers['retry-after']).toBe('60');
+  });
+
   it('fails open when Redis throws — request is allowed', async () => {
     mockRedis.incr.mockRejectedValue(new Error('Redis down'));
     const res = await request(buildLimitedApp(3)).get('/ping');

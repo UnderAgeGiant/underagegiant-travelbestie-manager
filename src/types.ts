@@ -123,6 +123,18 @@ export interface FeedPage {
   nextCursor: string | null;
 }
 
+/** GET /u/:username (Feature 22). No email, no ids, no trophy progress. */
+export interface PublicProfile {
+  username:        string;
+  name:            string;
+  followerCount:   number;
+  followingCount:  number;
+  isFollowedByMe?: boolean;   // only for a logged-in viewer who is not the owner
+  trophies:        EarnedTrophy[];
+  visitedCityIds:  string[];
+  trips:           FeedPlan[];
+}
+
 /** Raw DB row for the SEO summary of a shared trip (city ids, not names — repositories stay DB-only). */
 export interface SeoSharedRow {
   id:              string;    // shareId
