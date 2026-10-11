@@ -13,6 +13,7 @@ import {
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
   highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo, rankingController,
+  followRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -30,6 +31,7 @@ import { createWeatherRouter }         from './routes/weather.routes';
 import { createSeoRouter }             from './routes/seo.routes';
 import { createTrophiesRouter }        from './routes/trophies.routes';
 import { createRankingsRouter }       from './routes/rankings.routes';
+import { createUsersRouter }           from './routes/users.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { noIndexApi, robotsTxt } from './middleware/no-index.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
@@ -88,6 +90,7 @@ app.use('/rankings', createRankingsRouter(rankingController));
 app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/trophies', createTrophiesRouter(trophyRepo, tripController, trophyRecorder));
+app.use('/users',    createUsersRouter(userController, followRepo, notificationRepo, trophyRecorder));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
 app.use('/seo',     createSeoRouter(tripController));
