@@ -12,7 +12,7 @@ export async function signRefreshedTokenMiddleware(
     const token = signToken({ userId: user.id, email: user.email, name: user.name });
     // validateAndRotate already rotated the stored token; persist the new raw value as a cookie.
     setRefreshCookie(res, req.newRawRefreshToken!);
-    req.result = { token, user: { name: user.name, email: user.email, countryOfResidence: user.countryOfResidence } };
+    req.result = { token, user: { name: user.name, email: user.email, countryOfResidence: user.countryOfResidence, username: user.username } };
     next();
   } catch (err) { next(err); }
 }

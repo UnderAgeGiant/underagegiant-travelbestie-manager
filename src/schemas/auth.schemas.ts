@@ -25,4 +25,5 @@ export const profileSchema = z.object({
   currentPassword: z.string().min(1).max(200).optional(),
   newPassword:     password.optional(),
   countryOfResidence: z.string().trim().regex(/^[A-Z]{2}$/, 'countryOfResidence must be a 2-letter ISO country code').nullable().optional(),
+  username:        z.string().trim().toLowerCase().max(50).optional(),
 }).refine(obj => Object.keys(obj).length > 0, { message: 'at least one field is required' });

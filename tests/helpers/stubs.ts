@@ -32,7 +32,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, username: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -46,13 +46,18 @@ export class StubUserRepository implements IUserRepository {
     return this.byId.get(id) ?? null;
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return [...this.byId.values()].find(u => u.username === username) ?? null;
+  }
+
   async update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string },
   ): Promise<User> {
     const user = this.byId.get(userId);
     if (!user) throw new Error('User not found');
     if (fields.name !== undefined) user.name = fields.name;
+    if (fields.username !== undefined) user.username = fields.username;
     if (fields.email !== undefined) {
       this.byEmail.delete(user.email);
       user.email = fields.email.toLowerCase();

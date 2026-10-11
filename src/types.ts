@@ -7,6 +7,7 @@ export interface User {
   email: string;
   passwordHash: string;
   countryOfResidence: string | null;
+  username: string | null;              // Feature 22 — opt-in public handle, lowercase
   createdAt: string;
 }
 
@@ -474,6 +475,8 @@ declare global {
       user?: AuthPayload;
       foundUser?: User;
       newEmailUser?: User;
+      usernameOwner?: User;   // set by UserController.findByRequestedUsername (PUT /auth/profile)
+      targetUser?: User;      // set by UserController.findByUsernameParam (/u/:username, /users/:username/*)
       newPasswordHash?: string;
       tokenUserId?: string;          // userId extracted from a validated refresh token
       newRawRefreshToken?: string;   // new raw refresh token after rotation
