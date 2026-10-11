@@ -16,6 +16,7 @@ import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-p
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
 import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
 import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repository';
+import { IFollowRepository } from '../../src/repositories/interfaces/follow.repository';
 import { IRankingRepository } from '../../src/repositories/interfaces/ranking.repository';
 
 export class StubUserRepository implements IUserRepository {
@@ -636,4 +637,17 @@ export class StubRankingRepository implements IRankingRepository {
     this.mineCalls.push({ weekStart, userId });
     return { weekStart, planners: { rank: 2, value: 3 }, trophies: null, favorited: null };
   }
+}
+
+export class StubFollowRepository implements IFollowRepository {
+  readonly pairs = new Set<string>();
+  readonly notified = new Set<string>();
+  async follow(a: string, b: string): Promise<boolean> { const k = `${a}>${b}`; const isNew = !this.pairs.has(k); this.pairs.add(k); return isNew; }
+  async unfollow(a: string, b: string): Promise<void> { this.pairs.delete(`${a}>${b}`); }
+  async isFollowing(a: string, b: string): Promise<boolean> { return this.pairs.has(`${a}>${b}`); }
+  async counts(id: string): Promise<{ followerCount: number; followingCount: number }> {
+    const all = [...this.pairs].map(p => p.split('>'));
+    return { followerCount: all.filter(([, b]) => b === id).length, followingCount: all.filter(([a]) => a === id).length };
+  }
+  async markNotified(a: string, b: string): Promise<boolean> { const k = `${a}>${b}`; const isNew = !this.notified.has(k); this.notified.add(k); return isNew; }
 }
