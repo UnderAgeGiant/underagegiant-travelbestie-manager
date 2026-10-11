@@ -14,7 +14,7 @@ const TOKEN = ['puta','puto','putas','putos','pico','raja','pene','verga','pajer
 
 const LEET: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't' };
 const normalize = (s: string): string =>
-  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[013457]/g, d => LEET[d]);
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[013457]/g, d => LEET[d]);
 const strip = (s: string): string => s.replace(/[_.-]/g, '');
 
 const EXACT_SET = new Set([...ROUTES, ...BRAND, ...SPANISH].flatMap(w => [normalize(w), strip(normalize(w))]));
