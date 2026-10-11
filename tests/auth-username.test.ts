@@ -70,8 +70,17 @@ describe('PUT /auth/profile — username', () => {
   it('409 when the DB unique index fires (rename race)', async () => {
     const { app, users } = buildApp();
     const t = await register(app, 'a@x.com');
-    jest.spyOn(users, 'update').mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }));
+    jest.spyOn(users, 'update').mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505', constraint: 'users_username_uidx' }));
     expect((await put(app, t, { username: 'ana' })).status).toBe(409);
+  });
+
+  it('an email-index unique violation is NOT reported as USERNAME_TAKEN', async () => {
+    const { app, users } = buildApp();
+    const t = await register(app, 'a@x.com');
+    jest.spyOn(users, 'update').mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505', constraint: 'users_email_lower_uidx' }));
+    const res = await put(app, t, { username: 'ana' });
+    expect(res.status).toBe(500);
+    expect(res.body.error).not.toBe('USERNAME_TAKEN');
   });
 
   it('login returns the username', async () => {

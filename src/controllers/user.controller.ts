@@ -49,7 +49,7 @@ export class UserController {
     } catch (err) { next(err); }
   };
 
-  /** Route param already lowercased + format-checked by validateUsernameParam. */
+  /** Expects :username already lowercased + format-checked (validateUsernameParam, added with the follow routes). */
   findByUsernameParam = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       req.targetUser = await this.users.findByUsername(req.params.username) ?? undefined;
@@ -77,7 +77,9 @@ export class UserController {
         updated = await this.users.update(userId, fields);
       } catch (err) {
         // users_username_uidx: two users claimed the same name between the pre-check and the write.
-        if ((err as { code?: string }).code === '23505') { respondError(req, res, 409, { error: 'USERNAME_TAKEN' }); return; }
+        // Any other unique violation (e.g. users_email_lower_uidx on an email change) must not read as USERNAME_TAKEN.
+        const pg = err as { code?: string; constraint?: string };
+        if (pg.code === '23505' && pg.constraint === 'users_username_uidx') { respondError(req, res, 409, { error: 'USERNAME_TAKEN' }); return; }
         throw err;
       }
       req.result = { user: { id: updated.id, name: updated.name, email: updated.email, countryOfResidence: updated.countryOfResidence, username: updated.username, createdAt: updated.createdAt } };
