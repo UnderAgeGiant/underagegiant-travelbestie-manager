@@ -10,6 +10,15 @@ import { errorHandler } from '../src/middleware/error.middleware';
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({ decryptPayloadMiddleware: (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/auth/verify-otp.middleware',      () => ({ verifyOtpMiddleware:      (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/rate-limit.middleware',           () => ({ rateLimitMiddleware: () => (_q: any, _s: any, n: any) => n() }));
+
+jest.mock('../src/lib/redis', () => ({
+  redis: {
+    set:  jest.fn().mockResolvedValue('OK'),
+    get:  jest.fn().mockResolvedValue(null),
+    del:  jest.fn().mockResolvedValue(1),
+    incr: jest.fn().mockResolvedValue(1),
+  },
+}));
 jest.mock('../src/lib/email', () => ({
   sendOtpEmail:     jest.fn().mockResolvedValue(undefined),
   sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
