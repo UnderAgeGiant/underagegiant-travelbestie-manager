@@ -245,7 +245,7 @@ export interface AppStats {
 }
 
 // ─── Rankings (Feature 70) ──────────────────────────────────────────────────
-export interface RankedUser { name: string; value: number }
+export interface RankedUser { name: string; username: string | null; value: number }
 export interface RankedCity { cityId: string; value: number }
 export interface RankedPlan { title: string; shareId: string; ownerName: string; value: number }
 export interface WeeklyRankings {
@@ -268,6 +268,7 @@ export interface Comment {
   id: string;
   attractionId: string;
   name: string;                           // taken from JWT — never from request body
+  username?: string | null;
   text: string;
   rating: number;                         // 1–5
   color: string;
@@ -461,6 +462,7 @@ export interface StepComment {
   id:         string;
   stepKey:    string;
   authorName: string;
+  authorUsername?: string | null;
   text:       string;
   createdAt:  string;
 }

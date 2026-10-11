@@ -9,10 +9,10 @@ const WEEK_START = `(($1::date)::timestamp AT TIME ZONE '${RANKINGS_TZ}')`;
 
 // Ties: value DESC, then whoever got there first. Value-0 rows never exist (GROUP BY of matching rows).
 const SQL_PLANNERS = `/*planners*/
-  SELECT u.name, COUNT(*)::int AS value
+  SELECT u.name, u.username, COUNT(*)::int AS value
     FROM trips t JOIN users u ON u.user_id = t.owner_id
    WHERE t.created_at >= ${WEEK_START}
-   GROUP BY u.user_id, u.name
+   GROUP BY u.user_id, u.name, u.username
    ORDER BY value DESC, MIN(t.created_at) ASC
    LIMIT $2`;
 
@@ -25,10 +25,10 @@ const SQL_DESTINATIONS = `/*destinations*/
    LIMIT $2`;
 
 const SQL_TROPHIES = `/*trophies*/
-  SELECT u.name, COUNT(*)::int AS value
+  SELECT u.name, u.username, COUNT(*)::int AS value
     FROM user_trophies ut JOIN users u ON u.user_id = ut.user_id
    WHERE ut.earned_at >= ${WEEK_START}
-   GROUP BY u.user_id, u.name
+   GROUP BY u.user_id, u.name, u.username
    ORDER BY value DESC, MIN(ut.earned_at) ASC
    LIMIT $2`;
 

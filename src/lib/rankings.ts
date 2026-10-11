@@ -14,5 +14,5 @@ export function santiagoWeekStart(now: Date = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-export const rankingsKey   = (weekStart: string): string => `rankings:${weekStart}`;
+export const rankingsKey   = (weekStart: string): string => `rankings:v2:${weekStart}`; // v2: payload gained username (old entries ignored)
 export const myRankingsKey = (weekStart: string, userId: string): string => `rankings:me:${weekStart}:${userId}`;

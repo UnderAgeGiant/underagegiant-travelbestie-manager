@@ -641,9 +641,9 @@ export class StubRankingRepository implements IRankingRepository {
   mineCalls: { weekStart: string; userId: string }[] = [];
   weekly: Omit<WeeklyRankings, 'weekStart'> = {
     generatedAt: '2026-10-04T10:00:00.000Z',
-    topPlanners: [{ name: 'Ana', value: 7 }],
+    topPlanners: [{ name: 'Ana', username: 'ana', value: 7 }],
     topDestinations: [{ cityId: 'paris', value: 34 }],
-    topTrophies: [{ name: 'Luis', value: 3 }],
+    topTrophies: [{ name: 'Luis', username: null, value: 3 }],
     topFavorited: [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
   };
   async getWeekly(weekStart: string): Promise<WeeklyRankings> {

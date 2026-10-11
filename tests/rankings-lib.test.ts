@@ -20,11 +20,15 @@ describe('santiagoWeekStart', () => {
   });
 });
 
+describe('rankingsKey', () => {
+  it('weekly key is versioned', () => expect(rankingsKey('2026-10-05')).toBe('rankings:v2:2026-10-05'));
+});
+
 describe('ranking constants', () => {
   it('top 3, 2 h TTL, week-scoped keys', () => {
     expect(RANKINGS_TOP_N).toBe(3);
     expect(RANKINGS_CACHE_TTL).toBe(7200);
-    expect(rankingsKey('2026-09-28')).toBe('rankings:2026-09-28');
+    expect(rankingsKey('2026-09-28')).toBe('rankings:v2:2026-09-28');
     expect(myRankingsKey('2026-09-28', 'u1')).toBe('rankings:me:2026-09-28:u1');
   });
 });
