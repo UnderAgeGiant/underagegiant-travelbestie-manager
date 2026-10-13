@@ -108,7 +108,7 @@ Most karma mutations happen via PostgreSQL triggers (trip creation, first commen
 
 | Var | Required | Default | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `POSTGRES_URL_NO_SSL` | Yes | — | PostgreSQL (PgBouncer) URL without SSL params; `src/lib/db.ts` appends `?channel_binding=require&sslmode=verify-full` |
 | `JWT_SECRET` | Production | `dev-secret-change-in-production` | Signs/verifies JWTs |
 | `JWT_EXPIRES_IN` | Optional | `2h` | Access token TTL |
 | `RSA_PRIVATE_KEY` | Production | — | PKCS#8 PEM string (use `node scripts/generate-keys.js`); decrypts register/login payloads |
@@ -117,8 +117,12 @@ Most karma mutations happen via PostgreSQL triggers (trip creation, first commen
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` / `EMAIL_USER` / `EMAIL_PASS` / `EMAIL_FROM` | Production | — | SMTP config for OTP, receipts, and collaborator-invite emails |
 | `DEEPSEEK_API_KEY` | Production | — | Powers `/ai/suggest`, `/ai/plan`, `/ai/suggest-attractions`, `/ai/suggest-companion` |
 | `FEATURED_TRIP_IDS` | Optional | — | Comma-separated `shareId`s shown on the landing page |
+| `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` / `PAYPAL_MODE` | Production | `PAYPAL_MODE`: sandbox | PayPal karma purchases; `PAYPAL_MODE=live` uses the live API, anything else the sandbox |
+| `MERCADOPAGO_ACCESS_TOKEN` / `MERCADOPAGO_WEBHOOK_SECRET` / `MERCADOPAGO_NOTIFICATION_URL` | Production | — | MercadoPago karma purchases |
+| `HIGHLIGHT_SEEN_TTL_SECONDS` | Optional | `86400` | How long a "seen" highlight flag lives in Redis |
+| `COMPANION_SUGGEST_CHANCE` / `COMPANION_SUGGEST_CHANCE_BOOSTED` / `COMPANION_BOOST_DURATION_SECONDS` | Optional | `0.20` / `0.75` / `86400` | Companion suggestion odds and boost duration |
 
-In production, set these in the Vercel project environment settings. Locally, put them in `local.env`. `RSA_PRIVATE_KEY` is only needed for real frontend calls — integration tests mock the decrypt middleware, and Redis/email/DeepSeek/PayPal vars are only needed to exercise those specific features locally (`npm test` needs none of them).
+In production, set these in the Vercel project environment settings. Locally, `cp local.env.example local.env` and fill in what you need. `RSA_PRIVATE_KEY` is only needed for real frontend calls — integration tests mock the decrypt middleware, and Redis/email/DeepSeek/PayPal vars are only needed to exercise those specific features locally (`npm test` needs none of them).
 
 ## Architecture
 
