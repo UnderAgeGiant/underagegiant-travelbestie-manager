@@ -12,6 +12,7 @@ import { PgCollaboratorRepository }  from './repositories/pg/pg-collaborator.rep
 import { PgAiPlanRequestRepository }  from './repositories/pg/pg-ai-plan-request.repository';
 import { PgHighlightRepository }     from './repositories/pg/pg-highlight.repository';
 import { PgTrophyRepository }        from './repositories/pg/pg-trophy.repository';
+import { PgFollowRepository }        from './repositories/pg/pg-follow.repository';
 import { PgRankingRepository }       from './repositories/pg/pg-ranking.repository';
 import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
@@ -39,6 +40,7 @@ export const karmaPurchaseRepo       = new PgKarmaPurchaseRepository(pool);
 export const stepCommentRepo         = new PgStepCommentRepository(pool);
 export const trophyRepo              = new PgTrophyRepository(pool);
 export const trophyRecorder          = new TrophyRecorder(trophyRepo, notificationRepo);
+export const followRepo              = new PgFollowRepository(pool);
 export const rankingRepository       = new PgRankingRepository(pool);
 
 export const userRepo                = new PgUserRepository(pool);

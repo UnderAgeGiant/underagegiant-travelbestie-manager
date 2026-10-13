@@ -126,7 +126,7 @@ describe('GET /feed', () => {
     await seed(tripStub, { title: 'A', fav: 2, createdAt: '2026-09-01T10:00:00.000Z' });
     const res = await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
     const [item] = res.body.items;
-    expect(Object.keys(item).sort()).toEqual(['createdAt', 'favoriteCount', 'id', 'ownerName', 'stops', 'tripName']);
+    expect(Object.keys(item).sort()).toEqual(['createdAt', 'favoriteCount', 'id', 'ownerName', 'ownerUsername', 'stops', 'tripName']);
     const raw = JSON.stringify(res.body);
     for (const banned of ['ownerEmail', 'ownerId', 'planId', 'tripId', 'transits', 'lodging', 'isFavoritedByMe']) {
       expect(raw).not.toContain(banned);
@@ -151,11 +151,11 @@ describe('GET /feed', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('writes a non-first-page cache miss with a 300 s TTL under a feed:{limit}: key', async () => {
+  it('writes a non-first-page cache miss with a 300 s TTL under a feed:v2:{limit}: key', async () => {
     const { app } = buildApp();
     await request(app).get('/feed?limit=5').set('Authorization', `Bearer ${TOKEN}`);
     const [key, , mode, ttl] = (redis.set as jest.Mock).mock.calls[0];
-    expect(key).toMatch(/^feed:5:[0-9a-f]{64}$/);
+    expect(key).toMatch(/^feed:v2:5:[0-9a-f]{64}$/);
     expect([mode, ttl]).toEqual(['EX', 300]);
   });
 
@@ -181,7 +181,7 @@ describe('GET /feed — first-page cache warming (feedback T1)', () => {
   it('writes a first-page cache miss with a 7200 s TTL, not the normal 300 s', async () => {
     const { app } = buildApp();
     await request(app).get('/feed').set('Authorization', `Bearer ${TOKEN}`);
-    const call = (redis.set as jest.Mock).mock.calls.find(c => c[0] === `feed:20:${sha256('first')}`);
+    const call = (redis.set as jest.Mock).mock.calls.find(c => c[0] === `feed:v2:20:${sha256('first')}`);
     expect(call).toBeDefined();
     expect([call![2], call![3]]).toEqual(['EX', 7200]);
   });
@@ -198,7 +198,7 @@ describe('GET /feed — first-page cache warming (feedback T1)', () => {
     await flush(); // let the fire-and-forget waitUntil() promise run
     expect(spy).toHaveBeenCalledWith(null, 20);
     const refreshCall = (redis.set as jest.Mock).mock.calls.find(
-      c => c[0] === `feed:20:${sha256('first')}` && c[3] === 7200,
+      c => c[0] === `feed:v2:20:${sha256('first')}` && c[3] === 7200,
     );
     expect(refreshCall).toBeDefined();
   });

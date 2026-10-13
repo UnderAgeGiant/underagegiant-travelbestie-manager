@@ -11,6 +11,7 @@ export const TROPHY_THRESHOLDS: Record<TrophyType, Partial<Record<TrophyTier, nu
   publish_plan: { single: 1 },
   share_plan:   { single: 1 },
   plan_visited: { single: 1 },
+  followers:    { bronze: 1, silver: 25, gold: 100 },
 };
 
 /** Spanish names, used only in notification bodies (frontend localizes its own copy). */
@@ -23,6 +24,7 @@ export const TROPHY_NAMES: Record<TrophyType, string> = {
   publish_plan: 'Plan a la deriva',
   share_plan:   'Corre la voz',
   plan_visited: 'Primera visita',
+  followers:    'Viajero popular',
 };
 
 export const TIER_LABELS: Record<TrophyTier, string> = { bronze: 'Bronce', silver: 'Plata', gold: 'Oro', single: '' };

@@ -30,6 +30,8 @@ import { validateRefreshTokenMiddleware }  from '../middleware/auth/validate-ref
 import { signRefreshedTokenMiddleware }    from '../middleware/auth/sign-refreshed-token.middleware';
 import { revokeRefreshTokenMiddleware }    from '../middleware/auth/revoke-refresh-token.middleware';
 import { invalidateSessionsMiddleware }    from '../middleware/auth/invalidate-sessions.middleware';
+import { validateUsername }                from '../middleware/auth/validate-username.middleware';
+import { rejectTakenUsername }             from '../middleware/auth/reject-taken-username.middleware';
 
 export function createAuthRouter(user: UserController, highlightRepo: IHighlightRepository): Router {
   const router = Router();
@@ -124,12 +126,15 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     requireAuth,
     decryptPayloadMiddleware,
     validateBody(profileSchema),
+    validateUsername,
     user.findById,
     verifyCurrentPasswordMiddleware,
     hashNewPasswordMiddleware,
     user.findByNewEmail,
     checkNewEmailTaken,
     verifyProfileOtpMiddleware,
+    user.findByRequestedUsername,
+    rejectTakenUsername,
     user.update,
     invalidateSessionsMiddleware,
     respond(200),

@@ -13,6 +13,7 @@ import {
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
   highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo, rankingController,
+  followRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -30,6 +31,8 @@ import { createWeatherRouter }         from './routes/weather.routes';
 import { createSeoRouter }             from './routes/seo.routes';
 import { createTrophiesRouter }        from './routes/trophies.routes';
 import { createRankingsRouter }       from './routes/rankings.routes';
+import { createUsersRouter }           from './routes/users.routes';
+import { createPublicProfileRouter }   from './routes/public-profile.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { noIndexApi, robotsTxt } from './middleware/no-index.middleware';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware';
@@ -52,9 +55,10 @@ const corsOrigin = rawOrigin.includes(',') ? rawOrigin.split(',').map(o => o.tri
 // falls back to a 5s cache, and since every request now carries X-Anonymous-Id (see
 // AuthInterceptor in the frontend repo, 2026-09-09), even anonymous GETs on public paths
 // like /featured, /stats, /shared/:id, /comments/:id trigger a preflight on nearly every call.
-// exposedHeaders: ETag (WeatherService revalidation) and X-New-Trophies (instant trophy celebration)
-// are readable cross-origin only when listed here.
-app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400, exposedHeaders: ['ETag', 'X-New-Trophies'] }));
+// exposedHeaders: ETag (WeatherService revalidation), X-New-Trophies (instant trophy celebration)
+// and Retry-After (429 backoff; not CORS-safelisted, the frontend reads it) are readable
+// cross-origin only when listed here.
+app.use(cors({ origin: corsOrigin, credentials: true, maxAge: 86400, exposedHeaders: ['ETag', 'X-New-Trophies', 'Retry-After'] }));
 app.use(cookieParser());
 app.use(express.json());
 
@@ -88,6 +92,8 @@ app.use('/rankings', createRankingsRouter(rankingController));
 app.use('/feed',     createFeedRouter(tripController));
 app.use('/notifications', createNotificationsRouter(notificationRepo));
 app.use('/trophies', createTrophiesRouter(trophyRepo, tripController, trophyRecorder));
+app.use('/users',    createUsersRouter(userController, followRepo, notificationRepo, trophyRecorder));
+app.use('/u',        createPublicProfileRouter(userController, tripRepo, followRepo, trophyRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
 app.use('/seo',     createSeoRouter(tripController));

@@ -6,7 +6,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -16,6 +16,7 @@ import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-p
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
 import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
 import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repository';
+import { IFollowRepository } from '../../src/repositories/interfaces/follow.repository';
 import { IRankingRepository } from '../../src/repositories/interfaces/ranking.repository';
 
 export class StubUserRepository implements IUserRepository {
@@ -31,7 +32,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, username: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -45,13 +46,18 @@ export class StubUserRepository implements IUserRepository {
     return this.byId.get(id) ?? null;
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return [...this.byId.values()].find(u => u.username === username) ?? null;
+  }
+
   async update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string },
   ): Promise<User> {
     const user = this.byId.get(userId);
     if (!user) throw new Error('User not found');
     if (fields.name !== undefined) user.name = fields.name;
+    if (fields.username !== undefined) user.username = fields.username;
     if (fields.email !== undefined) {
       this.byEmail.delete(user.email);
       user.email = fields.email.toLowerCase();
@@ -108,7 +114,7 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
   }
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {
@@ -126,7 +132,7 @@ export class StubTripRepository implements ITripRepository {
     return [...this.trips.values()]
       .filter(t => t.shareId && normalizeSearch(t.title).includes(q))
       .slice(0, 5)
-      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: t.createdAt, stops: t.stops, transits: t.transits, planId: t.id, tripId: t.id }));
   }
 
   private favoriteCounts = new Map<string, number>(); // shareId -> favorite count
@@ -171,6 +177,18 @@ export class StubTripRepository implements ITripRepository {
       .slice(0, limit);
   }
 
+  async listSharedByOwner(ownerId: string, limit: number): Promise<FeedPlan[]> {
+    return [...this.trips.values()].filter(t => t.ownerId === ownerId && t.shareId && t.stops.length > 0).slice(0, limit)
+      .map(t => ({ id: t.shareId!, tripName: t.title, ownerName: '', ownerUsername: null, createdAt: t.createdAt, favoriteCount: 0,
+        stops: t.stops.map(s => ({ cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut, selectedAttractions: [] })) }));
+  }
+  followees = new Map<string, Set<string>>();   // followerId → followee ids; tests seed it
+  async listFollowingFeed(followerId: string, _cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
+    const ids = this.followees.get(followerId) ?? new Set<string>();
+    const items = (await Promise.all([...ids].map(id => this.listSharedByOwner(id, limit)))).flat().slice(0, limit);
+    return { items, nextCursor: null };
+  }
+
   async listFeed(cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
     const eligible = [...this.trips.values()]
       .filter(t => t.shareId && t.stops.length > 0)
@@ -191,7 +209,7 @@ export class StubTripRepository implements ITripRepository {
     const hasMore = slice.length > limit;
     const page    = hasMore ? slice.slice(0, limit) : slice;
     const items = page.map(({ t, fav }) => ({
-      id: t.shareId!, tripName: t.title, ownerName: '', createdAt: t.createdAt, favoriteCount: fav,
+      id: t.shareId!, tripName: t.title, ownerName: '', ownerUsername: null, createdAt: t.createdAt, favoriteCount: fav,
       stops: t.stops.map(s => ({
         cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
         selectedAttractions: s.selectedAttractions.map(a => ({
@@ -623,9 +641,9 @@ export class StubRankingRepository implements IRankingRepository {
   mineCalls: { weekStart: string; userId: string }[] = [];
   weekly: Omit<WeeklyRankings, 'weekStart'> = {
     generatedAt: '2026-10-04T10:00:00.000Z',
-    topPlanners: [{ name: 'Ana', value: 7 }],
+    topPlanners: [{ name: 'Ana', username: 'ana', value: 7 }],
     topDestinations: [{ cityId: 'paris', value: 34 }],
-    topTrophies: [{ name: 'Luis', value: 3 }],
+    topTrophies: [{ name: 'Luis', username: null, value: 3 }],
     topFavorited: [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
   };
   async getWeekly(weekStart: string): Promise<WeeklyRankings> {
@@ -636,4 +654,17 @@ export class StubRankingRepository implements IRankingRepository {
     this.mineCalls.push({ weekStart, userId });
     return { weekStart, planners: { rank: 2, value: 3 }, trophies: null, favorited: null };
   }
+}
+
+export class StubFollowRepository implements IFollowRepository {
+  readonly pairs = new Set<string>();
+  readonly notified = new Set<string>();
+  async follow(a: string, b: string): Promise<boolean> { const k = `${a}>${b}`; const isNew = !this.pairs.has(k); this.pairs.add(k); return isNew; }
+  async unfollow(a: string, b: string): Promise<void> { this.pairs.delete(`${a}>${b}`); }
+  async isFollowing(a: string, b: string): Promise<boolean> { return this.pairs.has(`${a}>${b}`); }
+  async counts(id: string): Promise<{ followerCount: number; followingCount: number }> {
+    const all = [...this.pairs].map(p => p.split('>'));
+    return { followerCount: all.filter(([, b]) => b === id).length, followingCount: all.filter(([a]) => a === id).length };
+  }
+  async markNotified(a: string, b: string): Promise<boolean> { const k = `${a}>${b}`; const isNew = !this.notified.has(k); this.notified.add(k); return isNew; }
 }

@@ -7,6 +7,7 @@ export interface User {
   email: string;
   passwordHash: string;
   countryOfResidence: string | null;
+  username: string | null;              // Feature 22 — opt-in public handle, lowercase
   createdAt: string;
 }
 
@@ -79,6 +80,7 @@ export interface SharedTripPayload {
   ownerId?:         string;   // internal user UUID — populated by findByShareId; consumed by notify middleware
   ownerEmail:       string;
   ownerName:        string;
+  ownerUsername?:   string | null;
   createdAt:        string;
   stops:            TripStop[];
   transits:         TransitLeg[];
@@ -110,6 +112,7 @@ export interface FeedPlan {
   id:            string;        // shareId
   tripName:      string;
   ownerName:     string;
+  ownerUsername: string | null;
   createdAt:     string;        // ISO
   favoriteCount: number;
   stops:         FeedPlanStop[];
@@ -118,6 +121,18 @@ export interface FeedPlan {
 export interface FeedPage {
   items:      FeedPlan[];
   nextCursor: string | null;
+}
+
+/** GET /u/:username (Feature 22). No email, no ids, no trophy progress. */
+export interface PublicProfile {
+  username:        string;
+  name:            string;
+  followerCount:   number;
+  followingCount:  number;
+  isFollowedByMe?: boolean;   // only for a logged-in viewer who is not the owner
+  trophies:        EarnedTrophy[];
+  visitedCityIds:  string[];
+  trips:           FeedPlan[];
 }
 
 /** Raw DB row for the SEO summary of a shared trip (city ids, not names — repositories stay DB-only). */
@@ -193,7 +208,7 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy' | 'new_follower';
 
 export interface NotificationRecord {
   notificationId: string;
@@ -209,7 +224,7 @@ export interface NotificationRecord {
 // ─── Trophies (Feature 69) ───────────────────────────────────────────────────
 export type TrophyType =
   | 'ai_plans' | 'comments' | 'favorites' | 'clones'
-  | 'excel_export' | 'publish_plan' | 'share_plan' | 'plan_visited';
+  | 'excel_export' | 'publish_plan' | 'share_plan' | 'plan_visited' | 'followers';
 export type TrophyTier = 'bronze' | 'silver' | 'gold' | 'single';
 
 export interface EarnedTrophy {
@@ -230,7 +245,7 @@ export interface AppStats {
 }
 
 // ─── Rankings (Feature 70) ──────────────────────────────────────────────────
-export interface RankedUser { name: string; value: number }
+export interface RankedUser { name: string; username: string | null; value: number }
 export interface RankedCity { cityId: string; value: number }
 export interface RankedPlan { title: string; shareId: string; ownerName: string; value: number }
 export interface WeeklyRankings {
@@ -253,6 +268,7 @@ export interface Comment {
   id: string;
   attractionId: string;
   name: string;                           // taken from JWT — never from request body
+  username?: string | null;
   text: string;
   rating: number;                         // 1–5
   color: string;
@@ -446,6 +462,7 @@ export interface StepComment {
   id:         string;
   stepKey:    string;
   authorName: string;
+  authorUsername?: string | null;
   text:       string;
   createdAt:  string;
 }
@@ -474,6 +491,8 @@ declare global {
       user?: AuthPayload;
       foundUser?: User;
       newEmailUser?: User;
+      usernameOwner?: User;   // set by UserController.findByRequestedUsername (PUT /auth/profile)
+      targetUser?: User;      // set by UserController.findByUsernameParam (/u/:username, /users/:username/*)
       newPasswordHash?: string;
       tokenUserId?: string;          // userId extracted from a validated refresh token
       newRawRefreshToken?: string;   // new raw refresh token after rotation

@@ -19,6 +19,13 @@ const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown'
 
 export function createFeedRouter(trip: TripController): Router {
   const router = Router();
+  router.get('/following',
+    requireAuth,
+    rateLimitMiddleware({ keyPrefix: 'rl:feed-following', windowSeconds: 60, maxRequests: 60, getKey: byUser }),
+    validateFeedQuery,
+    trip.listFollowingFeed,
+    respond(200),
+  );
   router.get('/',
     requireAuth,
     rateLimitMiddleware({ keyPrefix: 'rl:feed', windowSeconds: 60, maxRequests: 60, getKey: byUser }),

@@ -9,7 +9,7 @@ export class PgCommentRepository implements ICommentRepository {
     const { rows: [row] } = await this.pool.query(
       `INSERT INTO attraction_comments (attraction_id, user_id, text, rating, color)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING comment_id, created_at`,
+       RETURNING comment_id, created_at, (SELECT username FROM users WHERE user_id = $2) AS username`,
       [data.attractionId, data.userId, data.text, data.rating, data.color],
     );
     const createdAt = (row.created_at as Date).toISOString();
@@ -20,6 +20,7 @@ export class PgCommentRepository implements ICommentRepository {
       text: data.text,
       rating: data.rating,
       color: data.color,
+      username: (row.username as string | null) ?? null,
       date: createdAt.slice(0, 10),
       createdAt,
     };
@@ -32,7 +33,7 @@ export class PgCommentRepository implements ICommentRepository {
     if (ids.length === 0) return result;
 
     const { rows } = await this.pool.query(
-      `SELECT ac.comment_id, ac.attraction_id, u.name, ac.text, ac.rating, ac.color, ac.created_at
+      `SELECT ac.comment_id, ac.attraction_id, u.name, u.username, ac.text, ac.rating, ac.color, ac.created_at
        FROM attraction_comments ac
        JOIN users u ON u.user_id = ac.user_id
        WHERE ac.attraction_id = ANY($1::text[])
@@ -62,6 +63,7 @@ export class PgCommentRepository implements ICommentRepository {
       id: r.comment_id as string,
       attractionId: r.attraction_id as string,
       name: r.name as string,
+      username: (r.username as string | null) ?? null,
       text: r.text as string,
       rating: r.rating as number,
       color: r.color as string,

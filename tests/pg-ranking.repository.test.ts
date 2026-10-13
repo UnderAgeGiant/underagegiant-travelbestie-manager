@@ -29,13 +29,13 @@ describe('PgRankingRepository.getWeekly', () => {
     (redis.get as jest.Mock).mockResolvedValue(JSON.stringify(cached));
     const { pool, query } = fakePool({});
     expect(await new PgRankingRepository(pool).getWeekly(WS)).toEqual(cached);
-    expect(redis.get).toHaveBeenCalledWith('rankings:2026-09-28');
+    expect(redis.get).toHaveBeenCalledWith('rankings:v2:2026-09-28');
     expect(query).not.toHaveBeenCalled();
   });
 
   it('on a miss runs the 4 queries with the week start, maps rows, and caches for 7200 s', async () => {
     const { pool, query } = fakePool({
-      planners:     [{ name: 'Ana', value: 7 }],
+      planners:     [{ name: 'Ana', username: 'ana', value: 7 }],
       destinations: [{ cityId: 'paris', value: 34 }],
       trophies:     [{ name: 'Luis', value: 3 }],
       favorited:    [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
@@ -43,7 +43,7 @@ describe('PgRankingRepository.getWeekly', () => {
     const res = await new PgRankingRepository(pool).getWeekly(WS);
     expect(res).toMatchObject({
       weekStart: WS,
-      topPlanners: [{ name: 'Ana', value: 7 }],
+      topPlanners: [{ name: 'Ana', username: 'ana', value: 7 }],
       topDestinations: [{ cityId: 'paris', value: 34 }],
       topTrophies: [{ name: 'Luis', value: 3 }],
       topFavorited: [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
@@ -56,9 +56,13 @@ describe('PgRankingRepository.getWeekly', () => {
       expect(call[0]).toContain('LIMIT $2');
       expect(call[0]).not.toMatch(/email/i);
     }
+    const plannersSql = (query.mock.calls as any[]).find(c => c[0].includes('/*planners*/'))[0];
+    expect(plannersSql).toContain('u.username');
+    const trophiesSql = (query.mock.calls as any[]).find(c => c[0].includes('/*trophies*/'))[0];
+    expect(trophiesSql).toContain('u.username');
     const favSql = (query.mock.calls as any[]).find(c => c[0].includes('/*favorited*/'))[0];
     expect(favSql).toContain('share_id IS NOT NULL');
-    expect(redis.set).toHaveBeenCalledWith('rankings:2026-09-28', JSON.stringify(res), 'EX', 7200);
+    expect(redis.set).toHaveBeenCalledWith('rankings:v2:2026-09-28', JSON.stringify(res), 'EX', 7200);
   });
 
   it('still answers from the DB when Redis throws (Review Focus 3)', async () => {

@@ -45,3 +45,7 @@ export const publishTarget: TrophyTargetFn = (req: Request): TrophyTarget =>
 /** Completed client-side share (POST /trophies/share/:shareId) → the caller. */
 export const shareTarget: TrophyTargetFn = (req: Request): TrophyTarget =>
   req.user ? { userId: req.user.userId, refId: req.params.shareId, celebrate: true } : null;
+
+/** New follower → the followee; ref = follower id, so follow/unfollow/re-follow counts once forever. */
+export const followerTarget: TrophyTargetFn = (req: Request): TrophyTarget =>
+  req.user && req.targetUser ? { userId: req.targetUser.id, refId: req.user.userId, celebrate: false } : null;

@@ -11,7 +11,7 @@ export class PgUserRepository implements IUserRepository {
     const { rows: [row] } = await this.pool.query(
       `INSERT INTO users (name, email, password_hash, karma)
        VALUES ($1, LOWER($2), $3, $4)
-       RETURNING user_id, name, email, password_hash, country_of_residence, created_at`,
+       RETURNING user_id, name, email, password_hash, country_of_residence, username, created_at`,
       [data.name, data.email, data.passwordHash, INITIAL_KARMA],
     );
     return mapUser(row);
@@ -19,7 +19,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, country_of_residence, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, username, created_at
        FROM users WHERE email = LOWER($1)`,
       [email],
     );
@@ -28,16 +28,25 @@ export class PgUserRepository implements IUserRepository {
 
   async findById(id: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, country_of_residence, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, username, created_at
        FROM users WHERE user_id = $1`,
       [id],
     );
     return row ? mapUser(row) : null;
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    const { rows: [row] } = await this.pool.query(
+      `SELECT user_id, name, email, password_hash, country_of_residence, username, created_at
+       FROM users WHERE username = $1`,
+      [username],
+    );
+    return row ? mapUser(row) : null;
+  }
+
   async update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string },
   ): Promise<User> {
     // A plain COALESCE($5, country_of_residence) can never express "set to NULL" — an
     // absent field (don't touch) and an explicit null (clear it) both collapse to the same
@@ -50,10 +59,11 @@ export class PgUserRepository implements IUserRepository {
        SET name                  = COALESCE($2, name),
            email                 = COALESCE($3, email),
            password_hash         = COALESCE($4, password_hash),
-           country_of_residence  = CASE WHEN $6 THEN NULL ELSE COALESCE($5, country_of_residence) END
+           country_of_residence  = CASE WHEN $6 THEN NULL ELSE COALESCE($5, country_of_residence) END,
+           username              = COALESCE($7, username)
        WHERE user_id = $1
-       RETURNING user_id, name, email, password_hash, country_of_residence, created_at`,
-      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null, clearCountry],
+       RETURNING user_id, name, email, password_hash, country_of_residence, username, created_at`,
+      [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null, clearCountry, fields.username ?? null],
     );
     if (!row) throw new Error('User not found');
     return mapUser(row);
@@ -67,6 +77,7 @@ function mapUser(row: Record<string, unknown>): User {
     email:               row.email as string,
     passwordHash:        row.password_hash as string,
     countryOfResidence:  (row.country_of_residence as string | null) ?? null,
+    username:            (row.username as string | null) ?? null,
     createdAt:           (row.created_at as Date).toISOString(),
   };
 }

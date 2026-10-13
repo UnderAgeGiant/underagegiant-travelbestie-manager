@@ -24,6 +24,28 @@ function toHM(pgTime: string): string {
   return String(pgTime).slice(0, 5);
 }
 
+function toFeedPlan(trip: Trip, row: Record<string, unknown>): FeedPlan {
+  return {
+    id:            row.share_id as string,
+    tripName:      trip.title,
+    ownerName:     row.owner_name as string,
+    ownerUsername: (row.owner_username as string | null) ?? null,
+    createdAt:     trip.createdAt,
+    favoriteCount: row.favorite_count as number,
+    stops: trip.stops.map(s => ({
+      cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
+      selectedAttractions: s.selectedAttractions.map(a => ({
+        ...(a.activityType
+          ? { activityType: a.activityType, title: a.title, ...(a.mapsUrl ? { mapsUrl: a.mapsUrl } : {}) }
+          : { attractionId: a.attractionId }),
+        ...(a.date ? { date: a.date } : {}),
+        startTime: a.startTime,
+        endTime:   a.endTime,
+      })),
+    })),
+  };
+}
+
 export class PgTripRepository implements ITripRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -92,7 +114,7 @@ export class PgTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const { rows: [row] } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name
+              u.email AS owner_email, u.name AS owner_name, u.username AS owner_username
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
        WHERE t.share_id = $1`,
@@ -105,7 +127,8 @@ export class PgTripRepository implements ITripRepository {
       tripName:   trip.title,
       ownerId:    row.owner_id as string,
       ownerEmail: row.owner_email as string,
-      ownerName:  row.owner_name as string,
+      ownerName:     row.owner_name as string,
+      ownerUsername: (row.owner_username as string | null) ?? null,
       createdAt:  trip.createdAt,
       stops:      trip.stops,
       transits:   trip.transits,
@@ -118,7 +141,7 @@ export class PgTripRepository implements ITripRepository {
     if (shareIds.length === 0) return [];
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name
+              u.email AS owner_email, u.name AS owner_name, u.username AS owner_username
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
        WHERE t.share_id = ANY($1::text[])`,
@@ -134,6 +157,7 @@ export class PgTripRepository implements ITripRepository {
         tripName:   trip.title,
         ownerEmail: row.owner_email as string,
         ownerName:  row.owner_name  as string,
+        ownerUsername: (row.owner_username as string | null) ?? null,
         createdAt:  trip.createdAt,
         stops:      trip.stops,
         transits:   trip.transits,
@@ -153,7 +177,7 @@ export class PgTripRepository implements ITripRepository {
     const like = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
     const { rows } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
-              u.email AS owner_email, u.name AS owner_name,
+              u.email AS owner_email, u.name AS owner_name, u.username AS owner_username,
               (SELECT COUNT(*) FROM trip_favorites f WHERE f.trip_id = t.trip_id)::int AS favorite_count
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
@@ -171,6 +195,7 @@ export class PgTripRepository implements ITripRepository {
       tripName:      trip.title,
       ownerEmail:    rows[i].owner_email as string,
       ownerName:     rows[i].owner_name  as string,
+      ownerUsername: (rows[i].owner_username as string | null) ?? null,
       createdAt:     trip.createdAt,
       stops:         trip.stops,
       transits:      trip.transits,
@@ -187,7 +212,7 @@ export class PgTripRepository implements ITripRepository {
     const { rows } = await this.pool.query(
       `WITH ranked AS (
          SELECT t.trip_id, t.title, t.created_at, t.created_at::text AS created_at_raw,
-                t.share_id, u.name AS owner_name,
+                t.share_id, u.name AS owner_name, u.username AS owner_username,
                 COALESCE(f.c, 0)::int AS favorite_count
          FROM trips t
          JOIN users u ON u.user_id = t.owner_id
@@ -208,24 +233,7 @@ export class PgTripRepository implements ITripRepository {
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const trips    = await hydrateTrips(this.pool, pageRows, true);
 
-    const items: FeedPlan[] = trips.map((trip, i) => ({
-      id:            pageRows[i].share_id as string,
-      tripName:      trip.title,
-      ownerName:     pageRows[i].owner_name as string,
-      createdAt:     trip.createdAt,
-      favoriteCount: pageRows[i].favorite_count as number,
-      stops: trip.stops.map(s => ({
-        cityId: s.cityId, checkIn: s.checkIn, checkOut: s.checkOut,
-        selectedAttractions: s.selectedAttractions.map(a => ({
-          ...(a.activityType
-            ? { activityType: a.activityType, title: a.title, ...(a.mapsUrl ? { mapsUrl: a.mapsUrl } : {}) }
-            : { attractionId: a.attractionId }),
-          ...(a.date ? { date: a.date } : {}),
-          startTime: a.startTime,
-          endTime:   a.endTime,
-        })),
-      })),
-    }));
+    const items: FeedPlan[] = trips.map((trip, i) => toFeedPlan(trip, pageRows[i]));
 
     const last = pageRows[pageRows.length - 1];
     const nextCursor = hasMore && last
@@ -237,6 +245,51 @@ export class PgTripRepository implements ITripRepository {
       : null;
 
     return { items, nextCursor };
+  }
+
+  /** Public profile: one owner's shared trips (with >=1 stop), newest first. */
+  async listSharedByOwner(ownerId: string, limit: number): Promise<FeedPlan[]> {
+    const { rows } = await this.pool.query(
+      `/*social*/ SELECT t.trip_id, t.title, t.created_at, t.share_id, u.name AS owner_name, u.username AS owner_username,
+              (SELECT COUNT(*)::int FROM trip_favorites f WHERE f.trip_id = t.trip_id) AS favorite_count
+         FROM trips t JOIN users u ON u.user_id = t.owner_id
+        WHERE t.owner_id = $1 AND t.share_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM trip_stops s WHERE s.trip_id = t.trip_id)
+        ORDER BY t.created_at DESC, t.trip_id DESC
+        LIMIT $2`,
+      [ownerId, limit],
+    );
+    const trips = await hydrateTrips(this.pool, rows, true);
+    return trips.map((trip, i) => toFeedPlan(trip, rows[i]));
+  }
+
+  /** GET /feed/following: shared trips of followed users, newest first, keyset on (created_at, trip_id).
+   *  Reuses FeedCursor with favoriteCount fixed at 0. */
+  async listFollowingFeed(followerId: string, cursor: FeedCursor | null, limit: number): Promise<FeedPage> {
+    const { rows } = await this.pool.query(
+      `/*social*/ SELECT t.trip_id, t.title, t.created_at, t.created_at::text AS created_at_raw, t.share_id,
+              u.name AS owner_name, u.username AS owner_username,
+              (SELECT COUNT(*)::int FROM trip_favorites f WHERE f.trip_id = t.trip_id) AS favorite_count
+         FROM user_follows uf
+         JOIN trips t ON t.owner_id = uf.followee_id
+         JOIN users u ON u.user_id = t.owner_id
+        WHERE uf.follower_id = $1 AND t.share_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM trip_stops s WHERE s.trip_id = t.trip_id)
+          AND ($2::timestamptz IS NULL OR (t.created_at, t.trip_id) < ($2::timestamptz, $3::uuid))
+        ORDER BY t.created_at DESC, t.trip_id DESC
+        LIMIT $4`,
+      [followerId, cursor?.createdAt ?? null, cursor?.tripId ?? null, limit + 1],
+    );
+    const hasMore  = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const trips    = await hydrateTrips(this.pool, pageRows, true);
+    const last     = pageRows[pageRows.length - 1];
+    return {
+      items: trips.map((trip, i) => toFeedPlan(trip, pageRows[i])),
+      nextCursor: hasMore && last
+        ? encodeFeedCursor({ favoriteCount: 0, createdAt: last.created_at_raw as string, tripId: last.trip_id as string })
+        : null,
+    };
   }
 
   /** SEO summary source row for one shared trip. PII-free by construction: no owner columns, no users join. */
