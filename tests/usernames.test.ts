@@ -14,7 +14,7 @@ describe('isUsernameAllowed', () => {
   it.each([
     'admin', 'perfil', 'tripilove', 'tripiloveofficial', 'tripilove.official', 'soporte', 'carabineros', 'acab',   // exact A/B/C
     '4dm1n',                                        // leet → admin
-    'yo_soy_culiao', 'xxconchetumarexx', 'pacoviajero', 'super_weon', 'travesano',   // D1 substring
+    'yo_soy_culiao', 'xxconchetumarexx', 'pacoviajero', 'super_weon', 'travesano', 'el_perkin', 'perquines', 'tirasuelto', 'xrati', 'pdi_chile',   // D1 substring
     'juan_puta', 'puta', 'ana.ql', 'qlao',          // D2 token / exact
   ])('blocks %s', u => expect(isUsernameAllowed(u)).toBe(false));
 
