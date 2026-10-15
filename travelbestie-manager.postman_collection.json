@@ -2,7 +2,7 @@
   "info": {
     "name": "TravelBestie Manager API",
     "_postman_id": "travelbestie-manager-2026",
-    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Copy `travelbestie-local.postman_environment.example.json` → `travelbestie-local.postman_environment.json` (gitignored) and fill in both test accounts (main ≥ 20 karma; the collab account is the co-editing invitee).\n2. Postman app: import that environment too. If the backend has `RSA_PRIVATE_KEY`, set `rsaPublicKeyBase64` (SPKI, base64) to its public half (`node scripts/generate-keys.js`).\n\n## Headless (Newman)\n`npm run postman` runs every folder except 💸 Costly (manual), Cleanup last. `npm run postman -- --folder \"🔐 Auth\"` runs one folder.\nThe runner precomputes every RSA-encrypted body from `local.env`'s `RSA_PRIVATE_KEY` (Newman has no WebCrypto) and passes them as the `nmBodies` env value.\n\n## Side effects\nTrips created by a run are titled `[newman] …`; 🧹 Cleanup deletes them (also leftovers of a crashed run). Comments stay. One run costs the main account karma (AI + companion boost + trips + invite).",
+    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Copy `travelbestie-local.postman_environment.example.json` → `travelbestie-local.postman_environment.json` (gitignored) and fill in both test accounts (main ≥ 20 karma; the collab account is the co-editing invitee).\n2. Postman app: import that environment too. If the backend has `RSA_PRIVATE_KEY`, set `rsaPublicKeyBase64` (SPKI, base64) to its public half (`node scripts/generate-keys.js`).\n\n## Headless (Newman)\n`npm run postman` runs every folder except 💸 Costly (manual), Cleanup last. `npm run postman -- --folder \"🔐 Auth\"` runs one folder.\nThe runner precomputes every RSA-encrypted body from `local.env`'s `RSA_PRIVATE_KEY` (Newman has no WebCrypto) and passes them as the `nmBodies` env value.\n\n## Side effects\nTrips created by a run are titled `[newman] …`; 🧹 Cleanup deletes them (also leftovers of a crashed run). Comments stay. One run costs the main account karma (AI + companion boost + trips + invite).\n\n## Rate limits (normal, non-multiplied backend)\nPer run: 2 collaborator invites (10/h), 4 register calls (10/15 min per IP), 2 request-otp (5/15 min), 3 main-account logins (10/15 min). So: **at most 2 runs per 15 minutes, 5 per hour**. A 429 in 🔐 Auth or 🤝 Collaborators means wait, not a bug.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -118,6 +118,26 @@
     },
     {
       "key": "weatherOut",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collabName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentText",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "spoofText",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stepText",
       "value": "",
       "type": "string"
     }
@@ -634,16 +654,6 @@
           },
           "event": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
-                  "pm.test('Error is Invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
-                ]
-              }
-            },
-            {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
@@ -665,6 +675,16 @@
                   "        }",
                   "    })();",
                   "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Generic credentials error (no enumeration)', () => pm.expect(pm.response.json().error).to.equal('Email o contraseña incorrectos'));"
                 ]
               }
             }
@@ -702,16 +722,6 @@
           },
           "event": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
-                  "pm.test('Error is Invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
-                ]
-              }
-            },
-            {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
@@ -733,6 +743,16 @@
                   "        }",
                   "    })();",
                   "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Generic credentials error (no enumeration)', () => pm.expect(pm.response.json().error).to.equal('Email o contraseña incorrectos'));"
                 ]
               }
             }
@@ -2378,7 +2398,7 @@
     },
     {
       "name": "🤝 Collaborators",
-      "description": "Co-editing flow (§2.10–§2.14) with the second test account (collabUserEmail). Costs the owner 2 karma per run (trip + invite). Invites are rate-limited to 10/hour per owner (4 invite calls per run).",
+      "description": "Co-editing flow (§2.10–§2.14) with the second test account (collabUserEmail). Costs the owner 2 karma per run (trip + invite). Invites are rate-limited to 10/hour per owner (2 invite calls per run, so at most 5 runs per hour).",
       "item": [
         {
           "name": "Login - collab",
@@ -2443,7 +2463,8 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Has token', () => pm.expect(pm.response.json().token).to.be.a('string'));",
-                  "if (pm.response.code === 200) pm.collectionVariables.set('collabToken', pm.response.json().token);"
+                  "if (pm.response.code === 200) pm.collectionVariables.set('collabToken', pm.response.json().token);",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('collabName', pm.response.json().user.name);"
                 ]
               }
             }
@@ -2570,100 +2591,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Invite - self",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "trips",
-                "{{collabTripId}}",
-                "collaborators"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"email\": \"{{testUserEmail}}\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Invite - unknown email",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "trips",
-                "{{collabTripId}}",
-                "collaborators"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"email\": \"nobody@nonexistent.com\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -3412,7 +3339,7 @@
                   "const body = pm.response.json();",
                   "pm.test('id matches shareId', () => pm.expect(body.id).to.equal(pm.collectionVariables.get('shareId')));",
                   "pm.test('Has ownerName', () => pm.expect(body.ownerName).to.be.a('string'));",
-                  "pm.test('Has ownerEmail', () => pm.expect(body.ownerEmail).to.be.a('string'));",
+                  "pm.test('No ownerEmail (PII stripped)', () => pm.expect(body.ownerEmail).to.be.undefined);",
                   "pm.test('Has tripName', () => pm.expect(body.tripName).to.be.a('string'));",
                   "pm.test('Has planId', () => pm.expect(body.planId).to.be.a('string'));",
                   "pm.test('Has stops', () => pm.expect(body.stops).to.be.an('array'));",
@@ -3669,18 +3596,23 @@
           ]
         },
         {
-          "name": "Get Comments - Empty Attraction",
+          "name": "Get Comments Batch - Unknown Attraction",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/comments/unknown_attraction_000",
+              "raw": "{{baseUrl}}/comments?ids=unknown_attraction_000",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "comments",
-                "unknown_attraction_000"
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "unknown_attraction_000"
+                }
               ]
             }
           },
@@ -3691,21 +3623,17 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is empty array', () => pm.expect(pm.response.json()).to.deep.equal([]));"
+                  "pm.test('Empty array for the unknown id', () => pm.expect(pm.response.json().unknown_attraction_000).to.deep.equal([]));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Post Comment - Success",
+          "name": "Post Comment - No Token",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -3713,7 +3641,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Absolutely breathtaking view!\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "raw": "{\n  \"text\": \"Should fail.\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3737,63 +3665,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
-                  "pm.test('attractionId matches path', () => pm.expect(body.attractionId).to.equal('paris_0'));",
-                  "pm.test('Name is from JWT', () => pm.expect(body.name).to.equal(pm.collectionVariables.get('userName')));",
-                  "pm.test('Text preserved', () => pm.expect(body.text).to.equal('Absolutely breathtaking view!'));",
-                  "pm.test('Rating preserved', () => pm.expect(body.rating).to.equal(5));",
-                  "pm.test('Color preserved', () => pm.expect(body.color).to.equal('#F472B6'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Post Comment - Spoofed Name Ignored",
-          "description": "Sends `name: 'HACKER'` in the body. The server must ignore it and use the JWT name instead.",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"HACKER\",\n  \"text\": \"Tried to spoof the author.\",\n  \"rating\": 4,\n  \"color\": \"#34D399\",\n  \"date\": \"Apr 28\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/comments/rome_0",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "comments",
-                "rome_0"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Name is from JWT not body', () => pm.expect(pm.response.json().name).to.equal(pm.collectionVariables.get('userName')));",
-                  "pm.test('Spoofed name rejected', () => pm.expect(pm.response.json().name).to.not.equal('HACKER'));"
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
                 ]
               }
             }
@@ -3988,10 +3860,14 @@
           ]
         },
         {
-          "name": "Post Comment - No Token",
+          "name": "Post Comment - Success",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -3999,7 +3875,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Should fail.\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "raw": "{\n  \"text\": \"{{commentText}}\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4019,22 +3895,47 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = 'abcdefghij';",
+                  "pm.collectionVariables.set('commentText', '[newman] ' + set[Math.floor(Date.now() / 60000) % 10].repeat(60));"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('attractionId matches path', () => pm.expect(body.attractionId).to.equal('paris_0'));",
+                  "pm.test('Name is from JWT', () => pm.expect(body.name).to.equal(pm.collectionVariables.get('userName')));",
+                  "pm.test('Text preserved', () => pm.expect(body.text).to.equal(pm.collectionVariables.get('commentText')));",
+                  "pm.test('Rating preserved', () => pm.expect(body.rating).to.equal(5));",
+                  "pm.test('Color preserved', () => pm.expect(body.color).to.equal('#F472B6'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Get Comments - After Adding",
-          "description": "Run after Post Comment - Success. paris_0 should have at least one comment.",
+          "name": "Post Comment - Cooldown (main, right after posting)",
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/comments/paris_0",
               "host": [
@@ -4043,6 +3944,110 @@
               "path": [
                 "comments",
                 "paris_0"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Too soon again.\",\n  \"rating\": 4,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 429', () => pm.response.to.have.status(429));",
+                  "pm.test('TOO_SOON', () => pm.expect(pm.response.json().error).to.equal('TOO_SOON'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comment - Spoofed Name Ignored (collab)",
+          "description": "Sends `name: 'HACKER'` in the body. The server must ignore it and use the JWT name instead.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HACKER\",\n  \"text\": \"{{spoofText}}\",\n  \"rating\": 4,\n  \"color\": \"#34D399\",\n  \"date\": \"Apr 28\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/comments/rome_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "rome_0"
+              ]
+            },
+            "description": "Posted by the collab account: the main account is inside its 60 s comment cooldown here."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = '0123456789';",
+                  "pm.collectionVariables.set('spoofText', '[newman] ' + set[Math.floor(Date.now() / 60000) % 10].repeat(60));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Name is from JWT not body', () => pm.expect(pm.response.json().name).to.equal(pm.collectionVariables.get('collabName')));",
+                  "pm.test('Spoofed name rejected', () => pm.expect(pm.response.json().name).to.not.equal('HACKER'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Comments Batch - After Adding",
+          "description": "Run after Post Comment - Success. paris_0 should have at least one comment.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comments?ids=paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "paris_0"
+                }
               ]
             }
           },
@@ -4053,18 +4058,19 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has at least one comment', () => pm.expect(body.length).to.be.above(0));",
-                  "pm.test('Comment has id', () => pm.expect(body[0].id).to.be.a('string'));",
-                  "pm.test('Comment has name', () => pm.expect(body[0].name).to.be.a('string'));",
-                  "pm.test('Comment has text', () => pm.expect(body[0].text).to.be.a('string'));",
-                  "pm.test('Comment rating is 1-5', () => pm.expect(body[0].rating).to.be.within(1, 5));"
+                  "const list = pm.response.json().paris_0;",
+                  "pm.test('Has at least one comment', () => pm.expect(list.length).to.be.above(0));",
+                  "pm.test('Comment has id', () => pm.expect(list[0].id).to.be.a('string'));",
+                  "pm.test('Comment has name', () => pm.expect(list[0].name).to.be.a('string'));",
+                  "pm.test('Comment has text', () => pm.expect(list[0].text).to.be.a('string'));",
+                  "pm.test('Comment rating is 1-5', () => pm.expect(list[0].rating).to.be.within(1, 5));"
                 ]
               }
             }
           ]
         }
-      ]
+      ],
+      "description": "POST /comments and POST /shared/:id/comments share a 60 s per-user cooldown (TOO_SOON 429) that runs before body validation, so validation negatives run before the successful post."
     },
     {
       "name": "💬 Step Comments",
@@ -4126,159 +4132,6 @@
                 "exec": [
                   "pm.test('Status 404', () => pm.response.to.have.status(404));",
                   "pm.test('Error is Shared trip not found', () => pm.expect(pm.response.json().error).to.equal('Shared trip not found'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Add Step Comment - Success",
-          "description": "Text must be at least 50 characters. Awards +1 karma if first comment on this step and commenter is not the owner.",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "shared",
-                "{{shareId}}",
-                "comments",
-                "stop:paris"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has comment', () => pm.expect(body.comment).to.be.an('object'));",
-                  "pm.test('Comment has id', () => pm.expect(body.comment.id).to.be.a('string'));",
-                  "pm.test('Comment stepKey matches', () => pm.expect(body.comment.stepKey).to.equal('stop:paris'));",
-                  "pm.test('Comment authorName is from JWT', () => pm.expect(body.comment.authorName).to.be.a('string'));",
-                  "pm.test('Has karmaAwarded flag', () => pm.expect(body.karmaAwarded).to.be.a('boolean'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Add Step Comment - Text Too Short",
-          "description": "Text shorter than 50 characters must be rejected.",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Too short.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "shared",
-                "{{shareId}}",
-                "comments",
-                "stop:paris"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Add Step Comment - Missing Text",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "shared",
-                "{{shareId}}",
-                "comments",
-                "stop:paris"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
                 ]
               }
             }
@@ -4371,6 +4224,179 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Text Too Short",
+          "description": "Text shorter than 50 characters must be rejected.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Too short.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The main account posted in 💬 Comments < 60 s ago; wait out the per-user comment cooldown (runs before validation).",
+                  "setTimeout(() => {}, 61000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Missing Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Step Comment - Success",
+          "description": "Text must be at least 50 characters. Awards +1 karma if first comment on this step and commenter is not the owner.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"{{stepText}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = 'klmnopqrst';",
+                  "pm.collectionVariables.set('stepText', '[newman] ' + set[Math.floor(Date.now() / 60000) % 10].repeat(60));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has comment', () => pm.expect(body.comment).to.be.an('object'));",
+                  "pm.test('Comment has id', () => pm.expect(body.comment.id).to.be.a('string'));",
+                  "pm.test('Comment stepKey matches', () => pm.expect(body.comment.stepKey).to.equal('stop:paris'));",
+                  "pm.test('Comment authorName is from JWT', () => pm.expect(body.comment.authorName).to.be.a('string'));",
+                  "pm.test('Has karmaAwarded flag', () => pm.expect(body.karmaAwarded).to.be.a('boolean'));"
                 ]
               }
             }
@@ -4473,14 +4499,12 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));",
-                  "if (pm.response.json().length > 0) {",
-                  "    const pkg = pm.response.json()[0];",
-                  "    pm.test('Package has id', () => pm.expect(pkg.id).to.be.a('string'));",
-                  "    pm.test('Package has karma amount', () => pm.expect(pkg.karma).to.be.a('number'));",
-                  "    pm.test('Package has price', () => pm.expect(pkg.price).to.be.a('number'));",
-                  "}",
-                  "if (pm.response.code === 200) pm.collectionVariables.set('packageId', pm.response.json().packages[0].id);"
+                  "const pkgs = pm.response.json().packages;",
+                  "pm.test('Has packages array', () => pm.expect(pkgs).to.be.an('array').and.have.length.above(0));",
+                  "pm.test('Package has id', () => pm.expect(pkgs[0].id).to.be.a('string'));",
+                  "pm.test('Package has karma amount', () => pm.expect(pkgs[0].karma).to.be.a('number'));",
+                  "pm.test('Package has USD + CLP prices', () => pm.expect(pkgs[0].prices).to.have.keys('USD', 'CLP'));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('packageId', pkgs[0].id);"
                 ]
               }
             }
