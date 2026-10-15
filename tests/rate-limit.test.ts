@@ -7,7 +7,7 @@ const mockRedis = {
 };
 jest.mock('../src/lib/redis', () => ({ redis: mockRedis }));
 
-import { rateLimitMiddleware } from '../src/middleware/rate-limit.middleware';
+import { rateLimitMiddleware, rateLimitMultiplier } from '../src/middleware/rate-limit.middleware';
 
 function buildLimitedApp(maxRequests: number) {
   const app = express();
@@ -74,5 +74,33 @@ describe('rateLimitMiddleware', () => {
     app.get('/ping', (_req, res) => res.json({ ok: true }));
     await request(app).get('/ping').set('x-user-id', 'user-42');
     expect(mockRedis.incr).toHaveBeenCalledWith('custom:user-42');
+  });
+});
+
+describe('rateLimitMultiplier', () => {
+  it('defaults to 1', () => expect(rateLimitMultiplier({})).toBe(1));
+  it('applies a valid multiplier in dev', () =>
+    expect(rateLimitMultiplier({ NODE_ENV: 'development', RATE_LIMIT_MULTIPLIER: '100' })).toBe(100));
+  it.each(['abc', '0', '-5', '0.5', 'Infinity', ''])('ignores garbage %p', (v) =>
+    expect(rateLimitMultiplier({ RATE_LIMIT_MULTIPLIER: v })).toBe(1));
+  it('is forced to 1 in production', () =>
+    expect(rateLimitMultiplier({ NODE_ENV: 'production', RATE_LIMIT_MULTIPLIER: '100' })).toBe(1));
+  it('is forced to 1 on Vercel', () =>
+    expect(rateLimitMultiplier({ VERCEL: '1', RATE_LIMIT_MULTIPLIER: '100' })).toBe(1));
+});
+
+describe('rateLimitMiddleware with multiplier', () => {
+  afterEach(() => { delete process.env.RATE_LIMIT_MULTIPLIER; });
+  it('allows count up to max × multiplier', async () => {
+    process.env.RATE_LIMIT_MULTIPLIER = '10';
+    mockRedis.incr.mockResolvedValue(30); // > 3 but ≤ 30
+    const res = await request(buildLimitedApp(3)).get('/ping');
+    expect(res.status).toBe(200);
+  });
+  it('still blocks above max × multiplier', async () => {
+    process.env.RATE_LIMIT_MULTIPLIER = '10';
+    mockRedis.incr.mockResolvedValue(31);
+    const res = await request(buildLimitedApp(3)).get('/ping');
+    expect(res.status).toBe(429);
   });
 });

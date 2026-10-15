@@ -9,6 +9,13 @@ interface RateLimitOptions {
   getKey?: (req: Request) => string;
 }
 
+/** Load-test knob (k6). Never applies in production or on Vercel. */
+export function rateLimitMultiplier(env: NodeJS.ProcessEnv = process.env): number {
+  if (env.NODE_ENV === 'production' || env.VERCEL) return 1;
+  const n = Number(env.RATE_LIMIT_MULTIPLIER);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
 export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
   const { keyPrefix, windowSeconds, maxRequests, getKey } = options;
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -23,7 +30,7 @@ export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
       // would climb past maxRequests permanently, 429ing that caller for
       // good. The next request's NX expire closes that window immediately.
       await redis.expire(key, windowSeconds, 'NX');
-      if (count > maxRequests) {
+      if (count > maxRequests * rateLimitMultiplier()) {
         // ponytail: whole window, not the key's remaining TTL — over-estimates by < windowSeconds, saves a Redis call.
         res.setHeader('Retry-After', String(windowSeconds));
         respondError(req, res, 429, { error: 'Demasiadas solicitudes. Intenta nuevamente más tarde.' });
