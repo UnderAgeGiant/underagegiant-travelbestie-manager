@@ -1,6 +1,6 @@
 import { generateKeyPairSync, privateDecrypt, constants } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { buildAuthBody, buildBodies, newmanUsername } = require('../scripts/run-postman.cjs');
+const { buildAuthBody, buildBodies, newmanUsername, NEWMAN } = require('../scripts/run-postman.cjs');
 
 const { privateKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -46,5 +46,11 @@ describe('newmanUsername', () => {
     const b = buildBodies({ testUserEmail: 'm@x.c', collabUserEmail: 'c@x.c' }, '');
     expect(JSON.parse(b.profileName).username).toBe(newmanUsername('m@x.c'));
     expect(JSON.parse(b.collabProfile)).toEqual({ username: newmanUsername('c@x.c') });
+  });
+});
+
+describe('NEWMAN', () => {
+  it('pins an exact Newman version (the spawned process receives the test credentials)', () => {
+    expect(NEWMAN).toMatch(/^newman@\d+\.\d+\.\d+$/);
   });
 });

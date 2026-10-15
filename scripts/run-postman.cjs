@@ -51,6 +51,9 @@ const DEFAULT_FOLDERS = ['🏥 Health', '🔐 Auth', '🗺️ Trips', '🤝 Coll
   '🏆 Trophies & Rankings', '🌦️ Weather', '🔎 SEO', '🏠 Landing & Feed', '👥 Social', '🐝 Companion',
   '❤️ Favorites', '🧹 Cleanup'];
 
+// Pinned: the spawned Newman receives both test accounts' credentials, so never run "latest".
+const NEWMAN = 'newman@6.2.2';
+
 function main() {
   const root = path.dirname(__dirname);
   const envFile = path.join(root, 'travelbestie-local.postman_environment.json');
@@ -76,12 +79,12 @@ function main() {
   const passthrough = process.argv.slice(2);
   const folders = passthrough.length ? passthrough : DEFAULT_FOLDERS.flatMap(f => ['--folder', f]);
   const quote = a => (process.platform === 'win32' ? `"${a}"` : a); // shell:true on Windows splits on spaces
-  const r = spawnSync('npx', ['--yes', 'newman', 'run', path.join(root, 'travelbestie-manager.postman_collection.json'),
+  const r = spawnSync('npx', ['--yes', NEWMAN, 'run', path.join(root, 'travelbestie-manager.postman_collection.json'),
     '-e', tmpEnv, ...folders].map(quote), { stdio: 'inherit', shell: process.platform === 'win32' });
   rmSync(tmpEnv, { force: true });
   process.exit(r.status ?? 1);
 }
 
-module.exports = { encryptBody, buildAuthBody, buildBodies, newmanUsername, DEFAULT_FOLDERS };
+module.exports = { encryptBody, buildAuthBody, buildBodies, newmanUsername, DEFAULT_FOLDERS, NEWMAN };
 
 if (require.main === module) main();
