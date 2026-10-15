@@ -41,3 +41,6 @@ coverage/
 
 # Local Claude instructions (keep machine-specific, never overwrite from remote)
 CLAUDE.md
+
+# Postman environments hold test-account passwords (the .example.json stays tracked)
+*.postman_environment.json

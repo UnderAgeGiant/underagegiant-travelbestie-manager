@@ -2,22 +2,85 @@
   "info": {
     "name": "TravelBestie Manager API",
     "_postman_id": "travelbestie-manager-2026",
-    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Set `baseUrl` (default: `http://localhost:3000`)\n2. Adjust `testUserEmail`, `testUserPassword`, `testUserName` if needed\n3. **Optional — production only**: set `rsaPublicKeyBase64` (SPKI, base64, no PEM headers) to enable RSA-OAEP encryption for auth requests\n\n## Dev vs production mode\n**Dev (no `rsaPublicKeyBase64` set):** auth requests send plaintext body fields directly.\n**Production (`rsaPublicKeyBase64` set):** pre-request scripts encrypt credentials with RSA-OAEP + SHA-256. Requires Postman v10+.\n\n## OTP flow for Register\nRegister now requires an OTP. Run **Auth › Request OTP** first, check your email, set `testUserOtp`, then run Register.\n\n## Run order\n`token`, `tripId`, `shareId` are saved automatically. Run Auth → Trips → Shared Trips → Comments → Karma → Landing for the full happy path.",
+    "description": "Complete test collection for the TravelBestie Manager REST API.\n\n## Setup\n1. Copy `travelbestie-local.postman_environment.example.json` → `travelbestie-local.postman_environment.json` (gitignored) and fill in both test accounts (main ≥ 20 karma; the collab account is the co-editing invitee).\n2. Postman app: import that environment too. If the backend has `RSA_PRIVATE_KEY`, set `rsaPublicKeyBase64` (SPKI, base64) to its public half (`node scripts/generate-keys.js`).\n\n## Headless (Newman)\n`npm run postman` runs every folder except 💸 Costly (manual), Cleanup last. `npm run postman -- --folder \"🔐 Auth\"` runs one folder.\nThe runner precomputes every RSA-encrypted body from `local.env`'s `RSA_PRIVATE_KEY` (Newman has no WebCrypto) and passes them as the `nmBodies` env value.\n\n## Side effects\nTrips created by a run are titled `[newman] …`; 🧹 Cleanup deletes them (also leftovers of a crashed run). Comments stay. One run costs the main account karma (AI + companion boost + trips + invite).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl",          "value": "http://localhost:3000", "type": "string" },
-    { "key": "token",            "value": "",                      "type": "string" },
-    { "key": "tripId",           "value": "",                      "type": "string" },
-    { "key": "shareId",          "value": "",                      "type": "string" },
-    { "key": "authBody",         "value": "{}",                    "type": "string" },
-    { "key": "rsaPublicKeyBase64","value": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAwxCHm1S3jDTwFYfHMRmo2ML4izOeP0Jj0k5qgfTYMR0+AKdbJnYt6ajdNy8tRY+NGvYDnYGY0Ec0o54esnsgM0hPG11NMrJs/o5UIxE14VL1KdiMQmBdgiZGK4Fd4mSdOyUZEABiso2ClP2z05N/KoRYsM9VErSH6XDc5s09qoRMv60B3dXyZTsFYGV3O8rpAg8AR9vQcTi5HlQaD5G/vZgI4tR6OFnyiHY+6z3nig/6VPaeOLkECY0zeXGTHtfZ0g9dL+D+CwdM5l0y5wk1Nny1wFHi3MrrkMVGRDjjDSae6CeVYWe0o2LJkmei0AM7RA22iX/i10fyZsGgXq4N3TrZmZmGP/z+NdBRCzYVujlnoa+CMhWXu9It7+1BggueFDZo3BC7vI+DdQ1ujU0/YeRg41xEX4ECDQrZPwiKYcuJgrTknqjhO7U1cSZdExTzRwTpxm2Ngh1D6Lgrpfc0J7Vu4dy3POnaC4SN00KT4UXU7LQhiYLG6DpiRKyVDxgZBzkXEcXDl7T5VmMoZjvnrN8pOT/OXgIT2XW9B379beoVBEJD8/5UgA+rEOPokZjAXmOUNDSO+TYHkNYqIlQkXoXswxzDd8FV7b9WKxLOYQNppmmF0uUY998KOM39l86lxGCpseli+imwwPdzZI23+wdgSsRq5JiomfX3qbAsDDsCAwEAAQ==", "type": "string" },
-    { "key": "testUserEmail",    "value": "testuser@travelbestie.com", "type": "string" },
-    { "key": "testUserPassword", "value": "testpass123",              "type": "string" },
-    { "key": "testUserName",     "value": "Test User",                "type": "string" },
-    { "key": "testUserOtp",      "value": "",                         "type": "string" },
-    { "key": "suggestedOption",  "value": "{}",                       "type": "string" },
-    { "key": "planBody",         "value": "{}",                       "type": "string" }
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shareId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authBody",
+      "value": "{}",
+      "type": "string"
+    },
+    {
+      "key": "suggestedOption",
+      "value": "{}",
+      "type": "string"
+    },
+    {
+      "key": "planBody",
+      "value": "{}",
+      "type": "string"
+    },
+    {
+      "key": "userName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "altEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collabToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collabUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collabTripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aiRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aiPollCount",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nextTripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newmanTripIds",
+      "value": "[]",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -28,7 +91,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
           },
           "event": [
             {
@@ -49,44 +120,35 @@
       "name": "🔐 Auth",
       "item": [
         {
-          "name": "Request OTP",
-          "description": "Step 1 of registration. Sends a 6-digit OTP to the email. Check your inbox, then set `testUserOtp` in collection variables before running Register.",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{testUserEmail}}\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.be.a('string'));",
-                  "console.log('OTP sent to', pm.collectionVariables.get('testUserEmail'), '— set testUserOtp before running Register.');"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Request OTP - Already Registered",
           "description": "400 when the email is already registered.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{testUserEmail}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
           },
           "event": [
             {
@@ -94,13 +156,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// This passes 400 only if the testUserEmail is already registered.",
-                  "// If the user is new, it returns 200 (OTP sent) instead.",
-                  "const status = pm.response.code;",
-                  "pm.test('Status 200 or 400', () => pm.expect([200, 400]).to.include(status));",
-                  "if (status === 400) {",
-                  "    pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "}"
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Email already taken', () => pm.expect(pm.response.json().error).to.equal('Email already taken'));"
                 ]
               }
             }
@@ -110,13 +167,31 @@
           "name": "Request OTP - Missing Email",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/request-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-otp"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
           },
           "event": [
             {
@@ -132,17 +207,35 @@
           ]
         },
         {
-          "name": "Register - Success",
+          "name": "Register - Email Already Registered",
           "description": "Requires testUserOtp to be set first. Run Request OTP, check email, set testUserOtp.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
           },
           "event": [
             {
@@ -150,22 +243,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = {",
-                  "        name:     pm.collectionVariables.get('testUserName'),",
-                  "        email:    pm.collectionVariables.get('testUserEmail'),",
-                  "        password: pm.collectionVariables.get('testUserPassword'),",
-                  "        otp:      pm.collectionVariables.get('testUserOtp'),",
-                  "    };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['registerExisting']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { name: 'Newman', email: pm.variables.get('testUserEmail'), password: 'testpass123', otp: '000000' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             },
@@ -174,13 +268,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has token', () => pm.expect(body.token).to.be.a('string'));",
-                  "pm.test('User name matches', () => pm.expect(body.user.name).to.equal(pm.collectionVariables.get('testUserName')));",
-                  "pm.test('User email matches', () => pm.expect(body.user.email).to.equal(pm.collectionVariables.get('testUserEmail')));",
-                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);",
-                  "if (pm.response.code === 201) pm.collectionVariables.set('token', body.token);"
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Email already taken', () => pm.expect(pm.response.json().error).to.equal('Email already taken'));"
                 ]
               }
             }
@@ -190,34 +279,33 @@
           "name": "Register - Password Too Short",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { name: 'Test', email: 'short.pass@travelbestie.com', password: '123', otp: '000000' };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
-                ]
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
             {
               "listen": "test",
               "script": {
@@ -227,6 +315,31 @@
                   "pm.test('Error mentions password', () => pm.expect(pm.response.json().error).to.include('password'));"
                 ]
               }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['registerShortPassword']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { name: 'Test', email: 'short.pass@travelbestie.com', password: '123', otp: '000000' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
+                ]
+              }
             }
           ]
         },
@@ -234,34 +347,33 @@
           "name": "Register - Missing Name",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { email: 'no.name@travelbestie.com', password: 'testpass123', otp: '000000' };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
-                ]
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
             {
               "listen": "test",
               "script": {
@@ -269,6 +381,31 @@
                 "exec": [
                   "pm.test('Status 400', () => pm.response.to.have.status(400));",
                   "pm.test('Error mentions name', () => pm.expect(pm.response.json().error).to.include('name'));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['registerMissingName']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: 'no.name@travelbestie.com', password: 'testpass123', otp: '000000' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             }
@@ -279,13 +416,31 @@
           "description": "In dev mode the 400 comes from validate() catching missing fields. In production the error is 'encryptedPayload is required'.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
           },
           "event": [
             {
@@ -295,8 +450,8 @@
                 "exec": [
                   "pm.test('Status 400', () => pm.response.to.have.status(400));",
                   "pm.test('Has error field', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "if (pm.collectionVariables.get('rsaPublicKeyBase64')) {",
-                  "    pm.test('Error is encryptedPayload required [prod]', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));",
+                  "if ((pm.environment.get('nmBodies') || '').includes('encryptedPayload') || pm.variables.get('rsaPublicKeyBase64')) {",
+                  "    pm.test('Error is encryptedPayload required [RSA on]', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));",
                   "}"
                 ]
               }
@@ -307,13 +462,31 @@
           "name": "Login - Success",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           },
           "event": [
             {
@@ -321,19 +494,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const email    = pm.collectionVariables.get('testUserEmail');",
-                  "    const password = pm.collectionVariables.get('testUserPassword');",
-                  "    const payload = { email, password };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['login']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: pm.variables.get('testUserEmail'), password: pm.variables.get('testUserPassword') };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             },
@@ -345,9 +522,12 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
                   "pm.test('Has token', () => pm.expect(body.token).to.be.a('string'));",
-                  "pm.test('User email matches', () => pm.expect(body.user.email).to.equal(pm.collectionVariables.get('testUserEmail')));",
+                  "pm.test('User email matches', () => pm.expect(body.user.email).to.equal(pm.variables.get('testUserEmail').toLowerCase()));",
                   "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);",
-                  "if (pm.response.code === 200) pm.collectionVariables.set('token', body.token);"
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', body.token);",
+                  "    pm.collectionVariables.set('userName', body.user.name);",
+                  "}"
                 ]
               }
             }
@@ -357,34 +537,33 @@
           "name": "Login - Wrong Password",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { email: pm.collectionVariables.get('testUserEmail'), password: 'definitelywrong' };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
-                ]
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
             {
               "listen": "test",
               "script": {
@@ -392,6 +571,31 @@
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));",
                   "pm.test('Error is Invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['loginWrongPassword']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: pm.variables.get('testUserEmail'), password: 'definitelywrong' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             }
@@ -401,34 +605,33 @@
           "name": "Login - Unknown Email",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { email: 'nobody@nonexistent.com', password: 'doesnotmatter' };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
-                ]
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
             {
               "listen": "test",
               "script": {
@@ -436,6 +639,31 @@
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));",
                   "pm.test('Error is Invalid credentials', () => pm.expect(pm.response.json().error).to.equal('Invalid credentials'));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['loginUnknownEmail']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: 'nobody@nonexistent.com', password: 'doesnotmatter' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             }
@@ -446,13 +674,31 @@
           "description": "In dev mode the 400 comes from validate() (missing email/password). In production the error is 'encryptedPayload is required'.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           },
           "event": [
             {
@@ -462,8 +708,8 @@
                 "exec": [
                   "pm.test('Status 400', () => pm.response.to.have.status(400));",
                   "pm.test('Has error field', () => pm.expect(pm.response.json().error).to.be.a('string'));",
-                  "if (pm.collectionVariables.get('rsaPublicKeyBase64')) {",
-                  "    pm.test('Error is encryptedPayload required [prod]', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));",
+                  "if ((pm.environment.get('nmBodies') || '').includes('encryptedPayload') || pm.variables.get('rsaPublicKeyBase64')) {",
+                  "    pm.test('Error is encryptedPayload required [RSA on]', () => pm.expect(pm.response.json().error).to.equal('encryptedPayload is required'));",
                   "}"
                 ]
               }
@@ -476,15 +722,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",   "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newEmail\": \"newemail@travelbestie.com\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"newEmail\": \"{{altEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/request-profile-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-profile-otp"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-profile-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-profile-otp"
+              ]
+            }
           },
           "event": [
             {
@@ -496,6 +761,16 @@
                   "pm.test('Has message', () => pm.expect(pm.response.json().message).to.be.a('string'));"
                 ]
               }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const [user, domain] = pm.variables.get('testUserEmail').split('@');",
+                  "pm.collectionVariables.set('altEmail', user + '+newman@' + domain);"
+                ]
+              }
             }
           ]
         },
@@ -503,13 +778,31 @@
           "name": "Request Profile OTP - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newEmail\": \"newemail@travelbestie.com\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"newEmail\": \"nobody@nonexistent.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/request-profile-otp", "host": ["{{baseUrl}}"], "path": ["auth", "request-profile-otp"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-profile-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-profile-otp"
+              ]
+            }
           },
           "event": [
             {
@@ -529,15 +822,34 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",   "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{{authBody}}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            }
           },
           "event": [
             {
@@ -545,17 +857,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "(async () => {",
-                  "    const pub = pm.collectionVariables.get('rsaPublicKeyBase64');",
-                  "    const payload = { name: 'Updated Name' };",
-                  "    if (pub) {",
-                  "        const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
-                  "        const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
-                  "    } else {",
-                  "        pm.collectionVariables.set('authBody', JSON.stringify(payload));",
-                  "    }",
-                  "})()"
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['profileName']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { name: 'Newman Test' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
                 ]
               }
             },
@@ -567,8 +885,9 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
                   "pm.test('Has user', () => pm.expect(body.user).to.be.an('object'));",
-                  "pm.test('Name updated', () => pm.expect(body.user.name).to.equal('Updated Name'));",
-                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);"
+                  "pm.test('Name updated', () => pm.expect(body.user.name).to.equal('Newman Test'));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('userName', body.user.name);"
                 ]
               }
             }
@@ -578,13 +897,31 @@
           "name": "Update Profile - No Token",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{ \"name\": \"Should Fail\" }",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/auth/profile", "host": ["{{baseUrl}}"], "path": ["auth", "profile"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            }
           },
           "event": [
             {
@@ -607,8 +944,21 @@
           "name": "List Trips - Authenticated",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -628,7 +978,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -648,15 +1006,33 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"My Europe Trip\",\n  \"stops\": [],\n  \"transits\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -683,15 +1059,33 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Asia 2026\",\n  \"stops\": [\n    {\n      \"cityId\": \"tokyo\",\n      \"checkIn\": \"01/07/2026\",\n      \"checkOut\": \"07/07/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"tokyo_0\", \"startTime\": \"09:00\", \"date\": \"02/07/2026\" }\n      ],\n      \"lodging\": { \"name\": \"Park Hyatt Tokyo\", \"url\": \"https://example.com\" }\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"tokyo\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"01/07/2026\",\n          \"departureTime\": \"10:00\",\n          \"arrivalDate\": \"02/07/2026\",\n          \"arrivalTime\": \"08:30\",\n          \"notes\": \"LA 839 via LAX\"\n        }\n      ]\n    }\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -718,15 +1112,33 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"stops\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -745,13 +1157,30 @@
           "name": "Create Trip - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Should Fail\",\n  \"stops\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips", "host": ["{{baseUrl}}"], "path": ["trips"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
           },
           "event": [
             {
@@ -770,15 +1199,34 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"My Europe Trip — Updated\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -799,15 +1247,34 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Europe 2026 Final\",\n  \"stops\": [\n    {\n      \"cityId\": \"paris\",\n      \"checkIn\": \"10/06/2026\",\n      \"checkOut\": \"15/06/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"paris_0\", \"startTime\": \"10:00\" }\n      ]\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"paris\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"10/06/2026\",\n          \"departureTime\": \"08:00\",\n          \"arrivalDate\": \"11/06/2026\",\n          \"arrivalTime\": \"07:30\",\n          \"notes\": \"AF 406\"\n        }\n      ]\n    }\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -831,15 +1298,34 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Should Not Exist\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
           },
           "event": [
             {
@@ -858,13 +1344,31 @@
           "name": "Update Trip - No Token",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Should Fail\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -883,8 +1387,23 @@
           "description": "First share deducts 1 karma. Saves shareId to collection variable.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "share"
+              ]
+            }
           },
           "event": [
             {
@@ -906,8 +1425,23 @@
           "description": "Re-sharing the same trip is free and returns the existing shareId.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "share"
+              ]
+            }
           },
           "event": [
             {
@@ -926,8 +1460,23 @@
           "name": "Share Trip - Not Found",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/share", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "share"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000",
+                "share"
+              ]
+            }
           },
           "event": [
             {
@@ -946,7 +1495,17 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/share", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "share"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "share"
+              ]
+            }
           },
           "event": [
             {
@@ -965,8 +1524,23 @@
           "description": "Duplicates {{tripId}}. Title is prefixed 'Copia de '. Costs 1 karma.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/clone", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "clone"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "clone"
+              ]
+            }
           },
           "event": [
             {
@@ -989,8 +1563,23 @@
           "name": "Clone Own Trip - Not Found",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/clone", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "clone"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000",
+                "clone"
+              ]
+            }
           },
           "event": [
             {
@@ -1010,15 +1599,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"cityNames\": {\n    \"santiago\": \"Santiago\",\n    \"paris\": \"París\"\n  },\n  \"attractionNames\": {\n    \"paris_0\": \"Torre Eiffel\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "itinerary"
+              ]
+            }
           },
           "event": [
             {
@@ -1041,15 +1650,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "itinerary"
+              ]
+            }
           },
           "event": [
             {
@@ -1070,9 +1699,32 @@
           "name": "Generate Itinerary - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}", "itinerary"] }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/itinerary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "itinerary"
+              ]
+            }
           },
           "event": [
             {
@@ -1092,11 +1744,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
-            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/itinerary", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000", "itinerary"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/itinerary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000",
+                "itinerary"
+              ]
+            }
           },
           "event": [
             {
@@ -1115,8 +1791,22 @@
           "name": "Delete Trip - Not Found",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["trips", "00000000-0000-0000-0000-000000000000"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
           },
           "event": [
             {
@@ -1136,7 +1826,16 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -1155,8 +1854,22 @@
           "description": "Run this LAST in the Trips folder — after all Update, Share, and Itinerary tests.",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/trips/{{tripId}}", "host": ["{{baseUrl}}"], "path": ["trips", "{{tripId}}"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -1184,9 +1897,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/shared?q=europe",
-              "host": ["{{baseUrl}}"],
-              "path": ["shared"],
-              "query": [{ "key": "q", "value": "europe" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "europe"
+                }
+              ]
             }
           },
           "event": [
@@ -1219,9 +1941,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/shared?q=",
-              "host": ["{{baseUrl}}"],
-              "path": ["shared"],
-              "query": [{ "key": "q", "value": "" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": ""
+                }
+              ]
             }
           },
           "event": [
@@ -1243,7 +1974,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}"
+              ]
+            }
           },
           "event": [
             {
@@ -1270,7 +2010,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
           },
           "event": [
             {
@@ -1290,8 +2039,23 @@
           "description": "Clones the shared trip into the authenticated user's account. Title is prefixed 'Copia de '. Costs 1 karma.",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/clone", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "clone"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "clone"
+              ]
+            }
           },
           "event": [
             {
@@ -1316,8 +2080,23 @@
           "name": "Clone Shared Trip - Not Found",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/clone", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "clone"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "00000000-0000-0000-0000-000000000000",
+                "clone"
+              ]
+            }
           },
           "event": [
             {
@@ -1337,7 +2116,17 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/clone", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "clone"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "clone"
+              ]
+            }
           },
           "event": [
             {
@@ -1364,9 +2153,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/comments?ids=paris_0,tokyo_0,unknown_000",
-              "host": ["{{baseUrl}}"],
-              "path": ["comments"],
-              "query": [{ "key": "ids", "value": "paris_0,tokyo_0,unknown_000" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "paris_0,tokyo_0,unknown_000"
+                }
+              ]
             }
           },
           "event": [
@@ -1392,7 +2190,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/comments", "host": ["{{baseUrl}}"], "path": ["comments"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments"
+              ]
+            }
           },
           "event": [
             {
@@ -1415,9 +2221,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/comments?ids=a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af,ag,ah,ai,aj,ak,al,am,an,ao,ap,aq,ar,as,at,au,av,aw,ax,ay",
-              "host": ["{{baseUrl}}"],
-              "path": ["comments"],
-              "query": [{ "key": "ids", "value": "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af,ag,ah,ai,aj,ak,al,am,an,ao,ap,aq,ar,as,at,au,av,aw,ax,ay" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af,ag,ah,ai,aj,ak,al,am,an,ao,ap,aq,ar,as,at,au,av,aw,ax,ay"
+                }
+              ]
             }
           },
           "event": [
@@ -1438,7 +2253,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/comments/unknown_attraction_000", "host": ["{{baseUrl}}"], "path": ["comments", "unknown_attraction_000"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/unknown_attraction_000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "unknown_attraction_000"
+              ]
+            }
           },
           "event": [
             {
@@ -1458,15 +2282,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Absolutely breathtaking view!\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1478,7 +2321,7 @@
                   "const body = pm.response.json();",
                   "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
                   "pm.test('attractionId matches path', () => pm.expect(body.attractionId).to.equal('paris_0'));",
-                  "pm.test('Name is from JWT', () => pm.expect(body.name).to.equal(pm.collectionVariables.get('testUserName')));",
+                  "pm.test('Name is from JWT', () => pm.expect(body.name).to.equal(pm.collectionVariables.get('userName')));",
                   "pm.test('Text preserved', () => pm.expect(body.text).to.equal('Absolutely breathtaking view!'));",
                   "pm.test('Rating preserved', () => pm.expect(body.rating).to.equal(5));",
                   "pm.test('Color preserved', () => pm.expect(body.color).to.equal('#F472B6'));"
@@ -1493,15 +2336,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"HACKER\",\n  \"text\": \"Tried to spoof the author.\",\n  \"rating\": 4,\n  \"color\": \"#34D399\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/rome_0", "host": ["{{baseUrl}}"], "path": ["comments", "rome_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/rome_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "rome_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1510,7 +2372,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Name is from JWT not body', () => pm.expect(pm.response.json().name).to.equal(pm.collectionVariables.get('testUserName')));",
+                  "pm.test('Name is from JWT not body', () => pm.expect(pm.response.json().name).to.equal(pm.collectionVariables.get('userName')));",
                   "pm.test('Spoofed name rejected', () => pm.expect(pm.response.json().name).to.not.equal('HACKER'));"
                 ]
               }
@@ -1522,15 +2384,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Good place!\",\n  \"rating\": 6,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1550,15 +2431,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Good place!\",\n  \"rating\": 0,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1578,15 +2478,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rating\": 4,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1606,15 +2525,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Great!\",\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1633,13 +2571,31 @@
           "name": "Post Comment - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Should fail.\",\n  \"rating\": 5,\n  \"color\": \"#F472B6\",\n  \"date\": \"Apr 28\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1659,7 +2615,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/comments/paris_0", "host": ["{{baseUrl}}"], "path": ["comments", "paris_0"] }
+            "url": {
+              "raw": "{{baseUrl}}/comments/paris_0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "paris_0"
+              ]
+            }
           },
           "event": [
             {
@@ -1691,7 +2656,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments"
+              ]
+            }
           },
           "event": [
             {
@@ -1711,7 +2686,17 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "comments"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "00000000-0000-0000-0000-000000000000",
+                "comments"
+              ]
+            }
           },
           "event": [
             {
@@ -1732,15 +2717,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
           },
           "event": [
             {
@@ -1766,15 +2772,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"Too short.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
           },
           "event": [
             {
@@ -1794,11 +2821,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
           },
           "event": [
             {
@@ -1816,13 +2868,33 @@
           "name": "Add Step Comment - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "{{shareId}}", "comments", "stop:paris"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "comments",
+                "stop:paris"
+              ]
+            }
           },
           "event": [
             {
@@ -1841,15 +2913,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"text\": \"This is a detailed step comment that meets the fifty character minimum length requirement.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments/stop:paris", "host": ["{{baseUrl}}"], "path": ["shared", "00000000-0000-0000-0000-000000000000", "comments", "stop:paris"] }
+            "url": {
+              "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/comments/stop:paris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "00000000-0000-0000-0000-000000000000",
+                "comments",
+                "stop:paris"
+              ]
+            }
           },
           "event": [
             {
@@ -1872,8 +2965,21 @@
           "name": "Get Karma - Authenticated",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/karma", "host": ["{{baseUrl}}"], "path": ["karma"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma"
+              ]
+            }
           },
           "event": [
             {
@@ -1895,7 +3001,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/karma", "host": ["{{baseUrl}}"], "path": ["karma"] }
+            "url": {
+              "raw": "{{baseUrl}}/karma",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma"
+              ]
+            }
           },
           "event": [
             {
@@ -1915,8 +3029,22 @@
           "description": "Lists purchasable karma packages. Requires auth.",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": { "raw": "{{baseUrl}}/karma/packages", "host": ["{{baseUrl}}"], "path": ["karma", "packages"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/packages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "packages"
+              ]
+            }
           },
           "event": [
             {
@@ -1942,7 +3070,16 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/karma/packages", "host": ["{{baseUrl}}"], "path": ["karma", "packages"] }
+            "url": {
+              "raw": "{{baseUrl}}/karma/packages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "packages"
+              ]
+            }
           },
           "event": [
             {
@@ -1962,11 +3099,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
-            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "create-order"
+              ]
+            }
           },
           "event": [
             {
@@ -1987,15 +3148,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packageId\": \"nonexistent_package\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "create-order"
+              ]
+            }
           },
           "event": [
             {
@@ -2014,13 +3195,32 @@
           "name": "Create Karma Order - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packageId\": \"starter\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/karma/purchase/create-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "create-order"] }
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "create-order"
+              ]
+            }
           },
           "event": [
             {
@@ -2040,11 +3240,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
-            "url": { "raw": "{{baseUrl}}/karma/purchase/capture-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "capture-order"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/capture-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "capture-order"
+              ]
+            }
           },
           "event": [
             {
@@ -2063,13 +3287,32 @@
           "name": "Capture Karma Order - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"orderID\": \"fake-paypal-order-id\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/karma/purchase/capture-order", "host": ["{{baseUrl}}"], "path": ["karma", "purchase", "capture-order"] }
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/capture-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "capture-order"
+              ]
+            }
           },
           "event": [
             {
@@ -2094,15 +3337,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"preferences\": \"beaches, local food, and cultural landmarks\",\n  \"duration\": 10,\n  \"budget\": \"medium\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest"
+              ]
+            }
           },
           "event": [
             {
@@ -2129,15 +3391,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"preferences\": \"mountains, hiking and adventure\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest"
+              ]
+            }
           },
           "event": [
             {
@@ -2157,15 +3438,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"duration\": 7\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest"
+              ]
+            }
           },
           "event": [
             {
@@ -2184,13 +3484,31 @@
           "name": "Suggest Trips - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"preferences\": \"beaches\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/suggest", "host": ["{{baseUrl}}"], "path": ["ai", "suggest"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest"
+              ]
+            }
           },
           "event": [
             {
@@ -2210,15 +3528,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{{planBody}}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan"
+              ]
+            }
           },
           "event": [
             {
@@ -2273,15 +3610,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"preferences\": \"beaches and culture\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan"
+              ]
+            }
           },
           "event": [
             {
@@ -2301,15 +3657,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type",  "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"selectedOption\": { \"id\": 1, \"title\": \"Test\", \"summary\": \"Test\", \"highlights\": [\"a\"] }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan"
+              ]
+            }
           },
           "event": [
             {
@@ -2328,13 +3703,31 @@
           "name": "Plan Trip - No Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"selectedOption\": { \"id\": 1, \"title\": \"Test\", \"summary\": \"Test\", \"highlights\": [\"a\"] },\n  \"preferences\": \"beaches\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": { "raw": "{{baseUrl}}/ai/plan", "host": ["{{baseUrl}}"], "path": ["ai", "plan"] }
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan"
+              ]
+            }
           },
           "event": [
             {
@@ -2360,7 +3753,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/featured", "host": ["{{baseUrl}}"], "path": ["featured"] }
+            "url": {
+              "raw": "{{baseUrl}}/featured",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "featured"
+              ]
+            }
           },
           "event": [
             {
@@ -2388,7 +3789,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/stats", "host": ["{{baseUrl}}"], "path": ["stats"] }
+            "url": {
+              "raw": "{{baseUrl}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stats"
+              ]
+            }
           },
           "event": [
             {

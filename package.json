@@ -7,7 +7,8 @@
     "dev": "ts-node api/index.ts",
     "build": "tsc",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "postman": "node scripts/run-postman.cjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.5.0",
