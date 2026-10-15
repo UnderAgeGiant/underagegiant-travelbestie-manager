@@ -5,7 +5,7 @@
 //   node scripts/run-postman.cjs [--folder <name>]...   run (default: every folder but Costly)
 //   node scripts/run-postman.cjs --print-auth-body      print the main login body (k6)
 const { readFileSync, writeFileSync, existsSync, rmSync } = require('node:fs');
-const { createPublicKey, publicEncrypt, constants } = require('node:crypto');
+const { createPublicKey, publicEncrypt, constants, createHash } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
@@ -22,6 +22,11 @@ function buildAuthBody(email, password, privateKeyPem) {
   return encryptBody({ email, password }, privateKeyPem);
 }
 
+// Deterministic test username per account; the collection derives the same value with CryptoJS.
+function newmanUsername(email) {
+  return 'nm' + createHash('sha256').update(String(email).toLowerCase()).digest('hex').slice(0, 10);
+}
+
 // Keep in sync with the collection's pre-request scripts (same names, same payloads).
 function buildBodies(v, key) {
   const p = {
@@ -33,7 +38,8 @@ function buildBodies(v, key) {
     registerShortPassword: { name: 'Test', email: 'short.pass@travelbestie.com', password: '123', otp: '000000' },
     registerMissingName: { email: 'no.name@travelbestie.com', password: 'testpass123', otp: '000000' },
     resetWrongOtp: { email: 'nobody@nonexistent.com', otp: '000000', newPassword: 'testpass123' },
-    profileName: { name: 'Newman Test' },
+    profileName: { name: 'Newman Test', username: newmanUsername(v.testUserEmail) },
+    collabProfile: { username: newmanUsername(v.collabUserEmail) },
   };
   return Object.fromEntries(Object.entries(p).map(([k, payload]) => [k, encryptBody(payload, key)]));
 }
@@ -76,6 +82,6 @@ function main() {
   process.exit(r.status ?? 1);
 }
 
-module.exports = { encryptBody, buildAuthBody, buildBodies, DEFAULT_FOLDERS };
+module.exports = { encryptBody, buildAuthBody, buildBodies, newmanUsername, DEFAULT_FOLDERS };
 
 if (require.main === module) main();

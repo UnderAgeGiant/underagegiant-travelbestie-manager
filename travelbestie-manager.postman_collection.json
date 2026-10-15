@@ -80,6 +80,46 @@
       "key": "newmanTripIds",
       "value": "[]",
       "type": "string"
+    },
+    {
+      "key": "stopsTripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paypalOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "planSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mainUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collabUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "weatherIn",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "weatherOut",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -109,6 +149,35 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.equal('ok'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /robots.txt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/robots.txt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "robots.txt"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Allows crawling', () => pm.expect(pm.response.text()).to.include('Allow: /'));",
+                  "pm.test('API host noindex header', () => pm.expect(pm.response.headers.get('X-Robots-Tag')).to.include('noindex'));"
                 ]
               }
             }
@@ -817,7 +886,7 @@
           ]
         },
         {
-          "name": "Update Profile - Change Name",
+          "name": "Update Profile - Change Name + Username",
           "description": "Updates display name only. In dev mode send plaintext; in prod send encryptedPayload.",
           "request": {
             "method": "PUT",
@@ -853,17 +922,36 @@
           },
           "event": [
             {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has user', () => pm.expect(body.user).to.be.an('object'));",
+                  "pm.test('Name updated', () => pm.expect(body.user.name).to.equal('Newman Test'));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);",
+                  "pm.test('Username set', () => pm.expect(body.user.username).to.equal(pm.collectionVariables.get('mainUsername')));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('userName', body.user.name);"
+                ]
+              }
+            },
+            {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "const nmUser = e => 'nm' + require('crypto-js').SHA256(String(e).toLowerCase()).toString().slice(0, 10);",
+                  "pm.collectionVariables.set('mainUsername', nmUser(pm.variables.get('testUserEmail')));",
+                  "pm.collectionVariables.set('collabUsername', nmUser(pm.variables.get('collabUserEmail')));",
+                  "",
                   "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
                   "const nm = pm.environment.get('nmBodies');",
                   "if (nm) {",
                   "    pm.collectionVariables.set('authBody', JSON.parse(nm)['profileName']);",
                   "} else {",
                   "    (async () => {",
-                  "        const payload = { name: 'Newman Test' };",
+                  "        const payload = { name: 'Newman Test', username: pm.collectionVariables.get('mainUsername') };",
                   "        const pub = pm.variables.get('rsaPublicKeyBase64');",
                   "        if (pub) {",
                   "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
@@ -874,20 +962,6 @@
                   "        }",
                   "    })();",
                   "}"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has user', () => pm.expect(body.user).to.be.an('object'));",
-                  "pm.test('Name updated', () => pm.expect(body.user.name).to.equal('Newman Test'));",
-                  "pm.test('No passwordHash exposed', () => pm.expect(body.user.passwordHash).to.be.undefined);",
-                  "if (pm.response.code === 200) pm.collectionVariables.set('userName', body.user.name);"
                 ]
               }
             }
@@ -930,6 +1004,309 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/refresh - Success (cookie from login)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Contract §1.6 says body {refreshToken}; the code reads the HttpOnly tb_refresh_token cookie (Newman keeps a cookie jar) and returns {token, user} without refreshToken."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has token', () => pm.expect(body.token).to.be.a('string'));",
+                  "pm.test('Has user email', () => pm.expect(body.user.email).to.equal(pm.variables.get('testUserEmail').toLowerCase()));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/refresh - After Logout (revoked cookie)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('INVALID_REFRESH_TOKEN', () => pm.expect(pm.response.json().error).to.equal('INVALID_REFRESH_TOKEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Again (fresh session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{authBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['login']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: pm.variables.get('testUserEmail'), password: pm.variables.get('testUserPassword') };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/request-password-reset - Unknown Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-password-reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-password-reset"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@nonexistent.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Generic message (no enumeration)', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/reset-password - Wrong OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{authBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['resetWrongOtp']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: 'nobody@nonexistent.com', otp: '000000', newPassword: 'testpass123' };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has error', () => pm.expect(pm.response.json().error).to.be.a('string'));"
                 ]
               }
             }
@@ -1017,7 +1394,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"My Europe Trip\",\n  \"stops\": [],\n  \"transits\": []\n}",
+              "raw": "{\n  \"title\": \"[newman] My Europe Trip\",\n  \"stops\": [],\n  \"transits\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1043,12 +1420,15 @@
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
                   "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
-                  "pm.test('Title matches', () => pm.expect(body.title).to.equal('My Europe Trip'));",
+                  "pm.test('Title matches', () => pm.expect(body.title).to.equal('[newman] My Europe Trip'));",
                   "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
                   "pm.test('Has createdAt', () => pm.expect(body.createdAt).to.be.a('string'));",
                   "pm.test('Stops is array', () => pm.expect(body.stops).to.be.an('array'));",
                   "pm.test('Transits is array', () => pm.expect(body.transits).to.be.an('array'));",
-                  "if (pm.response.code === 201) pm.collectionVariables.set('tripId', body.id);"
+                  "if (pm.response.code === 201) pm.collectionVariables.set('tripId', body.id);",
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (pm.response.json().id) ids.push(pm.response.json().id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids));"
                 ]
               }
             }
@@ -1070,7 +1450,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Asia 2026\",\n  \"stops\": [\n    {\n      \"cityId\": \"tokyo\",\n      \"checkIn\": \"01/07/2026\",\n      \"checkOut\": \"07/07/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"tokyo_0\", \"startTime\": \"09:00\", \"date\": \"02/07/2026\" }\n      ],\n      \"lodging\": { \"name\": \"Park Hyatt Tokyo\", \"url\": \"https://example.com\" }\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"tokyo\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"01/07/2026\",\n          \"departureTime\": \"10:00\",\n          \"arrivalDate\": \"02/07/2026\",\n          \"arrivalTime\": \"08:30\",\n          \"notes\": \"LA 839 via LAX\"\n        }\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"title\": \"[newman] Asia 2026\",\n  \"stops\": [\n    {\n      \"cityId\": \"tokyo\",\n      \"checkIn\": \"01/07/2026\",\n      \"checkOut\": \"07/07/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"tokyo_0\", \"startTime\": \"09:00\", \"date\": \"02/07/2026\" }\n      ],\n      \"lodging\": { \"name\": \"Park Hyatt Tokyo\", \"url\": \"https://example.com\" }\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"tokyo\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"01/07/2026\",\n          \"departureTime\": \"10:00\",\n          \"arrivalDate\": \"02/07/2026\",\n          \"arrivalTime\": \"08:30\",\n          \"notes\": \"LA 839 via LAX\"\n        }\n      ]\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1101,7 +1481,11 @@
                   "pm.test('Stop has selected attraction', () => pm.expect(body.stops[0].selectedAttractions).to.have.length(1));",
                   "pm.test('Has 1 transit', () => pm.expect(body.transits).to.have.length(1));",
                   "pm.test('Transit segment mode is flight', () => pm.expect(body.transits[0].segments[0].mode).to.equal('flight'));",
-                  "pm.test('Transit segment notes preserved', () => pm.expect(body.transits[0].segments[0].notes).to.equal('LA 839 via LAX'));"
+                  "pm.test('Transit segment notes preserved', () => pm.expect(body.transits[0].segments[0].notes).to.equal('LA 839 via LAX'));",
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (pm.response.json().id) ids.push(pm.response.json().id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('stopsTripId', pm.response.json().id);"
                 ]
               }
             }
@@ -1165,7 +1549,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Should Fail\",\n  \"stops\": []\n}",
+              "raw": "{\n  \"title\": \"[newman] Should Fail\",\n  \"stops\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1210,7 +1594,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"My Europe Trip — Updated\"\n}",
+              "raw": "{\n  \"title\": \"[newman] My Europe Trip — Updated\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1235,7 +1619,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Title updated', () => pm.expect(pm.response.json().title).to.equal('My Europe Trip — Updated'));",
+                  "pm.test('Title updated', () => pm.expect(pm.response.json().title).to.equal('[newman] My Europe Trip — Updated'));",
                   "pm.test('id unchanged', () => pm.expect(pm.response.json().id).to.equal(pm.collectionVariables.get('tripId')));"
                 ]
               }
@@ -1258,7 +1642,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Europe 2026 Final\",\n  \"stops\": [\n    {\n      \"cityId\": \"paris\",\n      \"checkIn\": \"10/06/2026\",\n      \"checkOut\": \"15/06/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"paris_0\", \"startTime\": \"10:00\" }\n      ]\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"paris\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"10/06/2026\",\n          \"departureTime\": \"08:00\",\n          \"arrivalDate\": \"11/06/2026\",\n          \"arrivalTime\": \"07:30\",\n          \"notes\": \"AF 406\"\n        }\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"title\": \"[newman] Europe 2026 Final\",\n  \"stops\": [\n    {\n      \"cityId\": \"paris\",\n      \"checkIn\": \"10/06/2026\",\n      \"checkOut\": \"15/06/2026\",\n      \"selectedAttractions\": [\n        { \"attractionId\": \"paris_0\", \"startTime\": \"10:00\" }\n      ]\n    }\n  ],\n  \"transits\": [\n    {\n      \"fromCityId\": \"santiago\",\n      \"toCityId\": \"paris\",\n      \"segments\": [\n        {\n          \"mode\": \"flight\",\n          \"departureDate\": \"10/06/2026\",\n          \"departureTime\": \"08:00\",\n          \"arrivalDate\": \"11/06/2026\",\n          \"arrivalTime\": \"07:30\",\n          \"notes\": \"AF 406\"\n        }\n      ]\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1284,7 +1668,7 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.test('Title updated', () => pm.expect(body.title).to.equal('Europe 2026 Final'));",
+                  "pm.test('Title updated', () => pm.expect(body.title).to.equal('[newman] Europe 2026 Final'));",
                   "pm.test('Has 1 stop', () => pm.expect(body.stops).to.have.length(1));",
                   "pm.test('Stop cityId is paris', () => pm.expect(body.stops[0].cityId).to.equal('paris'));",
                   "pm.test('Transit notes preserved', () => pm.expect(body.transits[0].segments[0].notes).to.equal('AF 406'));"
@@ -1309,7 +1693,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Should Not Exist\"\n}",
+              "raw": "{\n  \"title\": \"[newman] Should Not Exist\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1352,7 +1736,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Should Fail\"\n}",
+              "raw": "{\n  \"title\": \"[newman] Should Fail\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1550,10 +1934,13 @@
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
-                  "pm.test('Title starts with Copia de', () => pm.expect(body.title).to.match(/^Copia de /));",
+                  "pm.test('Title starts with Copia de', () => pm.expect(body.title).to.match(/^Copia de \\[newman\\] /));",
                   "pm.test('Has new id', () => pm.expect(body.id).to.not.equal(pm.collectionVariables.get('tripId')));",
                   "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
-                  "pm.test('No shareId on clone', () => pm.expect(body.shareId).to.be.undefined);"
+                  "pm.test('No shareId on clone', () => pm.expect(body.shareId).to.be.undefined);",
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (pm.response.json().id) ids.push(pm.response.json().id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids));"
                 ]
               }
             }
@@ -1850,7 +2237,7 @@
           ]
         },
         {
-          "name": "Delete Trip - Success",
+          "name": "Delete Trip - Success (the stops trip)",
           "description": "Run this LAST in the Trips folder — after all Update, Share, and Itinerary tests.",
           "request": {
             "method": "DELETE",
@@ -1861,13 +2248,13 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "raw": "{{baseUrl}}/trips/{{stopsTripId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "trips",
-                "{{tripId}}"
+                "{{stopsTripId}}"
               ]
             }
           },
@@ -1879,6 +2266,1036 @@
                 "exec": [
                   "pm.test('Status 204', () => pm.response.to.have.status(204));",
                   "pm.test('No response body', () => pm.expect(pm.response.text()).to.equal(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /trips/invites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "invites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /trips/:id/collaborators - Owner (none yet)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "collaborators"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /trips/:id/collaborators - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/00000000-0000-0000-0000-000000000000/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "00000000-0000-0000-0000-000000000000",
+                "collaborators"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🤝 Collaborators",
+      "description": "Co-editing flow (§2.10–§2.14) with the second test account (collabUserEmail). Costs the owner 2 karma per run (trip + invite). Invites are rate-limited to 10/hour per owner (4 invite calls per run).",
+      "item": [
+        {
+          "name": "Login - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{authBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['collabLogin']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { email: pm.variables.get('collabUserEmail'), password: pm.variables.get('collabUserPassword') };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('collabToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create trip for collab - owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"[newman] collab\",\n  \"stops\": [\n    {\n      \"cityId\": \"paris\",\n      \"checkIn\": \"10/06/2027\",\n      \"checkOut\": \"12/06/2027\",\n      \"selectedAttractions\": []\n    }\n  ],\n  \"transits\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('collabTripId', pm.response.json().id);",
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (pm.response.json().id) ids.push(pm.response.json().id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List collaborators - collab before invite",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite - no auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"{{collabUserEmail}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite - self",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"{{testUserEmail}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite - unknown email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"nobody@nonexistent.com\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite - owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"{{collabUserEmail}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Invitee email', () => pm.expect(body.email).to.equal(pm.variables.get('collabUserEmail').toLowerCase()));",
+                  "pm.test('Pending (acceptedAt null)', () => pm.expect(body.acceptedAt).to.be.null);",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('collabUserId', body.userId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite - duplicate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"{{collabUserEmail}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invites - collab",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "invites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains the invite', () => pm.expect(pm.response.json().map(i => i.tripId)).to.include(pm.collectionVariables.get('collabTripId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit - collab before accept",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"[newman] collab — too early\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept - no invite (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List trips - collab sees co-edited trip",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json().find(x => x.id === pm.collectionVariables.get('collabTripId'));",
+                  "pm.test('Trip listed', () => pm.expect(t).to.be.an('object'));",
+                  "pm.test('isCollaborator', () => pm.expect(t.isCollaborator).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit - collab",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"[newman] collab — edited by collab\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Title updated', () => pm.expect(pm.response.json().title).to.equal('[newman] collab — edited by collab'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete - collab",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Share - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "share"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clone - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "clone"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Itinerary - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/itinerary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "itinerary"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove collaborator - collab cannot",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators/{{collabUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators",
+                "{{collabUserId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List collaborators - owner",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const me = pm.response.json().find(x => x.email === pm.variables.get('collabUserEmail').toLowerCase());",
+                  "pm.test('Collab listed', () => pm.expect(me).to.be.an('object'));",
+                  "pm.test('Accepted', () => pm.expect(me.acceptedAt).to.be.a('string'));",
+                  "if (me) pm.collectionVariables.set('collabUserId', me.userId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove collaborator - owner",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}/collaborators/{{collabUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}",
+                "collaborators",
+                "{{collabUserId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit - collab after removal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{collabTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{collabTripId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"[newman] collab — after removal\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -2070,7 +3487,10 @@
                   "pm.test('Has ownerId', () => pm.expect(body.ownerId).to.be.a('string'));",
                   "pm.test('No shareId on clone', () => pm.expect(body.shareId).to.be.undefined);",
                   "pm.test('Has stops', () => pm.expect(body.stops).to.be.an('array'));",
-                  "pm.test('Has transits', () => pm.expect(body.transits).to.be.an('array'));"
+                  "pm.test('Has transits', () => pm.expect(body.transits).to.be.an('array'));",
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (pm.response.json().id) ids.push(pm.response.json().id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids));"
                 ]
               }
             }
@@ -3059,7 +4479,8 @@
                   "    pm.test('Package has id', () => pm.expect(pkg.id).to.be.a('string'));",
                   "    pm.test('Package has karma amount', () => pm.expect(pkg.karma).to.be.a('number'));",
                   "    pm.test('Package has price', () => pm.expect(pkg.price).to.be.a('number'));",
-                  "}"
+                  "}",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('packageId', pm.response.json().packages[0].id);"
                 ]
               }
             }
@@ -3325,44 +4746,31 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "🤖 AI",
-      "description": "AI trip suggestions and planning via DeepSeek. Both endpoints require Bearer auth. Suggest costs −8 karma, Plan costs −1 karma (free for minor re-plans). Run Suggest - Success first to populate {{suggestedOption}}.",
-      "item": [
+        },
         {
-          "name": "Suggest Trips - Success (full params)",
+          "name": "GET /karma/events",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"preferences\": \"beaches, local food, and cultural landmarks\",\n  \"duration\": 10,\n  \"budget\": \"medium\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/ai/suggest",
+              "raw": "{{baseUrl}}/karma/events?limit=5",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "ai",
-                "suggest"
+                "karma",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
               ]
             }
           },
@@ -3374,20 +4782,216 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.test('Has options array', () => pm.expect(body.options).to.be.an('array'));",
-                  "pm.test('Has exactly 2 options', () => pm.expect(body.options).to.have.length(2));",
-                  "pm.test('Option 0 has title', () => pm.expect(body.options[0].title).to.be.a('string').and.not.empty);",
-                  "pm.test('Option 0 has summary', () => pm.expect(body.options[0].summary).to.be.a('string').and.not.empty);",
-                  "pm.test('Option 0 has highlights array', () => pm.expect(body.options[0].highlights).to.be.an('array').and.have.length.above(0));",
-                  "pm.test('Option 1 has title', () => pm.expect(body.options[1].title).to.be.a('string').and.not.empty);",
-                  "if (pm.response.code === 200) pm.collectionVariables.set('suggestedOption', JSON.stringify(body.options[0]));"
+                  "pm.test('Has events array', () => pm.expect(body.events).to.be.an('array'));",
+                  "pm.test('Has nextCursor key', () => pm.expect(body).to.have.property('nextCursor'));",
+                  "pm.test('Newest event carries a reason', () => body.events.length === 0 || pm.expect(body.events[0].reason).to.be.a('string'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Suggest Trips - Minimal (preferences only)",
+          "name": "GET /karma/events - Invalid Cursor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/events?cursor=not-a-cursor!",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "cursor",
+                  "value": "not-a-cursor!"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /karma/events - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/karma/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "events"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /karma/purchase/mp/status - Unknown Ref",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/mp/status/mp_00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "mp",
+                "status",
+                "mp_00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Purchase not found', () => pm.expect(pm.response.json().error).to.equal('Purchase not found'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /karma/purchase/mp/webhook - Invalid Signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-signature",
+                "value": "ts=1700000000,v1=bogus"
+              },
+              {
+                "key": "x-request-id",
+                "value": "newman"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/mp/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "mp",
+                "webhook"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payment\",\n  \"data\": {\n    \"id\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /karma/purchase/mp/create-preference - No Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/mp/create-preference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "mp",
+                "create-preference"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"{{packageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /karma/purchase/mp/create-preference - Invalid packageId",
           "request": {
             "method": "POST",
             "header": [
@@ -3400,23 +5004,63 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/mp/create-preference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "mp",
+                "create-preference"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"preferences\": \"mountains, hiking and adventure\"\n}",
+              "raw": "{\n  \"packageId\": \"nope\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
-            },
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🤖 AI",
+      "description": "Real DeepSeek calls. One run costs 8 (suggest) + 1 (plan) + 2 (city suggest) karma. Stops the whole run at the karma gate when the main account has < 20.",
+      "item": [
+        {
+          "name": "Karma gate",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/ai/suggest",
+              "raw": "{{baseUrl}}/karma",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "ai",
-                "suggest"
+                "karma"
               ]
             }
           },
@@ -3427,7 +5071,383 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has 2 options', () => pm.expect(pm.response.json().options).to.be.an('array').and.have.length(2));"
+                  "const k = pm.response.json().karma;",
+                  "pm.test('Test account has karma for one AI+collab run (>= 20)', () => pm.expect(k, 'Top up the Postman test account').to.be.at.least(20));",
+                  "if (!(k >= 20)) postman.setNextRequest(null);   // stop the run"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": \"beaches, local food, and cultural landmarks\",\n  \"duration\": 5,\n  \"budget\": \"medium\",\n  \"planSessionId\": \"{{planSessionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('planSessionId', require('uuid').v4());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has options array', () => pm.expect(body.options).to.be.an('array').and.have.length.above(0));",
+                  "pm.test('Option 0 has title', () => pm.expect(body.options[0].title).to.be.a('string').and.not.empty);",
+                  "pm.test('Option 0 has highlights array', () => pm.expect(body.options[0].highlights).to.be.an('array'));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('suggestedOption', JSON.stringify(body.options[0]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan kickoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{planBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const selectedOption = JSON.parse(pm.collectionVariables.get('suggestedOption') || '{}');",
+                  "pm.collectionVariables.set('planBody', JSON.stringify({",
+                  "    selectedOption,",
+                  "    preferences: 'beaches, local food, and cultural landmarks',",
+                  "    duration: 5,",
+                  "    budget: 'medium',",
+                  "    startDate: '01/07/2027',",
+                  "    planSessionId: pm.collectionVariables.get('planSessionId')",
+                  "}));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 202', () => pm.response.to.have.status(202));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has requestId', () => pm.expect(body.requestId).to.be.a('string'));",
+                  "pm.collectionVariables.set('aiRequestId', body.requestId || '');",
+                  "pm.collectionVariables.set('aiPollCount', 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan status (poll)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan/{{aiRequestId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan",
+                "{{aiRequestId}}",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const s = body.status;",
+                  "const n = Number(pm.collectionVariables.get('aiPollCount') || 0) + 1;",
+                  "pm.collectionVariables.set('aiPollCount', n);",
+                  "if (s === 'pending' && n < 30) {",
+                  "    setTimeout(() => {}, 3000);",
+                  "    postman.setNextRequest('Plan status (poll)');",
+                  "} else {",
+                  "    pm.test('Plan completed within ~90 s', () => pm.expect(s).to.equal('completed'));",
+                  "    pm.test('Result has stops', () => pm.expect(body.result.stops).to.be.an('array'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan",
+                "history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains the request', () => pm.expect(pm.response.json().map(r => r.requestId)).to.include(pm.collectionVariables.get('aiRequestId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan discard",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan/{{aiRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan",
+                "{{aiRequestId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan status - after discard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan/{{aiRequestId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan",
+                "{{aiRequestId}}",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest attractions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest-attractions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest-attractions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"paris\",\n  \"checkIn\": \"01/07/2027\",\n  \"checkOut\": \"03/07/2027\",\n  \"existingAttractionIds\": [\n    \"paris_0\"\n  ],\n  \"cityCatalog\": [\n    {\n      \"id\": \"paris_0\",\n      \"name\": \"Torre Eiffel\"\n    },\n    {\n      \"id\": \"paris_1\",\n      \"name\": \"Museo del Louvre\"\n    },\n    {\n      \"id\": \"paris_2\",\n      \"name\": \"Catedral de Notre Dame\"\n    },\n    {\n      \"id\": \"paris_3\",\n      \"name\": \"Arco del Triunfo\"\n    },\n    {\n      \"id\": \"paris_4\",\n      \"name\": \"Basilica del Sacre Coeur\"\n    },\n    {\n      \"id\": \"paris_5\",\n      \"name\": \"Museo de Orsay\"\n    },\n    {\n      \"id\": \"paris_6\",\n      \"name\": \"Palacio de Versalles\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has suggestions array', () => pm.expect(body.suggestions).to.be.an('array'));",
+                  "pm.test('Suggestions come from the catalog', () => body.suggestions.forEach(s => pm.expect(s.attractionId).to.match(/^paris_[0-6]$/)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest companion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest-companion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest-companion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"paris\",\n  \"addedAttractionId\": \"paris_0\",\n  \"checkIn\": \"01/07/2027\",\n  \"checkOut\": \"03/07/2027\",\n  \"cityCatalog\": [\n    {\n      \"id\": \"paris_0\",\n      \"name\": \"Torre Eiffel\"\n    },\n    {\n      \"id\": \"paris_1\",\n      \"name\": \"Museo del Louvre\"\n    },\n    {\n      \"id\": \"paris_5\",\n      \"name\": \"Museo de Orsay\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "200 with one suggestion, or 204 when the dice roll misses / the suggestion fails re-validation (§5.4) — both are success."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/204', () => pm.expect([200, 204]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) pm.test('Suggests a catalog id', () => pm.expect(pm.response.json().attractionId).to.match(/^paris_[015]$/));"
                 ]
               }
             }
@@ -3517,89 +5537,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Plan Trip - Success (uses suggestedOption)",
-          "description": "Requires {{suggestedOption}} — run Suggest first. Sends planSessionId to enable the free re-plan change tracking. On success the response includes a changeInfo field.",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{{planBody}}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/ai/plan",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "ai",
-                "plan"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const selectedOption = JSON.parse(pm.collectionVariables.get('suggestedOption') || '{}');",
-                  "const sessionId = pm.globals.get('planSessionId') || (() => {",
-                  "    const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
-                  "        const r = Math.random() * 16 | 0;",
-                  "        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
-                  "    });",
-                  "    pm.globals.set('planSessionId', id);",
-                  "    return id;",
-                  "})();",
-                  "pm.collectionVariables.set('planBody', JSON.stringify({",
-                  "    selectedOption,",
-                  "    preferences: 'beaches, local food, and cultural landmarks',",
-                  "    duration: 10,",
-                  "    budget: 'medium',",
-                  "    startDate: '01/07/2026',",
-                  "    planSessionId: sessionId",
-                  "}));"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('Has title', () => pm.expect(body.title).to.be.a('string').and.not.empty);",
-                  "pm.test('Has stops array', () => pm.expect(body.stops).to.be.an('array'));",
-                  "pm.test('Has transits array', () => pm.expect(body.transits).to.be.an('array'));",
-                  "pm.test('Has changeInfo', () => pm.expect(body.changeInfo).to.be.an('object'));",
-                  "pm.test('changeInfo has type', () => pm.expect(body.changeInfo.type).to.be.oneOf(['new_session', 'free_change', 'charged_change']));",
-                  "if (body.stops.length > 0) {",
-                  "    pm.test('Stop has cityId', () => pm.expect(body.stops[0].cityId).to.be.a('string'));",
-                  "    pm.test('Stop has checkIn', () => pm.expect(body.stops[0].checkIn).to.be.a('string'));",
-                  "    pm.test('Stop has checkOut', () => pm.expect(body.stops[0].checkOut).to.be.a('string'));",
-                  "}"
                 ]
               }
             }
@@ -3740,12 +5677,1211 @@
               }
             }
           ]
+        },
+        {
+          "name": "Plan status - Unknown Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/plan/00000000-0000-0000-0000-000000000000/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "plan",
+                "00000000-0000-0000-0000-000000000000",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest attractions - No Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest-attractions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest-attractions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"paris\",\n  \"checkIn\": \"01/07/2027\",\n  \"checkOut\": \"03/07/2027\",\n  \"cityCatalog\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suggest attractions - Invalid Body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/suggest-attractions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "suggest-attractions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"PARIS!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "🏠 Landing",
-      "description": "Public endpoints. No auth required. Results are Redis-cached.",
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "GET /notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has notifications array', () => pm.expect(pm.response.json().notifications).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has count', () => pm.expect(b.count).to.be.a('number'));",
+                  "pm.test('Has muted', () => pm.expect(b.muted).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/status - after read",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Count is 0', () => pm.expect(pm.response.json().count).to.equal(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notifications/mute - true",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Muted', () => pm.expect(pm.response.json().muted).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notifications/mute - false",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Unmuted', () => pm.expect(pm.response.json().muted).to.equal(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notifications/mute - Invalid Body",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": \"yes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/status - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/read - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notifications/mute - No Token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "✨ Highlights",
+      "description": "Uses the throwaway tour type newman_test.",
+      "item": [
+        {
+          "name": "GET /highlights/:type/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/highlights/newman_test/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "highlights",
+                "newman_test",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has seen boolean', () => pm.expect(pm.response.json().seen).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /highlights/:type/dismiss",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/highlights/newman_test/dismiss",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "highlights",
+                "newman_test",
+                "dismiss"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /highlights/:type/seen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/highlights/newman_test/seen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "highlights",
+                "newman_test",
+                "seen"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /highlights/:type/status - after seen",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/highlights/newman_test/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "highlights",
+                "newman_test",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Seen', () => pm.expect(pm.response.json().seen).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /highlights/:type/status - Invalid Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/highlights/BAD!/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "highlights",
+                "BAD!",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('INVALID_HIGHLIGHT_TYPE', () => pm.expect(pm.response.json().error).to.equal('INVALID_HIGHLIGHT_TYPE'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏆 Trophies & Rankings",
+      "item": [
+        {
+          "name": "GET /trophies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trophies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trophies"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has earned array', () => pm.expect(b.earned).to.be.an('array'));",
+                  "pm.test('Has progress object', () => pm.expect(b.progress).to.be.an('object'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /trophies/share/:shareId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trophies/share/{{shareId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trophies",
+                "share",
+                "{{shareId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /trophies/share/:shareId - Unknown Share",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trophies/share/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trophies",
+                "share",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /trophies - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trophies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trophies"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /rankings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rankings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rankings"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has weekStart', () => pm.expect(b.weekStart).to.match(/^\\d{4}-\\d{2}-\\d{2}$/));",
+                  "['topPlanners', 'topDestinations', 'topTrophies', 'topFavorited'].forEach(k => pm.test(k + ' is array', () => pm.expect(b[k]).to.be.an('array')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /rankings/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rankings/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rankings",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has weekStart', () => pm.expect(b.weekStart).to.be.a('string'));",
+                  "['planners', 'trophies', 'favorited'].forEach(k => pm.test(k + ' key present', () => pm.expect(b).to.have.property(k)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /rankings - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rankings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rankings"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🌦️ Weather",
+      "item": [
+        {
+          "name": "GET /weather - Paris, 3 days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/weather?cityId=paris&checkIn={{weatherIn}}&checkOut={{weatherOut}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "weather"
+              ],
+              "query": [
+                {
+                  "key": "cityId",
+                  "value": "paris"
+                },
+                {
+                  "key": "checkIn",
+                  "value": "{{weatherIn}}"
+                },
+                {
+                  "key": "checkOut",
+                  "value": "{{weatherOut}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dmy = d => [d.getDate(), d.getMonth() + 1].map(n => String(n).padStart(2, '0')).join('/') + '/' + d.getFullYear();",
+                  "const day = n => new Date(Date.now() + n * 86400000);",
+                  "pm.collectionVariables.set('weatherIn', dmy(day(1)));",
+                  "pm.collectionVariables.set('weatherOut', dmy(day(3)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const days = pm.response.json().days;",
+                  "pm.test('3 days', () => pm.expect(days).to.have.length(3));",
+                  "pm.test('Each day has a type', () => days.forEach(d => pm.expect(d.type).to.be.oneOf(['forecast', 'historic', 'unavailable'])));",
+                  "pm.test('Has ETag', () => pm.expect(pm.response.headers.get('ETag')).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /weather - Invalid Query",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/weather?cityId=nowhere_city&checkIn=31/02/2026&checkOut=01/03/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "weather"
+              ],
+              "query": [
+                {
+                  "key": "cityId",
+                  "value": "nowhere_city"
+                },
+                {
+                  "key": "checkIn",
+                  "value": "31/02/2026"
+                },
+                {
+                  "key": "checkOut",
+                  "value": "01/03/2026"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔎 SEO",
+      "description": "Machine-facing endpoints for the frontend's Vercel functions (§6.4–§6.7). The sitemap endpoint returns JSON; the frontend renders the XML.",
+      "item": [
+        {
+          "name": "GET /seo/sitemap",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/seo/sitemap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seo",
+                "sitemap"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('Has items array', () => pm.expect(items).to.be.an('array'));",
+                  "pm.test('Items are {id, updatedAt}', () => items.slice(0, 5).forEach(i => pm.expect(Object.keys(i).sort()).to.eql(['id', 'updatedAt'])));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /seo/shared/:shareId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/seo/shared/{{shareId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seo",
+                "shared",
+                "{{shareId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Exact key set (no PII)', () => pm.expect(Object.keys(b).sort()).to.eql(['attractionCount', 'cities', 'id', 'indexable', 'tripName', 'updatedAt']));",
+                  "pm.test('id is the shareId', () => pm.expect(b.id).to.equal(pm.collectionVariables.get('shareId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /seo/shared/:shareId - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/seo/shared/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seo",
+                "shared",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /seo/city/:cityId/plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/seo/city/paris/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seo",
+                "city",
+                "paris",
+                "plans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has items array', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /seo/city/:cityId/plans - Invalid City",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/seo/city/PARIS!/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seo",
+                "city",
+                "PARIS!",
+                "plans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Invalid city id', () => pm.expect(pm.response.json().error).to.equal('Invalid city id'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏠 Landing & Feed",
       "item": [
         {
           "name": "GET /featured",
@@ -3813,6 +6949,1197 @@
                   "pm.test('cities is integer', () => pm.expect(Number.isInteger(body.cities)).to.be.true);",
                   "pm.test('users is integer', () => pm.expect(Number.isInteger(body.users)).to.be.true);",
                   "pm.test('plans is integer', () => pm.expect(Number.isInteger(body.plans)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/feed?limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "feed"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has items array', () => pm.expect(b.items).to.be.an('array'));",
+                  "pm.test('Has nextCursor key', () => pm.expect(b).to.have.property('nextCursor'));",
+                  "pm.test('No owner PII', () => b.items.forEach(i => { pm.expect(i).to.not.have.property('ownerEmail'); pm.expect(i).to.not.have.property('ownerId'); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /feed/following",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/feed/following?limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "feed",
+                "following"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has items array', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /feed - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/feed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "feed"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /feed/following - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/feed/following",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "feed",
+                "following"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👥 Social",
+      "description": "Follows the collab account. Usernames are derived (nm + sha256(email)[0..10]) and set on both test accounts via PUT /auth/profile.",
+      "item": [
+        {
+          "name": "Set collab username - collab",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{collabToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{authBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const nmUser = e => 'nm' + require('crypto-js').SHA256(String(e).toLowerCase()).toString().slice(0, 10);",
+                  "pm.collectionVariables.set('mainUsername', nmUser(pm.variables.get('testUserEmail')));",
+                  "pm.collectionVariables.set('collabUsername', nmUser(pm.variables.get('collabUserEmail')));",
+                  "",
+                  "// Newman: body precomputed by scripts/run-postman.cjs (its sandbox has no WebCrypto).",
+                  "const nm = pm.environment.get('nmBodies');",
+                  "if (nm) {",
+                  "    pm.collectionVariables.set('authBody', JSON.parse(nm)['collabProfile']);",
+                  "} else {",
+                  "    (async () => {",
+                  "        const payload = { username: pm.collectionVariables.get('collabUsername') };",
+                  "        const pub = pm.variables.get('rsaPublicKeyBase64');",
+                  "        if (pub) {",
+                  "            const k = await crypto.subtle.importKey('spki', Uint8Array.from(atob(pub), c => c.charCodeAt(0)).buffer, {name:'RSA-OAEP',hash:'SHA-256'}, false, ['encrypt']);",
+                  "            const e = await crypto.subtle.encrypt({name:'RSA-OAEP'}, k, new TextEncoder().encode(JSON.stringify(payload)));",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify({ encryptedPayload: btoa(String.fromCharCode(...new Uint8Array(e))) }));",
+                  "        } else {",
+                  "            pm.collectionVariables.set('authBody', JSON.stringify(payload));",
+                  "        }",
+                  "    })();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Username set', () => pm.expect(pm.response.json().user.username).to.equal(pm.collectionVariables.get('collabUsername')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /u/:username - collab",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/u/{{collabUsername}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "u",
+                "{{collabUsername}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Username', () => pm.expect(b.username).to.equal(pm.collectionVariables.get('collabUsername')));",
+                  "pm.test('isFollowedByMe present for a logged-in viewer', () => pm.expect(b.isFollowedByMe).to.be.a('boolean'));",
+                  "pm.test('No email', () => pm.expect(JSON.stringify(b)).to.not.include('@'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /u/:username - Unknown",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/u/nm_nobody_newman",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "u",
+                "nm_nobody_newman"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/:username/follow - collab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{collabUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{collabUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/:username/follow - again (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{collabUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{collabUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /u/:username - collab, followed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/u/{{collabUsername}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "u",
+                "{{collabUsername}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('isFollowedByMe', () => pm.expect(b.isFollowedByMe).to.equal(true));",
+                  "pm.test('followerCount >= 1', () => pm.expect(b.followerCount).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /users/:username/follow - collab",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{collabUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{collabUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/:username/follow - Self",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{mainUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{mainUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Self-follow error', () => pm.expect(pm.response.json().error).to.equal('No puedes seguirte a ti mismo'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/:username/follow - Unknown",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/nm_nobody_newman/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "nm_nobody_newman",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/:username/follow - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{collabUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{collabUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🐝 Companion",
+      "item": [
+        {
+          "name": "GET /companion/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companion/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companion",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Has boosted', () => pm.expect(b.boosted).to.be.a('boolean'));",
+                  "pm.test('Has secondsRemaining', () => pm.expect(b.secondsRemaining).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /companion/boost",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companion/boost",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companion",
+                "boost"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Boosted', () => pm.expect(b.boosted).to.equal(true));",
+                  "pm.test('secondsRemaining > 0', () => pm.expect(b.secondsRemaining).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /companion/status - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companion/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companion",
+                "status"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /companion/boost - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companion/boost",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companion",
+                "boost"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "❤️ Favorites",
+      "item": [
+        {
+          "name": "POST /shared/:shareId/favorite - on",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "favorite"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Favorited', () => pm.expect(b.favorited).to.equal(true));",
+                  "pm.test('Has favoriteCount', () => pm.expect(b.favoriteCount).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /favorites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/favorites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains the shared trip', () => pm.expect(pm.response.json().map(f => f.shareId)).to.include(pm.collectionVariables.get('shareId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /shared/:shareId/favorite - off",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "favorite"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Unfavorited', () => pm.expect(pm.response.json().favorited).to.equal(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /shared/:shareId/favorite - Not Found",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shared/00000000-0000-0000-0000-000000000000/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "00000000-0000-0000-0000-000000000000",
+                "favorite"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /favorites - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/favorites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "favorites"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /shared/:shareId/favorite - No Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shared/{{shareId}}/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shared",
+                "{{shareId}}",
+                "favorite"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💸 Costly (manual)",
+      "description": "Real PayPal / MercadoPago calls. Excluded from `npm run postman`. Run with: `npm run postman -- --folder \"⭐ Karma\" --folder \"💸 Costly (manual)\"` (⭐ Karma sets packageId; the login comes from 🔐 Auth, so add `--folder \"🔐 Auth\"` first). Capture only succeeds after approving the PayPal order in a browser.",
+      "item": [
+        {
+          "name": "PayPal create-order - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "create-order"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"{{packageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has orderID', () => pm.expect(pm.response.json().orderID).to.be.a('string'));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('paypalOrderId', pm.response.json().orderID);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PayPal capture-order - Success (approve the order first)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/capture-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "capture-order"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderID\": \"{{paypalOrderId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('karmaAdded', () => pm.expect(pm.response.json().karmaAdded).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "MP create-preference - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/karma/purchase/mp/create-preference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "karma",
+                "purchase",
+                "mp",
+                "create-preference"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageId\": \"{{packageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has initPoint', () => pm.expect(pm.response.json().initPoint).to.match(/^https:\\/\\//));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🧹 Cleanup",
+      "description": "Runs last. Deletes every trip whose title contains \"[newman]\" (clones are \"Copia de [newman] …\"), including leftovers of a run that died halfway, then logs out. Comments stay by design.",
+      "item": [
+        {
+          "name": "Unfollow collab",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{collabUsername}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{collabUsername}}",
+                "follow"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unfollowed or nothing to do', () => pm.expect([204, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my trips",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const left = pm.response.json().filter(t => !t.isCollaborator && String(t.title || '').includes('[newman]')).map(t => t.id);",
+                  "pm.collectionVariables.set('newmanTripIds', JSON.stringify(left));",
+                  "pm.test('cleanup queue built', () => pm.expect(left).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete next newman trip",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{nextTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{nextTripId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ids = JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]');",
+                  "if (!ids.length) { pm.collectionVariables.set('nextTripId', '00000000-0000-0000-0000-000000000000'); postman.setNextRequest('Verify no newman trips left'); }",
+                  "else { pm.collectionVariables.set('nextTripId', ids.shift()); pm.collectionVariables.set('newmanTripIds', JSON.stringify(ids)); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deleted', () => pm.expect([204, 404]).to.include(pm.response.code));",
+                  "if (JSON.parse(pm.collectionVariables.get('newmanTripIds') || '[]').length) postman.setNextRequest('Delete next newman trip');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify no newman trips left",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No [newman] trips left', () => pm.expect(pm.response.json().filter(t => !t.isCollaborator && String(t.title || '').includes('[newman]'))).to.have.length(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
                 ]
               }
             }
