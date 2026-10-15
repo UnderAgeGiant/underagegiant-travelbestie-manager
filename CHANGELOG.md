@@ -4,6 +4,7 @@ One line per PR merged to `main` (which Vercel deploys to production), newest fi
 **Every PR adds its own line** under the current month's heading (create the heading if it is missing), in the form `- <PR title> (#<number>)`.
 
 ## 2026-10
+- chore(postman): full route coverage + Newman runner + RATE_LIMIT_MULTIPLIER (#TBD)
 - feat(social): usernames, follows, public profile, following feed (#92)
 - fix(search): accent-insensitive shared-trip search that also matches destinations (#91)
 - feat(ai): never repeat suggestions within a planning session (#90)
