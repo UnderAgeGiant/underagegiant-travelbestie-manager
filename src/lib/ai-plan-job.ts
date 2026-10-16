@@ -38,7 +38,7 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
   const { requestId, userId, flowId, body, planChangeResult, karmaCharged } = params;
 
   try {
-    const result = await deps.ai.generatePlan(body);
+    const result = await deps.ai.generatePlan(body, userId);
 
     if (body.planSessionId) {
       await writePlanSession(userId, body.planSessionId, planChangeResult, toSessionOptions(body));
