@@ -26,6 +26,7 @@ import { verifyProfileOtpMiddleware }      from '../middleware/auth/verify-profi
 import { generateResetOtpMiddleware }      from '../middleware/auth/generate-reset-otp.middleware';
 import { verifyResetOtpMiddleware }        from '../middleware/auth/verify-reset-otp.middleware';
 import { logCtaEvent }                     from '../lib/log-event';
+import { aliasAnonymousUser }              from '../middleware/auth/alias-anonymous-user.middleware';
 import { validateRefreshTokenMiddleware }  from '../middleware/auth/validate-refresh-token.middleware';
 import { signRefreshedTokenMiddleware }    from '../middleware/auth/sign-refreshed-token.middleware';
 import { revokeRefreshTokenMiddleware }    from '../middleware/auth/revoke-refresh-token.middleware';
@@ -58,6 +59,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     sendWelcomeEmailMiddleware,
     signTokenMiddleware,
     migrateAnonymousHighlights,
+    aliasAnonymousUser,
     logCtaEvent('cta_register', req => ({ email: req.foundUser?.email })),
     respond(201)
   );
@@ -75,6 +77,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     verifyPasswordMiddleware,
     signTokenMiddleware,
     migrateAnonymousHighlights,
+    aliasAnonymousUser,
     logCtaEvent('cta_login', req => ({ email: req.foundUser?.email })),
     respond(200)
   );
@@ -83,6 +86,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     validateRefreshTokenMiddleware,
     user.findByRefreshUser,
     signRefreshedTokenMiddleware,
+    logCtaEvent('user_active'),   // once per visit / silent refresh → DAU/MAU in PostHog
     respond(200),
   );
 
