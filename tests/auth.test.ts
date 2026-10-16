@@ -26,6 +26,8 @@ jest.mock('../src/middleware/auth/verify-otp.middleware', () => ({
 jest.mock('../src/middleware/rate-limit.middleware', () => ({
   rateLimitMiddleware: () => (_req: any, _res: any, next: any) => next(),
 }));
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
+import { capture, alias } from '../src/lib/analytics';
 
 const mockValidateAndRotate = validateAndRotate as jest.MockedFunction<typeof validateAndRotate>;
 
@@ -60,6 +62,15 @@ describe('POST /auth/register', () => {
 
   it('returns 400 when password too short', async () => {
     expect((await request(buildApp()).post('/auth/register').send({ name: 'X', email: 'x@x.com', password: '12', otp: '123456' })).status).toBe(400);
+  });
+
+  it('aliases the anonymous id to the new user', async () => {
+    const anon = '12345678-1234-1234-1234-123456789012';
+    const res = await request(buildApp()).post('/auth/register')
+      .set('X-Anonymous-Id', anon)
+      .send({ name: 'Bea', email: 'bea@test.com', password: 'secret123', otp: '123456' });
+    expect(res.status).toBe(201);
+    expect(alias).toHaveBeenCalledWith(anon, expect.any(String));
   });
 });
 
@@ -102,6 +113,7 @@ describe('POST /auth/refresh', () => {
       .set('Cookie', 'tb_refresh_token=invalid-token-here');
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('INVALID_REFRESH_TOKEN');
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'user_active', expect.anything());
   });
 
   it('returns 200 with a new token and a rotated refresh cookie for a valid token', async () => {
@@ -120,6 +132,7 @@ describe('POST /auth/refresh', () => {
     expect(res.body.refreshToken).toBeUndefined();
     expect(res.headers['set-cookie'][0]).toContain('tb_refresh_token=rotated-raw-token');
     expect(res.body.user.name).toBe('Ana');
+    expect(capture).toHaveBeenCalledWith(userId, 'user_active', {});
   });
 });
 

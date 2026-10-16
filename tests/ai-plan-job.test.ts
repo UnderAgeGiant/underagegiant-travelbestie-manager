@@ -63,6 +63,7 @@ describe('runAiPlanJob', () => {
     expect(notified[0].url).toBe(`/my-trips?tab=aiplans&focus=${encodeURIComponent(record.requestId)}`);
     expect(notified[0].body).toContain('Mi Plan Europa');
     expect(karma.awarded).toHaveLength(0);   // no refund on success
+    expect(ai.generatePlan).toHaveBeenCalledWith(body, 'u1');
   });
 
   it('marks the row failed, refunds karma, and notifies ai_plan_failed on error', async () => {

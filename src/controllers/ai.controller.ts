@@ -114,7 +114,7 @@ export class AiController {
           { role: 'user',   content: userMessage },
         ],
       });
-      logAiUsage('suggest', AI_MODEL, completion.usage);
+      logAiUsage('suggest', AI_MODEL, completion.usage, req.user?.userId ?? null);
 
       req.result = sanitizeSuggestOutput(parseCompletionJson(completion), cityIndex);
       next();
@@ -127,7 +127,7 @@ export class AiController {
    * AI plan job (src/lib/ai-plan-job.ts) can call it directly; POST /ai/plan's
    * route chain no longer calls this as middleware (see kickoff-ai-plan.middleware.ts).
    */
-  generatePlan = async (body: AiPlanBody): Promise<PlanTripResponse> => {
+  generatePlan = async (body: AiPlanBody, userId: string | null = null): Promise<PlanTripResponse> => {
     const { selectedOption, preferences, duration, budget, startDate, cityCatalog } = body;
 
     const prompts = loadPrompts();
@@ -153,7 +153,7 @@ export class AiController {
         { role: 'user',   content: userMessage },
       ],
     });
-    logAiUsage('plan', AI_MODEL, completion.usage);
+    logAiUsage('plan', AI_MODEL, completion.usage, userId);
 
     return sanitizePlanOutput(parseCompletionJson(completion), cityCatalog);
   };
@@ -186,7 +186,7 @@ export class AiController {
           { role: 'user',   content: userMessage },
         ],
       });
-      logAiUsage('suggestAttractions', AI_MODEL, completion.usage);
+      logAiUsage('suggestAttractions', AI_MODEL, completion.usage, req.user?.userId ?? null);
 
       const parsed = parseCompletionJson(completion) as SuggestCityAttractionsResponse;
 
@@ -240,7 +240,7 @@ export class AiController {
           { role: 'user',   content: userMessage },
         ],
       });
-      logAiUsage('companionSuggest', AI_MODEL, completion.usage);
+      logAiUsage('companionSuggest', AI_MODEL, completion.usage, req.user?.userId ?? null);
 
       const parsed = parseCompletionJson(completion) as CompanionSuggestion;
 
