@@ -6,7 +6,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings, FinishRunResponse } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -18,6 +18,7 @@ import { FeedCursor, encodeFeedCursor } from '../../src/lib/feed-cursor';
 import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repository';
 import { IFollowRepository } from '../../src/repositories/interfaces/follow.repository';
 import { IRankingRepository } from '../../src/repositories/interfaces/ranking.repository';
+import { IGameRepository } from '../../src/repositories/interfaces/game.repository';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -667,4 +668,17 @@ export class StubFollowRepository implements IFollowRepository {
     return { followerCount: all.filter(([, b]) => b === id).length, followingCount: all.filter(([a]) => a === id).length };
   }
   async markNotified(a: string, b: string): Promise<boolean> { const k = `${a}>${b}`; const isNew = !this.notified.has(k); this.notified.add(k); return isNew; }
+}
+
+export class StubGameRepository implements IGameRepository {
+  calls: { userId: string; weekStart: string; score: number }[] = [];
+  best = new Map<string, number>();
+  async saveBest(userId: string, weekStart: string, score: number): Promise<FinishRunResponse> {
+    this.calls.push({ userId, weekStart, score });
+    const key = `${userId}|${weekStart}`;
+    const prev = this.best.get(key);
+    const newRecord = prev === undefined || score > prev;
+    if (newRecord) this.best.set(key, score);
+    return { score, weeklyBest: this.best.get(key)!, newRecord, weekStart };
+  }
 }
