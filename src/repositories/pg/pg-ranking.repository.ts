@@ -65,6 +65,17 @@ const SQL_ME_FAVORITED = meSql('me-favorited',
     GROUP BY t.trip_id, t.owner_id`,
   `m.id = $2::uuid`); // best of the viewer's plans via ORDER BY value DESC LIMIT 1
 
+const SQL_RUNNERS = `/*runners*/
+  SELECT u.name, u.username, g.best_score AS value
+    FROM game_scores g JOIN users u ON u.user_id = g.user_id
+   WHERE g.week_start = $1::date AND g.best_score > 0
+   ORDER BY g.best_score DESC, g.best_at ASC
+   LIMIT $2`;
+
+const SQL_ME_RUNNERS = meSql('me-runners',
+  `SELECT user_id AS id, best_score AS value FROM game_scores WHERE week_start = $1::date AND best_score > 0`,
+  `m.id = $2::uuid`);
+
 async function cached<T>(key: string, compute: () => Promise<T>): Promise<T> {
   try {
     const hit = await redis.get(key);
@@ -83,11 +94,12 @@ export class PgRankingRepository implements IRankingRepository {
   getWeekly(weekStart: string): Promise<WeeklyRankings> {
     return cached(rankingsKey(weekStart), async () => {
       const p = [weekStart, RANKINGS_TOP_N];
-      const [planners, destinations, trophies, favorited] = await Promise.all([
+      const [planners, destinations, trophies, favorited, runners] = await Promise.all([
         this.pool.query<RankedUser>(SQL_PLANNERS, p),
         this.pool.query<RankedCity>(SQL_DESTINATIONS, p),
         this.pool.query<RankedUser>(SQL_TROPHIES, p),
         this.pool.query<RankedPlan>(SQL_FAVORITED, p),
+        this.pool.query<RankedUser>(SQL_RUNNERS, p),
       ]);
       return {
         weekStart,
@@ -96,6 +108,7 @@ export class PgRankingRepository implements IRankingRepository {
         topDestinations: destinations.rows,
         topTrophies: trophies.rows,
         topFavorited: favorited.rows,
+        topRunners: runners.rows,
       };
     });
   }
@@ -107,10 +120,10 @@ export class PgRankingRepository implements IRankingRepository {
         const { rows } = await this.pool.query<MyRank>(sql, p);
         return rows[0] ? { rank: rows[0].rank, value: rows[0].value } : null;
       };
-      const [planners, trophies, favorited] = await Promise.all([
-        one(SQL_ME_PLANNERS), one(SQL_ME_TROPHIES), one(SQL_ME_FAVORITED),
+      const [planners, trophies, favorited, runners] = await Promise.all([
+        one(SQL_ME_PLANNERS), one(SQL_ME_TROPHIES), one(SQL_ME_FAVORITED), one(SQL_ME_RUNNERS),
       ]);
-      return { weekStart, planners, trophies, favorited };
+      return { weekStart, planners, trophies, favorited, runners };
     });
   }
 }

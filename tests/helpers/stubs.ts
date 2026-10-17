@@ -646,6 +646,7 @@ export class StubRankingRepository implements IRankingRepository {
     topDestinations: [{ cityId: 'paris', value: 34 }],
     topTrophies: [{ name: 'Luis', username: null, value: 3 }],
     topFavorited: [{ title: 'Europa', shareId: 's1', ownerName: 'Ana', value: 12 }],
+    topRunners: [{ name: 'Sofía', username: null, value: 1890 }],
   };
   async getWeekly(weekStart: string): Promise<WeeklyRankings> {
     this.weeklyCalls.push(weekStart);
@@ -653,7 +654,7 @@ export class StubRankingRepository implements IRankingRepository {
   }
   async getMine(weekStart: string, userId: string): Promise<MyRankings> {
     this.mineCalls.push({ weekStart, userId });
-    return { weekStart, planners: { rank: 2, value: 3 }, trophies: null, favorited: null };
+    return { weekStart, planners: { rank: 2, value: 3 }, trophies: null, favorited: null, runners: null };
   }
 }
 

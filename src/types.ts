@@ -259,6 +259,7 @@ export interface WeeklyRankings {
   topDestinations: RankedCity[];
   topTrophies: RankedUser[];
   topFavorited: RankedPlan[];
+  topRunners: RankedUser[];   // best Miel Runner score this week (F73)
 }
 export interface MyRank { rank: number; value: number }
 export interface MyRankings {
@@ -266,6 +267,7 @@ export interface MyRankings {
   planners: MyRank | null;
   trophies: MyRank | null;
   favorited: MyRank | null;
+  runners: MyRank | null;
 }
 
 export interface Comment {
