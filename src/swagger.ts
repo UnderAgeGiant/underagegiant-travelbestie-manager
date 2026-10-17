@@ -1216,9 +1216,52 @@ Pass the \`planSessionId\` returned from \`/ai/suggest\` (or a generated UUID) t
       get: {
         tags: ['Landing'],
         summary: "Caller's weekly positions (Feature 70)",
-        description: '`{ weekStart, planners, trophies, favorited }`, each `{ rank, value }` or `null`. Redis-cached 2 h per user.',
+        description: '`{ weekStart, planners, trophies, favorited, runners }`, each `{ rank, value }` or `null`. Redis-cached 2 h per user.',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'My positions' }, '401': { description: 'Unauthorized' } },
+      },
+    },
+    '/game/runs': {
+      post: {
+        tags: ['Game'],
+        summary: 'Start a Miel Runner run (Feature 73)',
+        description: 'Stores `{ userId, startedAt }` in Redis (`game:run:{runId}`, TTL 1800 s). No body. Bearer JWT, 120 req/hour per user (shared with finish).',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '201': { description: '`{ runId }`' },
+          '401': { description: 'Unauthorized' },
+          '429': { description: 'Too many requests' },
+          '503': { description: '`{ error: "game_unavailable" }` — Redis down' },
+        },
+      },
+    },
+    '/game/runs/{runId}/finish': {
+      post: {
+        tags: ['Game'],
+        summary: 'Submit a validated run (Feature 73)',
+        description: 'Single-use claim (GETDEL), then checks duration against the server clock (+3 s grace), `score = 10 × floor(durationMs/1000) + 5 × obstacles`, and `obstacles ≤ floor(durationMs/900) + 1`. Keeps the weekly best; new trophies come back in `X-New-Trophies`.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'runId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: {
+            type: 'object', required: ['score', 'durationMs', 'obstacles'],
+            properties: {
+              score:      { type: 'integer', minimum: 0 },
+              durationMs: { type: 'integer', minimum: 0 },
+              obstacles:  { type: 'integer', minimum: 0 },
+            },
+          } } },
+        },
+        responses: {
+          '200': { description: '`{ score, weeklyBest, newRecord, weekStart }`' },
+          '400': { description: 'Invalid body' },
+          '401': { description: 'Unauthorized' },
+          '404': { description: '`{ error: "run_not_found" }` — missing, expired, already finished or not yours' },
+          '422': { description: '`{ error: "invalid_run", reason }` — too_long | score_mismatch | too_many_obstacles' },
+          '429': { description: 'Too many requests' },
+          '503': { description: '`{ error: "game_unavailable" }` — Redis down' },
+        },
       },
     },
   },
