@@ -224,7 +224,8 @@ export interface NotificationRecord {
 // ─── Trophies (Feature 69) ───────────────────────────────────────────────────
 export type TrophyType =
   | 'ai_plans' | 'comments' | 'favorites' | 'clones'
-  | 'excel_export' | 'publish_plan' | 'share_plan' | 'plan_visited' | 'followers';
+  | 'excel_export' | 'publish_plan' | 'share_plan' | 'plan_visited' | 'followers'
+  | 'runner' | 'runner_persistent';
 export type TrophyTier = 'bronze' | 'silver' | 'gold' | 'single';
 
 export interface EarnedTrophy {
@@ -244,6 +245,9 @@ export interface AppStats {
   plans:  number;
 }
 
+// ─── Miel Runner (Feature 73) ───────────────────────────────────────────────
+export interface FinishRunResponse { score: number; weeklyBest: number; newRecord: boolean; weekStart: string }
+
 // ─── Rankings (Feature 70) ──────────────────────────────────────────────────
 export interface RankedUser { name: string; username: string | null; value: number }
 export interface RankedCity { cityId: string; value: number }
@@ -255,6 +259,7 @@ export interface WeeklyRankings {
   topDestinations: RankedCity[];
   topTrophies: RankedUser[];
   topFavorited: RankedPlan[];
+  topRunners: RankedUser[];   // best Miel Runner score this week (F73)
 }
 export interface MyRank { rank: number; value: number }
 export interface MyRankings {
@@ -262,6 +267,7 @@ export interface MyRankings {
   planners: MyRank | null;
   trophies: MyRank | null;
   favorited: MyRank | null;
+  runners: MyRank | null;
 }
 
 export interface Comment {

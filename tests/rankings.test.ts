@@ -35,7 +35,7 @@ describe('GET /rankings', () => {
     expect(res.status).toBe(200);
     expect(res.body.weekStart).toBe(santiagoWeekStart());
     expect(Object.keys(res.body).sort()).toEqual(
-      ['generatedAt', 'topDestinations', 'topFavorited', 'topPlanners', 'topTrophies', 'weekStart']);
+      ['generatedAt', 'topDestinations', 'topFavorited', 'topPlanners', 'topRunners', 'topTrophies', 'weekStart']);
     expect(repo.weeklyCalls).toEqual([santiagoWeekStart()]);
   });
 
@@ -55,7 +55,7 @@ describe('GET /rankings/me', () => {
     const { app, repo } = buildApp();
     const res = await request(app).get('/rankings/me').set('Authorization', `Bearer ${TOKEN}`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ weekStart: santiagoWeekStart(), planners: { rank: 2, value: 3 }, trophies: null, favorited: null });
+    expect(res.body).toEqual({ weekStart: santiagoWeekStart(), planners: { rank: 2, value: 3 }, trophies: null, favorited: null, runners: null });
     expect(repo.mineCalls).toEqual([{ weekStart: santiagoWeekStart(), userId: 'u1' }]);
   });
 });

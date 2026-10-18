@@ -12,6 +12,10 @@ export const TROPHY_THRESHOLDS: Record<TrophyType, Partial<Record<TrophyTier, nu
   share_plan:   { single: 1 },
   plan_visited: { single: 1 },
   followers:    { bronze: 1, silver: 25, gold: 100 },
+  // runner counts score tiers reached (one event per tier, see lib/game.ts runnerTiersFor):
+  // ponytail: event count stands in for score tier; switch to a direct user_trophies insert if a score-based type ever needs non-monotonic tiers.
+  runner:            { bronze: 1, silver: 2, gold: 3 },
+  runner_persistent: { single: 10 },
 };
 
 /** Spanish names, used only in notification bodies (frontend localizes its own copy). */
@@ -25,6 +29,8 @@ export const TROPHY_NAMES: Record<TrophyType, string> = {
   share_plan:   'Corre la voz',
   plan_visited: 'Primera visita',
   followers:    'Viajero popular',
+  runner:            'Miel Corredora',
+  runner_persistent: 'Persistente',
 };
 
 export const TIER_LABELS: Record<TrophyTier, string> = { bronze: 'Bronce', silver: 'Plata', gold: 'Oro', single: '' };

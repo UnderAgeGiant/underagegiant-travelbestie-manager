@@ -19,6 +19,16 @@ describe('trophy catalog', () => {
   it('thresholds match the spec', () => {
     expect(TROPHY_THRESHOLDS.favorites).toEqual({ bronze: 1, silver: 10, gold: 50 });
     expect(TROPHY_THRESHOLDS.clones).toEqual({ bronze: 1, silver: 5, gold: 10 });
+    expect(TROPHY_THRESHOLDS.runner).toEqual({ bronze: 1, silver: 2, gold: 3 });
+    expect(TROPHY_THRESHOLDS.runner_persistent).toEqual({ single: 10 });
+  });
+
+  it('runner tiers follow the count of score tiers reached (F73)', () => {
+    expect(tiersReached('runner', 2)).toEqual(['bronze', 'silver']);
+    expect(tiersReached('runner_persistent', 9)).toEqual([]);
+    expect(tiersReached('runner_persistent', 10)).toEqual(['single']);
+    expect(trophyLabel('runner', 'gold')).toBe('Miel Corredora — Oro');
+    expect(trophyLabel('runner_persistent', 'single')).toBe('Persistente');
   });
 
   it('trophyLabel appends the tier only for tiered trophies', () => {
