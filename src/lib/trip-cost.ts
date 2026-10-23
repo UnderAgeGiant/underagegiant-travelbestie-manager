@@ -5,8 +5,9 @@ import { TICKET_PRICES } from '../data/ticket-prices';
 import { CITY_AIRPORTS } from '../data/city-airports';
 import { CITY_COORDS } from '../data/city-coords';
 import { CITY_NAMES } from '../data/cities';
+import { DEFAULT_COST_SETTINGS } from './cost-defaults';
 
-export const DEFAULT_COST_SETTINGS: CostSettings = { origin: null, adults: 1, children: 0, comfort: 'mid' };
+export { DEFAULT_COST_SETTINGS } from './cost-defaults';
 export const ROUTE_CACHE_DAYS = 90;
 // Research doc Part C (docs/superpowers/specs/2026-10-18-trip-cost-estimate-research.md): LatAm hotels ran ~20% cheaper than real prices.
 // Applied to the hotel tables at build time (B1) and to on-demand hotel answers for LatAm cities.
@@ -27,6 +28,7 @@ export const LATAM_ISO2: ReadonlySet<string> = new Set([...SOUTH_AMERICA, ...MEX
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const HOME_CITY_ID = '__home__';
 const MAX_BUS_KM = 500;
+const MODES: ReadonlySet<string> = new Set(['flight', 'train', 'boat', 'bus', 'car']);
 
 export interface PriceNeed { key: string; kind: 'route' | 'hotel'; label: string }
 export interface PricingPlan {
@@ -113,11 +115,21 @@ function endpointKey(city: string | null, origin: Place | null, isFlight: boolea
   return own(CITY_AIRPORTS, city)?.iata ?? null;
 }
 
+// The user-typed origin name is free text that reaches the DeepSeek prompt: keep a plain place-name subset only.
+function homeLabel(origin: Place): string {
+  const name = origin.name.replace(/[^\p{L}\p{N} ,.'-]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const short = Array.from(name).slice(0, 40).join('').trim();
+  return short ? `${short}, ${origin.countryCode}` : `home city in ${origin.countryCode}`;
+}
+
 function endpointLabel(city: string | null, origin: Place | null, isFlight: boolean): string {
-  const name = city === null ? origin?.name ?? '' : cityLabel(city) ?? city;
+  if (city === null) {
+    // Home end: flights show IATA only (the origin name stays out of flight labels); ground legs show the sanitized name.
+    if (isFlight) return origin?.iata ?? '';
+    return origin ? homeLabel(origin) : '';
+  }
+  const name = cityLabel(city) ?? city;
   if (!isFlight) return name;
-  // Home end: IATA only. The user-typed origin name stays out of flight labels (they feed the shared price cache + prompt).
-  if (city === null) return origin?.iata ?? '';
   return `${own(CITY_AIRPORTS, city)?.iata ?? ''} (${name})`;
 }
 
@@ -127,7 +139,9 @@ function makeLeg(args: {
 }): LegPlan {
   const { from, to, transit, fallbackDate, defaultMode, origin, comfort } = args;
   // ponytail: first segment's mode prices the whole leg; price per segment if multi-modal legs matter
-  const mode = transit?.segments[0]?.mode ?? defaultMode;
+  // The stored mode is unvalidated free text: only the five known modes may reach a price key or a DeepSeek label.
+  const rawMode = transit?.segments[0]?.mode ?? defaultMode;
+  const mode = MODES.has(rawMode) ? rawMode : 'unknown';
   const month = monthOf(transit?.date) ?? monthOf(transit?.segments[0]?.departureDate) ?? monthOf(fallbackDate);
   const isFlight = mode === 'flight';
   const isGroup = mode === 'car';

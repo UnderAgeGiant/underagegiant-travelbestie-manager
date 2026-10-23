@@ -155,6 +155,7 @@ describe('POST /trips/:id/estimate', () => {
 
     const res = await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${strangerToken}`);
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'No tienes acceso a este viaje' });
   });
 
   it('second call with no change returns the stored snapshot and does not call the fetcher', async () => {

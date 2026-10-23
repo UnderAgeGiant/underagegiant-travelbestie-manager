@@ -1,7 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
 import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, CostSettings, CostEstimate, ComfortLevel, Place } from '../../types';
-import { DEFAULT_COST_SETTINGS } from '../../lib/trip-cost';
+import { DEFAULT_COST_SETTINGS } from '../../lib/cost-defaults';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 import { normalizeSearch, matchCityIds, SQL_ACCENT_FROM, SQL_ACCENT_TO } from '../../lib/search-normalize';
 

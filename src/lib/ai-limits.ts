@@ -12,6 +12,8 @@ export const AI_MAX_TOKENS: Record<AiEndpoint, number> = {
 
 /** Trip cost estimate: hard timeout on the single DeepSeek price batch (see src/lib/price-fetcher.ts). */
 export const TRIP_COST_TIMEOUT_MS = 15000;
+/** Most price misses sent to DeepSeek in one call; the rest stay unpriced (see price-fetcher.ts). */
+export const TRIP_COST_MAX_NEEDS = 40;
 /** POST /trips/:id/estimate requests / hour / user (existing rateLimitMiddleware). */
 export const TRIP_ESTIMATE_RATE_LIMIT = 20;
 

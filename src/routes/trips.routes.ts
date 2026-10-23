@@ -28,7 +28,6 @@ import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middl
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
 import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
 import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
-import { makeCheckTripEstimateAccess } from '../middleware/trips/check-trip-estimate-access.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -68,7 +67,7 @@ export function createTripsRouter(
   router.use(requireAuth);
 
   const checkTripEditAccess = makeCheckTripEditAccess(collaboratorRepo);
-  const checkTripEstimateAccess = makeCheckTripEstimateAccess(collaboratorRepo);
+  const checkTripEstimateAccess = makeCheckTripEditAccess(collaboratorRepo, 403);
 
   router.get('/',
     trip.findByOwner,

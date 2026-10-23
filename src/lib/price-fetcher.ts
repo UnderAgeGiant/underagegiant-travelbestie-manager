@@ -1,5 +1,5 @@
 import { logAiUsage } from './ai-usage';
-import { AI_MAX_TOKENS, TRIP_COST_TIMEOUT_MS } from './ai-limits';
+import { AI_MAX_TOKENS, TRIP_COST_MAX_NEEDS, TRIP_COST_TIMEOUT_MS } from './ai-limits';
 import { parseCompletionJson } from './ai-output';
 import { logger } from './logger';
 import { CITY_AIRPORTS } from '../data/city-airports';
@@ -81,9 +81,11 @@ export async function resolvePrices(
   if (misses.length === 0) return result;
   if (await isDeepSeekDown(redis)) return result;
 
+  // ponytail: one batch per call, capped at 40 misses; a bigger trip leaves the rest unpriced. Chunk the calls if real trips hit it.
+  const batch = misses.slice(0, TRIP_COST_MAX_NEEDS);
   let answers: Record<string, unknown>;
   try {
-    answers = await askDeepSeek(misses, userId);
+    answers = await askDeepSeek(batch, userId);
   } catch (err) {
     logger.warn({ event: 'trip_cost_deepseek_failed', err: String(err) });
     try {
@@ -93,7 +95,7 @@ export async function resolvePrices(
   }
 
   const rows: Array<{ key: string; priceUsd: number }> = [];
-  for (const need of misses) {
+  for (const need of batch) {
     const raw = answers[need.key];
     const [lo, hi] = BAND[need.kind];
     if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < lo || raw > hi) continue;

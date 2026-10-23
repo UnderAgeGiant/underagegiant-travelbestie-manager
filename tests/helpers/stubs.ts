@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { DEFAULT_COST_SETTINGS } from '../../src/lib/trip-cost';
+import { DEFAULT_COST_SETTINGS } from '../../src/lib/cost-defaults';
 import { normalizeSearch } from '../../src/lib/search-normalize';
 import { IUserRepository } from '../../src/repositories/interfaces/user.repository';
 import { ITripRepository } from '../../src/repositories/interfaces/trip.repository';

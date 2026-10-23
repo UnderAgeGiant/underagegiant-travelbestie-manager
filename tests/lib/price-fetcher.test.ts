@@ -80,6 +80,17 @@ describe('resolvePrices', () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty('timeout');
   });
 
+  it('caps one DeepSeek batch at 40 misses; the rest stay unpriced', async () => {
+    create.mockResolvedValue(completion({}));
+    const needs: PriceNeed[] = Array.from({ length: 45 }, (_, i) => ({ key: `route:A:B:${i}:bus:-`, kind: 'route', label: `leg ${i}` }));
+    const out = await resolvePrices(needs, fakeRepo(), 'u1', fakeRedis());
+    expect(out.size).toBe(0);
+    expect(create).toHaveBeenCalledTimes(1);
+    const sent = JSON.parse(create.mock.calls[0][0].messages[1].content);
+    expect(sent).toHaveLength(40);
+    expect(sent[39].key).toBe('route:A:B:39:bus:-');
+  });
+
   it('a string answer "250" is rejected', async () => {
     create.mockResolvedValue(completion({ [ROUTE.key]: '250' }));
     const repo = fakeRepo();
