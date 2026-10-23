@@ -1,7 +1,7 @@
 import { logger } from './logger';
 import { capture } from './analytics';
 
-export type AiEndpoint = 'suggest' | 'plan' | 'suggestAttractions' | 'companionSuggest';
+export type AiEndpoint = 'suggest' | 'plan' | 'suggestAttractions' | 'companionSuggest' | 'tripCost';
 
 // Structural subset of the OpenAI-SDK CompletionUsage plus DeepSeek's cache counters,
 // which the SDK's own type doesn't declare.

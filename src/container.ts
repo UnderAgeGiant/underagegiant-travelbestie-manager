@@ -15,6 +15,7 @@ import { PgTrophyRepository }        from './repositories/pg/pg-trophy.repositor
 import { PgFollowRepository }        from './repositories/pg/pg-follow.repository';
 import { PgRankingRepository }       from './repositories/pg/pg-ranking.repository';
 import { PgGameRepository }          from './repositories/pg/pg-game.repository';
+import { PgPriceEstimateRepository } from './repositories/pg/pg-price-estimate.repository';
 import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
@@ -45,6 +46,7 @@ export const trophyRecorder          = new TrophyRecorder(trophyRepo, notificati
 export const followRepo              = new PgFollowRepository(pool);
 export const rankingRepository       = new PgRankingRepository(pool);
 export const gameRepository          = new PgGameRepository(pool);
+export const priceEstimateRepo        = new PgPriceEstimateRepository(pool);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);

@@ -7,7 +7,13 @@ export const AI_MAX_TOKENS: Record<AiEndpoint, number> = {
   plan:               32000, // 2026-09-27: 6 cities / 13 nights used 12,529; ~250 tok/s → ~2 min worst case, under Vercel's 300 s
   suggestAttractions: 2000,
   companionSuggest:   1000,
+  tripCost:           2000,  // one batched price call: a JSON object of ≤ ~20 small numbers
 };
+
+/** Trip cost estimate: hard timeout on the single DeepSeek price batch (see src/lib/price-fetcher.ts). */
+export const TRIP_COST_TIMEOUT_MS = 15000;
+/** POST /trips/:id/estimate requests / hour / user (existing rateLimitMiddleware). */
+export const TRIP_ESTIMATE_RATE_LIMIT = 20;
 
 /** /ai/suggest: one DeepSeek call asks for SUGGEST_BATCH_SIZE options; each response shows SUGGEST_PAGE_SIZE, the rest are queued (Redis) for the next "Generar nuevas opciones" clicks. */
 export const SUGGEST_BATCH_SIZE = 8;

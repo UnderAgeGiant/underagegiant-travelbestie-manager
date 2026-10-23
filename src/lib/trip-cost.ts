@@ -110,8 +110,9 @@ function endpointKey(city: string | null, origin: Place | null, isFlight: boolea
 function endpointLabel(city: string | null, origin: Place | null, isFlight: boolean): string {
   const name = city === null ? origin?.name ?? '' : cityLabel(city) ?? city;
   if (!isFlight) return name;
-  const iata = city === null ? origin?.iata ?? '' : own(CITY_AIRPORTS, city)?.iata ?? '';
-  return `${iata} (${name})`;
+  // Home end: IATA only. The user-typed origin name stays out of flight labels (they feed the shared price cache + prompt).
+  if (city === null) return origin?.iata ?? '';
+  return `${own(CITY_AIRPORTS, city)?.iata ?? ''} (${name})`;
 }
 
 function makeLeg(args: {
