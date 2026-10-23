@@ -11,7 +11,7 @@ import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middlewar
 import { exportTarget, publishTarget } from '../middleware/trophies/trophy-targets';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
-import { createTripSchema } from '../schemas/trip.schemas';
+import { createTripSchema, updateTripSchema } from '../schemas/trip.schemas';
 import { inviteCollaboratorSchema } from '../schemas/collaborator.schemas';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
 import { makeCheckTripEditAccess } from '../middleware/collaborators/check-trip-edit-access.middleware';
@@ -25,9 +25,15 @@ import { makeNotifyCollaboratorAccepted } from '../middleware/notifications/noti
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
+import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
+import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
+import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
+import { TRIP_ESTIMATE_RATE_LIMIT } from '../lib/ai-limits';
+import { IPriceEstimateRepository } from '../repositories/interfaces/price-estimate.repository';
+import type { PriceRedis } from '../lib/price-fetcher';
 import { Request } from 'express';
 
 // Wraps a middleware so it is skipped when the trip has already been exported.
@@ -38,6 +44,12 @@ function skipIfExported(fn: RequestHandler): RequestHandler {
 // Per-user key (limiters run after requireAuth) — same helper as notifications.routes.ts.
 const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown';
 
+// Lazy: loading lib/redis at import time would open a connection in every suite that mounts this router.
+const lazyRedis: PriceRedis = {
+  get: key => (require('../lib/redis') as typeof import('../lib/redis')).redis.get(key),
+  set: (key, value, mode, ttl) => (require('../lib/redis') as typeof import('../lib/redis')).redis.set(key, value, mode, ttl),
+};
+
 export function createTripsRouter(
   trip: TripController,
   karma: KarmaController,
@@ -47,16 +59,20 @@ export function createTripsRouter(
   tripRepo: ITripRepository,
   notificationRepo: INotificationRepository,
   trophies?: TrophyRecorder,
+  // Only the estimate route reads this; older test call sites omit it, and the estimate route then answers 500.
+  priceRepo?: IPriceEstimateRepository,
 ): Router {
   const router = Router();
 
   router.use(requireAuth);
 
   const checkTripEditAccess = makeCheckTripEditAccess(collaboratorRepo);
+  const checkTripEstimateAccess = makeCheckTripEditAccess(collaboratorRepo, 403);
 
   router.get('/',
     trip.findByOwner,
     makeAttachCollaboratorTrips(tripRepo, collaboratorRepo),
+    markEstimateStale,
     respond(200),
   );
 
@@ -71,6 +87,7 @@ export function createTripsRouter(
     trip.create,
     karma.spendForTripCreated,
     buildTripResponse,
+    markEstimateStale,
     respond(201),
   );
 
@@ -89,8 +106,20 @@ export function createTripsRouter(
   router.put('/:id',
     trip.findById,
     checkTripEditAccess,
+    validateBody(updateTripSchema),
     trip.update,
     buildTripResponse,
+    markEstimateStale,
+    respond(200),
+  );
+
+  router.post('/:id/estimate',
+    rateLimitMiddleware({ keyPrefix: 'rl:trip-estimate', windowSeconds: 3600, maxRequests: TRIP_ESTIMATE_RATE_LIMIT, getKey: byUser }),
+    trip.findById,
+    checkTripEstimateAccess,
+    returnFreshEstimate,
+    makeComputeEstimate(priceRepo, lazyRedis),
+    trip.saveEstimate,
     respond(200),
   );
 

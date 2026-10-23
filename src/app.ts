@@ -12,8 +12,8 @@ import {
   statsController, favoriteRepository, notificationRepo,
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
-  highlightRepo, aiPlanRequestRepo, weatherController, trophyRecorder, trophyRepo, rankingController, gameController,
-  followRepo,
+  highlightRepo, aiPlanRequestRepo, weatherController, fxController, trophyRecorder, trophyRepo, rankingController, gameController,
+  followRepo, priceEstimateRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -28,6 +28,7 @@ import { createNotificationsRouter }   from './routes/notifications.routes';
 import { createCompanionRouter }       from './routes/companion.routes';
 import { createHighlightsRouter }      from './routes/highlights.routes';
 import { createWeatherRouter }         from './routes/weather.routes';
+import { createFxRouter }               from './routes/fx.routes';
 import { createSeoRouter }             from './routes/seo.routes';
 import { createTrophiesRouter }        from './routes/trophies.routes';
 import { createRankingsRouter }       from './routes/rankings.routes';
@@ -82,7 +83,7 @@ app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo, trophyRecorder),
 );
-app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder));
+app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder, priceEstimateRepo));
 app.use('/comments', createCommentsRouter(commentController, commentRepo, karmaRepo));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
 app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo, trophyRecorder, trophyRepo));
@@ -98,6 +99,7 @@ app.use('/users',    createUsersRouter(userController, followRepo, notificationR
 app.use('/u',        createPublicProfileRouter(userController, tripRepo, followRepo, trophyRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
+app.use('/fx',      createFxRouter(fxController));
 app.use('/seo',     createSeoRouter(tripController));
 
 app.use(notFound);

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { DEFAULT_COST_SETTINGS } from '../../src/lib/cost-defaults';
 import { normalizeSearch } from '../../src/lib/search-normalize';
 import { IUserRepository } from '../../src/repositories/interfaces/user.repository';
 import { ITripRepository } from '../../src/repositories/interfaces/trip.repository';
@@ -6,7 +7,7 @@ import { ICommentRepository } from '../../src/repositories/interfaces/comment.re
 import { IKarmaRepository } from '../../src/repositories/interfaces/karma.repository';
 import { IKarmaPurchaseRepository } from '../../src/repositories/interfaces/karma-purchase.repository';
 import { IStepCommentRepository } from '../../src/repositories/interfaces/step-comment.repository';
-import { User, Trip, TripStop, TransitLeg, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings, FinishRunResponse } from '../../src/types';
+import { User, Trip, TripStop, TransitLeg, CostSettings, CostEstimate, Place, Comment, Karma, SharedTripPayload, KarmaPurchase, CompleteKarmaPurchaseResult, StepComment, StepCommentsMap, FavoriteToggleResult, FavoritedTrip, NotificationRecord, NotificationType, AiPlanRequestRecord, AiPlanRequestParams, PlanChangeInfo, PlanTripResponse, KarmaEventRow, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, EarnedTrophy, TrophyTier, TrophyType, MyRankings, WeeklyRankings, FinishRunResponse } from '../../src/types';
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
@@ -33,7 +34,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, username: null, createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, homePlace: null, username: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -53,7 +54,7 @@ export class StubUserRepository implements IUserRepository {
 
   async update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; homePlace?: Place | null; username?: string },
   ): Promise<User> {
     const user = this.byId.get(userId);
     if (!user) throw new Error('User not found');
@@ -66,6 +67,7 @@ export class StubUserRepository implements IUserRepository {
     }
     if (fields.passwordHash !== undefined) user.passwordHash = fields.passwordHash;
     if (fields.countryOfResidence !== undefined) user.countryOfResidence = fields.countryOfResidence;
+    if (fields.homePlace !== undefined) user.homePlace = fields.homePlace;
     return { ...user };
   }
 }
@@ -76,9 +78,16 @@ export class StubTripRepository implements ITripRepository {
   async create(data: {
     title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string;
     sourceAiPlanRequestId?: string; sourcePlanSessionId?: string;
+    costSettings?: CostSettings; costEstimate?: CostEstimate | null;
   }): Promise<Trip> {
     const { sourceAiPlanRequestId: _unused1, sourcePlanSessionId: _unused2, ...tripData } = data;
-    const trip: Trip = { id: randomUUID(), ...tripData, createdAt: new Date().toISOString() };
+    // Mirrors the DB defaults: costSettings always present, costEstimate null until calculated.
+    const trip: Trip = {
+      id: randomUUID(), ...tripData,
+      costSettings: data.costSettings ?? { ...DEFAULT_COST_SETTINGS },
+      costEstimate: data.costEstimate ?? null,
+      createdAt: new Date().toISOString(),
+    };
     this.trips.set(trip.id, trip);
     return trip;
   }
@@ -91,12 +100,19 @@ export class StubTripRepository implements ITripRepository {
     return this.trips.get(id) ?? null;
   }
 
-  async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {
+  async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits' | 'costSettings'>>): Promise<Trip | null> {
     const trip = this.trips.get(id);
     if (!trip) return null;
-    const updated = { ...trip, ...data };
+    // Absent keys keep their stored value (the PG repo writes only the fields that are present).
+    const defined = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+    const updated = { ...trip, ...defined };
     this.trips.set(id, updated);
     return updated;
+  }
+
+  async saveEstimate(id: string, estimate: CostEstimate): Promise<void> {
+    const trip = this.trips.get(id);
+    if (trip) this.trips.set(id, { ...trip, costEstimate: estimate });
   }
 
   async setExportedAt(id: string): Promise<void> {
@@ -115,7 +131,8 @@ export class StubTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const trip = [...this.trips.values()].find(t => t.shareId === shareId);
     if (!trip) return null;
-    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId };
+    return { id: shareId, tripName: trip.title, ownerEmail: '', ownerName: '', ownerUsername: null, createdAt: trip.createdAt, stops: trip.stops, transits: trip.transits, planId: trip.id, tripId: trip.id, ownerId: trip.ownerId,
+      costSettings: trip.costSettings, costEstimate: trip.costEstimate ?? null };
   }
 
   async findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]> {

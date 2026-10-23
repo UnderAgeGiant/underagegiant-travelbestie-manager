@@ -7,6 +7,8 @@ export function prepareSharedClone(req: Request, _res: Response, next: NextFunct
     title:    `Copia de ${source.tripName}`,
     stops:    source.stops,
     transits: source.transits,
+    costSettings: source.costSettings,
+    costEstimate: source.costEstimate ?? null,
   };
   next();
 }

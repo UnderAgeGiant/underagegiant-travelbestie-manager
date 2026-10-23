@@ -1,4 +1,4 @@
-import { User } from '../../types';
+import { User, Place } from '../../types';
 
 export interface IUserRepository {
   create(data: { name: string; email: string; passwordHash: string }): Promise<User>;
@@ -7,6 +7,6 @@ export interface IUserRepository {
   findByUsername(username: string): Promise<User | null>;
   update(
     userId: string,
-    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string },
+    fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; homePlace?: Place | null; username?: string },
   ): Promise<User>;
 }

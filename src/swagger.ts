@@ -610,6 +610,26 @@ Changing the password invalidates all existing refresh tokens via session versio
       },
     },
 
+    '/trips/{id}/estimate': {
+      post: {
+        tags: ['Trips'],
+        summary: 'Trip cost estimate',
+        description: 'Returns the trip cost estimate (flights, lodging, tickets, ground transport) in USD. Computed on read and stored as a snapshot; `stale: true` means the trip changed since the snapshot. Never charges karma. Price lookups fall back to cached prices when DeepSeek is unavailable. Rate-limited to 20 per hour per user.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: 'Cost estimate (fresh snapshot or newly computed)',
+            content: { 'application/json': { schema: { type: 'object', description: 'CostEstimate (contracts §18.1)' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { description: 'Caller is neither the owner nor an accepted collaborator' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '429': { $ref: '#/components/responses/TooManyRequests' },
+        },
+      },
+    },
+
     '/trips/{id}/itinerary': {
       post: {
         tags: ['Trips'],
@@ -670,6 +690,26 @@ Changing the password invalidates all existing refresh tokens via session versio
           '401': { $ref: '#/components/responses/Unauthorized' },
           '402': { $ref: '#/components/responses/KarmaInsufficient' },
           '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
+
+    // ── FX ───────────────────────────────────────────────────────────────────
+    '/fx/rates': {
+      get: {
+        tags: ['FX'],
+        summary: 'USD exchange rates',
+        description: 'Public. Returns `{ base: "USD", rates, fetchedAt }` from a 24h Redis cache (`fx:usd`), refreshed from open.er-api.com on miss. On upstream failure serves the last good copy, or `{ rates: { USD: 1 }, fetchedAt: null }` if none exists. Never 5xx because of the upstream. Rate-limited 120/min per IP.',
+        responses: {
+          '200': {
+            description: 'USD-based exchange rates',
+            content: { 'application/json': { schema: { type: 'object', properties: {
+              base:      { type: 'string', example: 'USD' },
+              rates:     { type: 'object', additionalProperties: { type: 'number' }, example: { CLP: 940.12, USD: 1 } },
+              fetchedAt: { type: 'string', format: 'date-time', nullable: true },
+            } } } },
+          },
+          '429': { $ref: '#/components/responses/TooManyRequests' },
         },
       },
     },

@@ -15,6 +15,7 @@ import { PgTrophyRepository }        from './repositories/pg/pg-trophy.repositor
 import { PgFollowRepository }        from './repositories/pg/pg-follow.repository';
 import { PgRankingRepository }       from './repositories/pg/pg-ranking.repository';
 import { PgGameRepository }          from './repositories/pg/pg-game.repository';
+import { PgPriceEstimateRepository } from './repositories/pg/pg-price-estimate.repository';
 import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
@@ -28,6 +29,7 @@ import { StatsController }           from './controllers/stats.controller';
 import { CompanionController }       from './controllers/companion.controller';
 import { CollaboratorController }    from './controllers/collaborator.controller';
 import { WeatherController }         from './controllers/weather.controller';
+import { FxController }              from './controllers/fx.controller';
 import { RankingController }         from './controllers/ranking.controller';
 import { GameController }            from './controllers/game.controller';
 
@@ -45,6 +47,7 @@ export const trophyRecorder          = new TrophyRecorder(trophyRepo, notificati
 export const followRepo              = new PgFollowRepository(pool);
 export const rankingRepository       = new PgRankingRepository(pool);
 export const gameRepository          = new PgGameRepository(pool);
+export const priceEstimateRepo        = new PgPriceEstimateRepository(pool);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);
@@ -63,5 +66,6 @@ export const statsController         = new StatsController(new PgStatsRepository
 export const companionController     = new CompanionController();
 export const collaboratorController  = new CollaboratorController(collaboratorRepo);
 export const weatherController       = new WeatherController();
+export const fxController            = new FxController();
 export const rankingController       = new RankingController(rankingRepository);
 export const gameController          = new GameController(gameRepository);

@@ -7,6 +7,7 @@ export interface User {
   email: string;
   passwordHash: string;
   countryOfResidence: string | null;
+  homePlace: Place | null;              // Feature 74 — home airport/city for trip cost estimates
   username: string | null;              // Feature 22 — opt-in public handle, lowercase
   createdAt: string;
 }
@@ -72,6 +73,26 @@ export interface Trip {
   isCollaborator?: boolean;   // true when this trip appears because the caller is an accepted collaborator, not the owner
   ownerName?: string;         // present only alongside isCollaborator
   ownerEmail?: string;        // present only alongside isCollaborator
+  costSettings?: CostSettings;            // Feature 74 — defaults applied by the repository when absent
+  costEstimate?: CostEstimate | null;     // Feature 74 — last snapshot; null/absent = never calculated
+}
+
+// Feature 74 — Trip Cost Estimate (contracts §18)
+export type ComfortLevel = 'budget' | 'mid' | 'luxury';
+export interface Place { geonameId: number; name: string; countryCode: string; iata: string }  // iata: /^[A-Z]{3}$/
+export interface CostSettings { origin: Place | null; adults: number; children: number; comfort: ComfortLevel } // adults 1–20, children 0–20
+export interface UnestimatedLeg { from: string; to: string; mode: string }   // from/to: catalog cityId or '__home__'
+export interface CostEstimate {
+  totalUsd: number;                       // sum of the four lines, rounded to whole USD
+  flightsUsd: number; lodgingUsd: number; ticketsUsd: number; groundUsd: number;
+  nights: number; rooms: number;          // rooms = beds when comfort = 'budget'
+  ticketCount: number; unpricedTicketCount: number;
+  unestimated: UnestimatedLeg[];          // legs excluded from the total ("sin estimar")
+  missingOrigin: boolean;                 // no origin → home flights not included
+  settings: CostSettings;                 // what this snapshot was computed for
+  inputsHash: string;                     // sha256 of the estimate inputs (see §18.1)
+  calculatedAt: string;                   // ISO
+  stale?: boolean;                        // computed on read, never stored: true when inputsHash ≠ the trip's current hash
 }
 
 export interface SharedTripPayload {
@@ -88,6 +109,8 @@ export interface SharedTripPayload {
   tripId:           string;   // same as planId — internal UUID used by favorites
   favoriteCount?:   number;
   isFavoritedByMe?: boolean;
+  costSettings?:    CostSettings;          // Feature 74 — origin reduced to {name, countryCode} by stripOwnerPii
+  costEstimate?:    CostEstimate | null;   // Feature 74 — null when stale; origin reduced like costSettings
 }
 
 export interface FeedPlanAttraction {

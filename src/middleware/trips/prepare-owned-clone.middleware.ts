@@ -6,6 +6,8 @@ export function prepareOwnedClone(req: Request, _res: Response, next: NextFuncti
     title:    `Copia de ${source.title}`,
     stops:    source.stops,
     transits: source.transits,
+    costSettings: source.costSettings,
+    costEstimate: source.costEstimate ?? null,
   };
   next();
 }

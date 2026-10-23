@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { waitUntil } from '@vercel/functions';
 import type { Redis } from 'ioredis';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
-import { TripStop, TransitLeg } from '../types';
+import { TripStop, TransitLeg, CostSettings, CostEstimate } from '../types';
 import { FEED_DEFAULT_LIMIT } from '../middleware/feed/validate-feed-query.middleware';
 import {
   SEO_MIN_ATTRACTIONS, SEO_SITEMAP_LIMIT, SEO_SITEMAP_CACHE_KEY,
@@ -16,13 +16,17 @@ export class TripController {
 
   create = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { title, stops, transits, sourceAiPlanRequestId, sourcePlanSessionId } = req.body as {
+      const { title, stops, transits, sourceAiPlanRequestId, sourcePlanSessionId, costSettings, costEstimate } = req.body as {
         title: string; stops: TripStop[]; transits: TransitLeg[];
         sourceAiPlanRequestId?: string; sourcePlanSessionId?: string;
+        costSettings?: CostSettings; costEstimate?: CostEstimate | null;
       };
       req.trip = await this.trips.create({
         title, stops, transits: transits ?? [], ownerId: req.user!.userId,
         sourceAiPlanRequestId, sourcePlanSessionId,
+        // Absent → repository leaves the columns to their DB defaults. costEstimate is only ever present on clones.
+        ...(costSettings !== undefined ? { costSettings } : {}),
+        ...(costEstimate !== undefined ? { costEstimate } : {}),
       });
       next();
     } catch (err) { next(err); }
@@ -44,8 +48,11 @@ export class TripController {
 
   update = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { title, stops, transits } = req.body as Partial<{ title: string; stops: TripStop[]; transits: TransitLeg[] }>;
-      req.trip = (await this.trips.update(req.params.id, { title, stops, transits })) ?? undefined;
+      const { title, stops, transits, costSettings } = req.body as Partial<{ title: string; stops: TripStop[]; transits: TransitLeg[]; costSettings: CostSettings }>;
+      // costSettings is forwarded only when sent: background autosave omits it and keeps the stored values.
+      req.trip = (await this.trips.update(req.params.id, {
+        title, stops, transits, ...(costSettings !== undefined ? { costSettings } : {}),
+      })) ?? undefined;
       next();
     } catch (err) { next(err); }
   };
@@ -60,6 +67,13 @@ export class TripController {
   recordExport = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.trips.setExportedAt(req.trip!.id);
+      next();
+    } catch (err) { next(err); }
+  };
+
+  saveEstimate = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.trips.saveEstimate(req.trip!.id, req.result as CostEstimate);
       next();
     } catch (err) { next(err); }
   };

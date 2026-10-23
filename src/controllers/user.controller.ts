@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { respondError } from '../lib/respond-error';
+import { Place } from '../types';
 
 export class UserController {
   constructor(private readonly users: IUserRepository) {}
@@ -60,11 +61,12 @@ export class UserController {
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; username?: string } = {};
+      const fields: { name?: string; email?: string; passwordHash?: string; countryOfResidence?: string | null; homePlace?: Place | null; username?: string } = {};
       if (req.body.name !== undefined)               fields.name               = req.body.name as string;
       if (req.body.newEmail !== undefined)            fields.email              = (req.body.newEmail as string).toLowerCase();
       if (req.newPasswordHash !== undefined)          fields.passwordHash       = req.newPasswordHash;
       if ('countryOfResidence' in req.body) fields.countryOfResidence = req.body.countryOfResidence as string | null;
+      if ('homePlace' in req.body)          fields.homePlace          = req.body.homePlace as Place | null;
       if (req.body.username !== undefined)            fields.username           = req.body.username as string;
 
       if (Object.keys(fields).length === 0) {
@@ -82,7 +84,7 @@ export class UserController {
         if (pg.code === '23505' && pg.constraint === 'users_username_uidx') { respondError(req, res, 409, { error: 'USERNAME_TAKEN' }); return; }
         throw err;
       }
-      req.result = { user: { id: updated.id, name: updated.name, email: updated.email, countryOfResidence: updated.countryOfResidence, username: updated.username, createdAt: updated.createdAt } };
+      req.result = { user: { id: updated.id, name: updated.name, email: updated.email, countryOfResidence: updated.countryOfResidence, homePlace: updated.homePlace, username: updated.username, createdAt: updated.createdAt } };
       next();
     } catch (err) { next(err); }
   };
