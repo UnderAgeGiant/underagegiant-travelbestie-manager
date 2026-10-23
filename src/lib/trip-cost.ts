@@ -100,8 +100,14 @@ function cityLabel(cityId: string): string | null {
   return own(CITY_NAMES, cityId) ?? null;
 }
 
+// Binds the home ground key to the user-typed origin name (hashed, so the raw text never reaches the shared cache key).
+// Two users with the same geonameId but different names get different keys; a fake name only poisons its own key.
+function originNameHash(name: string): string {
+  return createHash('sha256').update(name.trim().toLowerCase()).digest('hex').slice(0, 8);
+}
+
 function endpointKey(city: string | null, origin: Place | null, isFlight: boolean): string | null {
-  if (city === null) return !origin ? null : isFlight ? origin.iata : `g${origin.geonameId}`;
+  if (city === null) return !origin ? null : isFlight ? origin.iata : `g${origin.geonameId}.${originNameHash(origin.name)}`;
   if (!cityLabel(city)) return null;
   if (!isFlight) return city;
   return own(CITY_AIRPORTS, city)?.iata ?? null;

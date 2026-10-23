@@ -103,6 +103,27 @@ describe('tickets', () => {
   });
 });
 
+describe('home ground key', () => {
+  it('binds to the origin name: same geonameId, different names give different ground keys; flight keys unchanged', () => {
+    const t = trip(
+      [stop('paris', '01/03/2027', '02/03/2027')],
+      [{ fromCityId: '__start__', toCityId: 'paris', segments: [seg('train')] }],
+    );
+    const real = planPricing(t, settings({ origin: ORIGIN_SCL })).needs.map(n => n.key);
+    const fake = planPricing(t, settings({ origin: { ...ORIGIN_SCL, name: 'Evil <inject>' } })).needs.map(n => n.key);
+    const groundReal = real.find(k => k.startsWith('route:g3871336.'));
+    const groundFake = fake.find(k => k.startsWith('route:g3871336.'));
+    expect(groundReal).toBeDefined();
+    expect(groundFake).toBeDefined();
+    expect(groundFake).not.toBe(groundReal);
+
+    const flightReal = planPricing(trip([stop('paris', '01/03/2027', '02/03/2027')]), settings({ origin: ORIGIN_SCL })).needs.map(n => n.key);
+    const flightFake = planPricing(trip([stop('paris', '01/03/2027', '02/03/2027')]), settings({ origin: { ...ORIGIN_SCL, name: 'Evil <inject>' } })).needs.map(n => n.key);
+    expect(flightFake).toEqual(flightReal);
+    expect(flightReal).toContain('route:SCL:CDG:03:flight:economy');
+  });
+});
+
 describe('legs', () => {
   it('no origin: no home route keys and missingOrigin is true', () => {
     const t = trip([stop('paris', '01/03/2027', '02/03/2027'), stop('rome', '02/03/2027', '03/03/2027')]);

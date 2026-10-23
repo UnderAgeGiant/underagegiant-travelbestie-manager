@@ -73,11 +73,39 @@ describe('resolvePrices', () => {
     expect(body.messages[1].content).toBe(JSON.stringify([{ key: ROUTE.key, item: ROUTE.label }]));
   });
 
+  it('passes the timeout and maxRetries: 0 as request options (not in the body)', async () => {
+    create.mockResolvedValue(completion({ [ROUTE.key]: 250 }));
+    await resolvePrices([ROUTE], fakeRepo(), 'u1', fakeRedis());
+    expect(create.mock.calls[0][1]).toEqual({ timeout: 15000, maxRetries: 0 });
+    expect(create.mock.calls[0][0]).not.toHaveProperty('timeout');
+  });
+
+  it('a string answer "250" is rejected', async () => {
+    create.mockResolvedValue(completion({ [ROUTE.key]: '250' }));
+    const repo = fakeRepo();
+    expect((await resolvePrices([ROUTE], repo, 'u1', fakeRedis())).size).toBe(0);
+    expect(repo.upsertMany).not.toHaveBeenCalled();
+  });
+
+  it('prices: null resolves with the cache hits only', async () => {
+    create.mockResolvedValue(completion(null));
+    const out = await resolvePrices([ROUTE, ROUTE2], fakeRepo({ [ROUTE2.key]: 120 }), 'u1', fakeRedis());
+    expect(Array.from(out.entries())).toEqual([[ROUTE2.key, 120]]);
+  });
+
+  it('redis.set rejecting after a DeepSeek failure still resolves with the cache hits', async () => {
+    create.mockRejectedValue(new Error('402'));
+    const redis = fakeRedis();
+    redis.set.mockRejectedValue(new Error('redis down'));
+    const out = await resolvePrices([ROUTE, ROUTE2], fakeRepo({ [ROUTE2.key]: 120 }), 'u1', redis);
+    expect(Array.from(out.entries())).toEqual([[ROUTE2.key, 120]]);
+  });
+
   it('out-of-band route value (99999) is dropped', async () => {
     create.mockResolvedValue(completion({ [ROUTE.key]: 99999 }));
     const repo = fakeRepo();
     expect((await resolvePrices([ROUTE], repo, 'u1', fakeRedis())).size).toBe(0);
-    expect(repo.upsertMany).toHaveBeenCalledWith([]);
+    expect(repo.upsertMany).not.toHaveBeenCalled();
   });
 
   it('DeepSeek 402 throws: returns cache hits only, sets tripcost:ds-down with TTL 600, never rethrows', async () => {

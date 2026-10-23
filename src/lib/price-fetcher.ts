@@ -43,7 +43,7 @@ async function askDeepSeek(misses: PriceNeed[], userId: string): Promise<Record<
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: JSON.stringify(misses.map(n => ({ key: n.key, item: n.label }))) },
     ],
-  }, { timeout: TRIP_COST_TIMEOUT_MS });
+  }, { timeout: TRIP_COST_TIMEOUT_MS, maxRetries: 0 }); // SDK retries would turn the 15 s cap into 45 s+
   logAiUsage('tripCost', PRICE_MODEL, completion.usage, userId);
   const parsed = parseCompletionJson(completion) as { prices?: unknown };
   return (parsed.prices && typeof parsed.prices === 'object' ? parsed.prices : {}) as Record<string, unknown>;
@@ -101,10 +101,12 @@ export async function resolvePrices(
     rows.push({ key: need.key, priceUsd });
   }
 
-  try {
-    await repo.upsertMany(rows);
-  } catch (err) {
-    logger.warn({ event: 'trip_cost_cache_write_failed', err: String(err) });
+  if (rows.length > 0) {
+    try {
+      await repo.upsertMany(rows);
+    } catch (err) {
+      logger.warn({ event: 'trip_cost_cache_write_failed', err: String(err) });
+    }
   }
   return result;
 }
