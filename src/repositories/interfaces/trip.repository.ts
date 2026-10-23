@@ -1,14 +1,16 @@
-import { Trip, TripStop, TransitLeg, SharedTripPayload, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow } from '../../types';
+import { Trip, TripStop, TransitLeg, SharedTripPayload, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, CostSettings, CostEstimate } from '../../types';
 import { FeedCursor } from '../../lib/feed-cursor';
 
 export interface ITripRepository {
   create(data: {
     title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string;
     sourceAiPlanRequestId?: string; sourcePlanSessionId?: string;
+    costSettings?: CostSettings; costEstimate?: CostEstimate | null;
   }): Promise<Trip>;
   findByOwner(ownerId: string): Promise<Trip[]>;
   findById(id: string): Promise<Trip | null>;
-  update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null>;
+  update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits' | 'costSettings'>>): Promise<Trip | null>;
+  saveEstimate(id: string, estimate: CostEstimate): Promise<void>;
   setShareId(id: string, shareId: string): Promise<Trip | null>;
   setExportedAt(id: string): Promise<void>;
   findByShareId(shareId: string): Promise<SharedTripPayload | null>;

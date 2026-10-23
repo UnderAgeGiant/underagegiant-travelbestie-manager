@@ -11,7 +11,7 @@ import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middlewar
 import { exportTarget, publishTarget } from '../middleware/trophies/trophy-targets';
 import { requireAuth } from '../middleware/auth/require-auth.middleware';
 import { validateBody } from '../middleware/validate-body.middleware';
-import { createTripSchema } from '../schemas/trip.schemas';
+import { createTripSchema, updateTripSchema } from '../schemas/trip.schemas';
 import { inviteCollaboratorSchema } from '../schemas/collaborator.schemas';
 import { checkTripOwnership } from '../middleware/trips/check-trip-ownership.middleware';
 import { makeCheckTripEditAccess } from '../middleware/collaborators/check-trip-edit-access.middleware';
@@ -25,6 +25,7 @@ import { makeNotifyCollaboratorAccepted } from '../middleware/notifications/noti
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
+import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -57,6 +58,7 @@ export function createTripsRouter(
   router.get('/',
     trip.findByOwner,
     makeAttachCollaboratorTrips(tripRepo, collaboratorRepo),
+    markEstimateStale,
     respond(200),
   );
 
@@ -71,6 +73,7 @@ export function createTripsRouter(
     trip.create,
     karma.spendForTripCreated,
     buildTripResponse,
+    markEstimateStale,
     respond(201),
   );
 
@@ -89,8 +92,10 @@ export function createTripsRouter(
   router.put('/:id',
     trip.findById,
     checkTripEditAccess,
+    validateBody(updateTripSchema),
     trip.update,
     buildTripResponse,
+    markEstimateStale,
     respond(200),
   );
 

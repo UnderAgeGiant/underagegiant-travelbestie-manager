@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import { ITripRepository } from '../interfaces/trip.repository';
-import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow } from '../../types';
+import { Trip, TripStop, TransitLeg, PlannedAttraction, TransitSegment, SharedTripPayload, AttractionCategory, Lodging, FeedPage, FeedPlan, SeoSharedRow, SeoSitemapRow, SeoCityPlanRow, CostSettings, CostEstimate, ComfortLevel, Place } from '../../types';
+import { DEFAULT_COST_SETTINGS } from '../../lib/trip-cost';
 import { FeedCursor, encodeFeedCursor } from '../../lib/feed-cursor';
 import { normalizeSearch, matchCityIds, SQL_ACCENT_FROM, SQL_ACCENT_TO } from '../../lib/search-normalize';
 
@@ -22,6 +23,29 @@ function toDMY(pgDate: Date | string): string {
 // pg TIME 'HH:mm:ss' → 'HH:mm'
 function toHM(pgTime: string): string {
   return String(pgTime).slice(0, 5);
+}
+
+// Feature 74 - trips.* columns for the cost settings and the last snapshot. Selected by the owner and
+// shared reads (COST_COLUMNS); feed/search/SEO reads omit them and get the defaults, which those routes never render.
+const COST_COLUMNS = 'origin_place, travelers_adults, travelers_children, comfort_level, cost_estimate';
+
+function costFields(row: Record<string, unknown>): { costSettings: CostSettings; costEstimate: CostEstimate | null } {
+  if (!('travelers_adults' in row)) return { costSettings: { ...DEFAULT_COST_SETTINGS }, costEstimate: null };
+  return {
+    costSettings: {
+      origin:   (row.origin_place as Place | null) ?? null,
+      adults:   row.travelers_adults as number,
+      children: row.travelers_children as number,
+      comfort:  row.comfort_level as ComfortLevel,
+    },
+    costEstimate: (row.cost_estimate as CostEstimate | null) ?? null,
+  };
+}
+
+// stale is computed on read (mark-estimate-stale middleware) and must never be persisted.
+function serializeEstimate(estimate: CostEstimate): string {
+  const { stale: _stale, ...stored } = estimate;
+  return JSON.stringify(stored);
 }
 
 function toFeedPlan(trip: Trip, row: Record<string, unknown>): FeedPlan {
@@ -52,13 +76,27 @@ export class PgTripRepository implements ITripRepository {
   async create(data: {
     title: string; stops: TripStop[]; transits: TransitLeg[]; ownerId: string;
     sourceAiPlanRequestId?: string; sourcePlanSessionId?: string;
+    costSettings?: CostSettings; costEstimate?: CostEstimate | null;
   }): Promise<Trip> {
+    // Cost columns are included only when given, so DB defaults apply to a plain create.
+    const cols = ['owner_id', 'title', 'source_ai_plan_request_id', 'source_plan_session_id'];
+    const vals: unknown[] = [data.ownerId, data.title, data.sourceAiPlanRequestId ?? null, data.sourcePlanSessionId ?? null];
+    if (data.costSettings) {
+      const c = data.costSettings;
+      cols.push('origin_place', 'travelers_adults', 'travelers_children', 'comfort_level');
+      vals.push(c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.comfort);
+    }
+    if (data.costEstimate !== undefined) {
+      cols.push('cost_estimate');
+      vals.push(data.costEstimate ? serializeEstimate(data.costEstimate) : null);
+    }
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const { rows: [row] } = await client.query(
-        `INSERT INTO trips (owner_id, title, source_ai_plan_request_id, source_plan_session_id) VALUES ($1, $2, $3, $4) RETURNING trip_id, created_at`,
-        [data.ownerId, data.title, data.sourceAiPlanRequestId ?? null, data.sourcePlanSessionId ?? null],
+        `INSERT INTO trips (${cols.join(', ')}) VALUES (${vals.map((_, i) => `$${i + 1}`).join(', ')})
+         RETURNING trip_id, created_at, ${COST_COLUMNS}`,
+        vals,
       );
       await insertStops(client, row.trip_id, data.stops);
       await insertLegs(client, row.trip_id, data.transits);
@@ -70,6 +108,7 @@ export class PgTripRepository implements ITripRepository {
         transits: data.transits,
         ownerId: data.ownerId,
         createdAt: (row.created_at as Date).toISOString(),
+        ...costFields(row),
       };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -81,7 +120,7 @@ export class PgTripRepository implements ITripRepository {
 
   async findByOwner(ownerId: string): Promise<Trip[]> {
     const { rows } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
+      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at, ${COST_COLUMNS} FROM trips WHERE owner_id = $1 ORDER BY created_at DESC`,
       [ownerId],
     );
     return hydrateTrips(this.pool, rows);
@@ -89,7 +128,7 @@ export class PgTripRepository implements ITripRepository {
 
   async findById(id: string): Promise<Trip | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at FROM trips WHERE trip_id = $1`,
+      `SELECT trip_id, title, owner_id, created_at, share_id, itinerary_exported_at, ${COST_COLUMNS} FROM trips WHERE trip_id = $1`,
       [id],
     );
     return row ? hydrateTrip(this.pool, row) : null;
@@ -114,6 +153,7 @@ export class PgTripRepository implements ITripRepository {
   async findByShareId(shareId: string): Promise<SharedTripPayload | null> {
     const { rows: [row] } = await this.pool.query(
       `SELECT t.trip_id, t.title, t.owner_id, t.created_at, t.share_id,
+              ${COST_COLUMNS.split(', ').map(c => `t.${c}`).join(', ')},
               u.email AS owner_email, u.name AS owner_name, u.username AS owner_username
        FROM trips t
        JOIN users u ON t.owner_id = u.user_id
@@ -134,6 +174,8 @@ export class PgTripRepository implements ITripRepository {
       transits:   trip.transits,
       planId:     trip.id,
       tripId:     trip.id,
+      costSettings: trip.costSettings,
+      costEstimate: trip.costEstimate,
     };
   }
 
@@ -370,7 +412,15 @@ export class PgTripRepository implements ITripRepository {
     }));
   }
 
-  async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits'>>): Promise<Trip | null> {
+  /** Writes a cost-estimate snapshot. Does not touch updated_at (a recalculation is not an edit). */
+  async saveEstimate(id: string, estimate: CostEstimate): Promise<void> {
+    await this.pool.query(
+      `UPDATE trips SET cost_estimate = $2 WHERE trip_id = $1`,
+      [id, serializeEstimate(estimate)],
+    );
+  }
+
+  async update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits' | 'costSettings'>>): Promise<Trip | null> {
     const { rows: [existing] } = await this.pool.query(
       `SELECT trip_id FROM trips WHERE trip_id = $1`,
       [id],
@@ -386,6 +436,14 @@ export class PgTripRepository implements ITripRepository {
         `UPDATE trips SET title = COALESCE($1, title), updated_at = now() WHERE trip_id = $2`,
         [data.title ?? null, id],
       );
+      // Settings are written only when sent (autosave omits them). cost_estimate is never written here.
+      if (data.costSettings !== undefined) {
+        const c = data.costSettings;
+        await client.query(
+          `UPDATE trips SET origin_place = $1, travelers_adults = $2, travelers_children = $3, comfort_level = $4 WHERE trip_id = $5`,
+          [c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.comfort, id],
+        );
+      }
       if (data.stops !== undefined) {
         await client.query(`DELETE FROM trip_stops WHERE trip_id = $1`, [id]);
         await insertStops(client, id, data.stops);
@@ -577,6 +635,7 @@ async function hydrateTrip(pool: Pool, row: Record<string, unknown>, publicOnly 
     createdAt: (row.created_at as Date).toISOString(),
     ...(row.share_id ? { shareId: row.share_id as string } : {}),
     ...(row.itinerary_exported_at ? { itineraryExportedAt: (row.itinerary_exported_at as Date).toISOString() } : {}),
+    ...costFields(row),
   };
 }
 
@@ -695,6 +754,7 @@ async function hydrateTrips(pool: Pool, rows: Record<string, unknown>[], publicO
       createdAt: (row.created_at as Date).toISOString(),
       ...(row.share_id              ? { shareId:             row.share_id              as string }              : {}),
       ...(row.itinerary_exported_at ? { itineraryExportedAt: (row.itinerary_exported_at as Date).toISOString() } : {}),
+      ...costFields(row),
     };
   });
 }

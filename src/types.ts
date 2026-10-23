@@ -7,6 +7,7 @@ export interface User {
   email: string;
   passwordHash: string;
   countryOfResidence: string | null;
+  homePlace: Place | null;              // Feature 74 — home airport/city for trip cost estimates
   username: string | null;              // Feature 22 — opt-in public handle, lowercase
   createdAt: string;
 }
@@ -108,6 +109,8 @@ export interface SharedTripPayload {
   tripId:           string;   // same as planId — internal UUID used by favorites
   favoriteCount?:   number;
   isFavoritedByMe?: boolean;
+  costSettings?:    CostSettings;          // Feature 74 — origin reduced to {name, countryCode} by stripOwnerPii
+  costEstimate?:    CostEstimate | null;   // Feature 74 — null when stale; origin reduced like costSettings
 }
 
 export interface FeedPlanAttraction {

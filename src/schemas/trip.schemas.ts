@@ -45,12 +45,33 @@ const transitLeg = z.object({
   date:       z.string().max(10).optional(),
 }).passthrough();
 
+// Feature 74 — a saved place (origin airport/city, also users.home_place). Shape per contracts §18.
+export const placeSchema = z.object({
+  geonameId:   z.number().int().positive(),
+  name:        z.string().trim().min(1).max(120),
+  countryCode: z.string().regex(/^[A-Z]{2}$/),
+  iata:        z.string().regex(/^[A-Z]{3}$/),
+});
+
+export const costSettingsSchema = z.object({
+  origin:   placeSchema.nullable(),
+  adults:   z.number().int().min(1).max(20),
+  children: z.number().int().min(0).max(20),
+  comfort:  z.enum(['budget', 'mid', 'luxury']),
+});
+
 export const createTripSchema = z.object({
   title:    z.string().trim().min(1).max(200),
   stops:    z.array(tripStop).max(100),
   transits: z.array(transitLeg).max(100).optional(),
   sourceAiPlanRequestId: z.string().min(1).max(120).optional(),
   sourcePlanSessionId: z.string().min(1).max(200).optional(),
+  costSettings: costSettingsSchema.optional(),
+  // Snapshots are written only by clones (server-side copy); a client may not supply one on POST.
+  costEstimate: z.undefined().optional(),
 }).passthrough();
 
-export const updateTripSchema = createTripSchema;
+// PUT validates only the cost settings it can write; the rest of the body keeps its existing (unvalidated) behaviour.
+export const updateTripSchema = z.object({
+  costSettings: costSettingsSchema.optional(),
+}).passthrough();
