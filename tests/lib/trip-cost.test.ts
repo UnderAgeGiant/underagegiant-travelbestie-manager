@@ -2,7 +2,7 @@ import {
   DEFAULT_COST_SETTINGS, roomCount, planPricing, estimateInputsHash, isEstimateStale,
 } from '../../src/lib/trip-cost';
 import { HOTEL_PRICES } from '../../src/data/hotel-prices';
-import type { Trip, TripStop, TransitLeg, CostSettings, PlannedAttraction } from '../../src/types';
+import type { Trip, TripStop, TransitLeg, TransitSegment, TransitMode, CostSettings, PlannedAttraction } from '../../src/types';
 
 const ORIGIN_SCL = { geonameId: 3871336, name: 'Santiago', countryCode: 'CL', iata: 'SCL' };
 
@@ -12,6 +12,14 @@ function stop(cityId: string, checkIn: string, checkOut: string, attractions: Pl
 
 function trip(stops: TripStop[], transits: TransitLeg[] = []): Trip {
   return { id: 't1', title: 'Test', stops, transits, ownerId: 'u1', createdAt: '2026-10-22T00:00:00.000Z' };
+}
+
+function seg(mode: TransitMode, dep = '02/03/2027'): TransitSegment {
+  return { mode, departureDate: dep, departureTime: '10:00', arrivalDate: dep, arrivalTime: '12:00', notes: '' };
+}
+
+function leg(fromCityId: string, toCityId: string, mode: TransitMode): TransitLeg {
+  return { fromCityId, toCityId, segments: [seg(mode)] };
 }
 
 function settings(over: Partial<CostSettings> = {}): CostSettings {
@@ -97,16 +105,17 @@ describe('tickets', () => {
 
 describe('legs', () => {
   it('no origin: no home route keys and missingOrigin is true', () => {
-    const t = trip([stop('paris', '01/03/2027', '02/03/2027')]);
+    const t = trip([stop('paris', '01/03/2027', '02/03/2027'), stop('rome', '02/03/2027', '03/03/2027')]);
     const p = planPricing(t, settings());
-    expect(p.needs.some(n => n.key.startsWith('route:'))).toBe(false);
+    expect(p.needs.map(n => n.key)).toEqual(['route:CDG:FCO:03:flight:economy']);
     expect(p.build(new Map()).missingOrigin).toBe(true);
   });
 
   it('origin airport equal to the first city airport: no home leg', () => {
-    const t = trip([stop('paris', '01/03/2027', '02/03/2027')]);
+    const t = trip([stop('paris', '01/03/2027', '02/03/2027'), stop('rome', '02/03/2027', '03/03/2027')]);
     const p = planPricing(t, settings({ origin: { ...ORIGIN_SCL, iata: 'CDG' } }));
-    expect(p.needs.some(n => n.key.startsWith('route:'))).toBe(false);
+    // first city is CDG: no outbound leg; between-city and return legs still priced
+    expect(p.needs.map(n => n.key)).toEqual(['route:CDG:FCO:03:flight:economy', 'route:FCO:CDG:03:flight:economy']);
     expect(p.build(new Map()).missingOrigin).toBe(false);
   });
 
@@ -152,6 +161,56 @@ describe('legs', () => {
       { from: 'ai_made_up_123', to: 'ai_made_up_123', mode: 'hotel' },
       { from: '__home__', to: 'ai_made_up_123', mode: 'flight' },
     ]));
+  });
+});
+
+describe('pricing arithmetic', () => {
+  const twoCityStops = (a: string, b: string) => [stop(a, '01/03/2027', '02/03/2027'), stop(b, '02/03/2027', '03/03/2027')];
+
+  it('2A+2C train at 100 per adult costs 350 (children at 75%)', () => {
+    const t = trip(twoCityStops('paris', 'rome'), [leg('paris', 'rome', 'train')]);
+    const p = planPricing(t, settings({ adults: 2, children: 2 }));
+    const est = p.build(new Map([['route:paris:rome:03:train:-', 100]]));
+    expect(est.groundUsd).toBe(350);
+    expect(est.flightsUsd).toBe(0);
+  });
+
+  it('a car leg is priced per group, not per person and not SA-scaled', () => {
+    const t = trip(twoCityStops('santiago', 'buenosaires'), [leg('santiago', 'buenosaires', 'car')]);
+    const p = planPricing(t, settings({ adults: 2, children: 2 }));
+    const est = p.build(new Map([['route:santiago:buenosaires:03:car:-', 120]]));
+    expect(est.groundUsd).toBe(120);
+  });
+
+  it('a flight lands in flightsUsd and a bus in groundUsd', () => {
+    const stops = [stop('paris', '01/03/2027', '02/03/2027'), stop('rome', '02/03/2027', '03/03/2027'), stop('lisbon', '03/03/2027', '04/03/2027')];
+    const t = trip(stops, [leg('paris', 'rome', 'flight'), leg('rome', 'lisbon', 'bus')]);
+    const est = planPricing(t, settings()).build(new Map([
+      ['route:CDG:FCO:03:flight:economy', 300],
+      ['route:rome:lisbon:03:bus:-', 50],
+    ]));
+    expect(est.flightsUsd).toBe(300);
+    expect(est.groundUsd).toBe(50);
+    expect(est.unestimated).toEqual([]);
+  });
+
+  it('origin equal to the LAST city airport skips the return leg but keeps the outbound', () => {
+    const t = trip(twoCityStops('rome', 'paris'));
+    const p = planPricing(t, settings({ origin: { ...ORIGIN_SCL, iata: 'CDG' } }));
+    // outbound CDG→FCO and between-city FCO→CDG; the return CDG→home is skipped
+    expect(p.needs.map(n => n.key)).toEqual(['route:CDG:FCO:03:flight:economy', 'route:FCO:CDG:03:flight:economy']);
+  });
+
+  it('SA departure: a flight santiago → buenosaires at 200 costs 160', () => {
+    const t = trip(twoCityStops('santiago', 'buenosaires'), [leg('santiago', 'buenosaires', 'flight')]);
+    const est = planPricing(t, settings()).build(new Map([['route:SCL:EZE:03:flight:economy', 200]]));
+    expect(est.flightsUsd).toBe(160);
+  });
+
+  it('a leg with no date and no segments takes the departure stop checkOut month', () => {
+    const stops = [stop('paris', '01/03/2027', '02/04/2027'), stop('rome', '02/04/2027', '04/04/2027')];
+    const p = planPricing(trip(stops), settings());
+    expect(p.needs.map(n => n.key)).toEqual(['route:CDG:FCO:04:flight:economy']);
   });
 });
 
