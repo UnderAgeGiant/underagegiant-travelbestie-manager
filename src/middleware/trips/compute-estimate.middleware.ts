@@ -5,8 +5,13 @@ import type { IPriceEstimateRepository } from '../../repositories/interfaces/pri
 import type { CostEstimate } from '../../types';
 
 /** Recomputes the trip's cost estimate into req.result (not stored here; saveEstimate persists it). */
-export function makeComputeEstimate(priceRepo: IPriceEstimateRepository, redis: PriceRedis) {
+export function makeComputeEstimate(priceRepo: IPriceEstimateRepository | undefined, redis: PriceRedis) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // Fail loudly: without the repo every call would skip the cache and hit DeepSeek.
+    if (!priceRepo) {
+      next(new Error('priceRepo not wired'));
+      return;
+    }
     try {
       const trip = req.trip!;
       const settings = trip.costSettings ?? DEFAULT_COST_SETTINGS;

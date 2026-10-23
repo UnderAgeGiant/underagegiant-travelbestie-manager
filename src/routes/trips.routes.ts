@@ -60,7 +60,7 @@ export function createTripsRouter(
   tripRepo: ITripRepository,
   notificationRepo: INotificationRepository,
   trophies?: TrophyRecorder,
-  // Only the estimate route reads this; older test call sites omit it. app.ts always passes priceEstimateRepo.
+  // Only the estimate route reads this; older test call sites omit it, and the estimate route then answers 500.
   priceRepo?: IPriceEstimateRepository,
 ): Router {
   const router = Router();
@@ -119,7 +119,7 @@ export function createTripsRouter(
     trip.findById,
     checkTripEstimateAccess,
     returnFreshEstimate,
-    makeComputeEstimate(priceRepo!, lazyRedis),
+    makeComputeEstimate(priceRepo, lazyRedis),
     trip.saveEstimate,
     respond(200),
   );

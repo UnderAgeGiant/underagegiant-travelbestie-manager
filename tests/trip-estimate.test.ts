@@ -65,7 +65,7 @@ const ROUTE_TRANSITS: TransitLeg[] = [{
 
 const priceRepo: IPriceEstimateRepository = { findFresh: async () => new Map(), upsertMany: async () => {} };
 
-function buildApp() {
+function buildApp({ withPriceRepo = true }: { withPriceRepo?: boolean } = {}) {
   const users = new StubUserRepository();
   const trips = new StubTripRepository();
   const karma = new StubKarmaRepository();
@@ -84,7 +84,7 @@ function buildApp() {
     trips,
     notifications,
     undefined,
-    priceRepo,
+    withPriceRepo ? priceRepo : undefined,
   ));
   app.use(errorHandler);
   return { app, users, trips, collaborators };
@@ -226,5 +226,28 @@ describe('POST /trips/:id/estimate', () => {
     }
     const limited = await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${token}`);
     expect(limited.status).toBe(429);
+  });
+});
+
+describe('POST /trips/:id/estimate — wiring and lookup', () => {
+  it('without a wired price repo the route fails loudly (500) and never calls the fetcher', async () => {
+    const { app, trips } = buildApp({ withPriceRepo: false });
+    const token = await registerUser(app, 'owner@test.com');
+    const trip = await trips.create({ title: 'Europa', stops: STOPS, transits: TRANSITS, ownerId: idFromToken(token), costSettings: SETTINGS });
+
+    const res = await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(500);
+    expect(resolvePricesMock).not.toHaveBeenCalled();
+  });
+
+  it('a non-existent trip id returns 404', async () => {
+    const { app } = buildApp();
+    const token = await registerUser(app, 'owner@test.com');
+
+    const res = await request(app).post('/trips/00000000-0000-4000-8000-000000000000/estimate').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+    expect(resolvePricesMock).not.toHaveBeenCalled();
   });
 });
