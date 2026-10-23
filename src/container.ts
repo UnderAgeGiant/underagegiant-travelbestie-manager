@@ -29,6 +29,7 @@ import { StatsController }           from './controllers/stats.controller';
 import { CompanionController }       from './controllers/companion.controller';
 import { CollaboratorController }    from './controllers/collaborator.controller';
 import { WeatherController }         from './controllers/weather.controller';
+import { FxController }              from './controllers/fx.controller';
 import { RankingController }         from './controllers/ranking.controller';
 import { GameController }            from './controllers/game.controller';
 
@@ -65,5 +66,6 @@ export const statsController         = new StatsController(new PgStatsRepository
 export const companionController     = new CompanionController();
 export const collaboratorController  = new CollaboratorController(collaboratorRepo);
 export const weatherController       = new WeatherController();
+export const fxController            = new FxController();
 export const rankingController       = new RankingController(rankingRepository);
 export const gameController          = new GameController(gameRepository);
