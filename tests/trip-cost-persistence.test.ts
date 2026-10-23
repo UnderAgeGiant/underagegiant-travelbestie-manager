@@ -12,6 +12,8 @@ import { errorHandler } from '../src/middleware/error.middleware';
 import { estimateInputsHash } from '../src/lib/trip-cost';
 import { CostEstimate, CostSettings, Place, Trip, TripStop, TransitLeg } from '../src/types';
 
+jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
+
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
 }));

@@ -11,6 +11,8 @@ import { createUsersRouter } from '../src/routes/users.routes';
 import { createPublicProfileRouter } from '../src/routes/public-profile.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 
+jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
+
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({ decryptPayloadMiddleware: (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/auth/verify-otp.middleware',      () => ({ verifyOtpMiddleware:      (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/rate-limit.middleware',           () => ({ rateLimitMiddleware: () => (_q: any, _s: any, n: any) => n() }));

@@ -11,6 +11,8 @@ import { errorHandler } from '../src/middleware/error.middleware';
 import { respond } from '../src/middleware/respond.middleware';
 import { stripOwnerPii } from '../src/middleware/trips/strip-owner-pii.middleware';
 
+jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
+
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
 }));

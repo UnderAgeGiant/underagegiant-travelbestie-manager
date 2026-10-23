@@ -71,6 +71,13 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
+  saveEstimate = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.trips.saveEstimate(req.trip!.id, req.result as CostEstimate);
+      next();
+    } catch (err) { next(err); }
+  };
+
   shareIfAlreadyShared = (req: Request, res: Response, next: NextFunction): void => {
     if (req.trip!.shareId) {
       res.status(200).json({ shareId: req.trip!.shareId });

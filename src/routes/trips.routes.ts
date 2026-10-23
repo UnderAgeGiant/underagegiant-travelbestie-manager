@@ -26,9 +26,15 @@ import { buildTripResponse } from '../middleware/trips/build-trip-response.middl
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
+import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
+import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
+import { makeCheckTripEstimateAccess } from '../middleware/trips/check-trip-estimate-access.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
+import { redis } from '../lib/redis';
+import { TRIP_ESTIMATE_RATE_LIMIT } from '../lib/ai-limits';
+import { IPriceEstimateRepository } from '../repositories/interfaces/price-estimate.repository';
 import { Request } from 'express';
 
 // Wraps a middleware so it is skipped when the trip has already been exported.
@@ -48,12 +54,15 @@ export function createTripsRouter(
   tripRepo: ITripRepository,
   notificationRepo: INotificationRepository,
   trophies?: TrophyRecorder,
+  // Only the estimate route reads this; older test call sites omit it. app.ts always passes priceEstimateRepo.
+  priceRepo?: IPriceEstimateRepository,
 ): Router {
   const router = Router();
 
   router.use(requireAuth);
 
   const checkTripEditAccess = makeCheckTripEditAccess(collaboratorRepo);
+  const checkTripEstimateAccess = makeCheckTripEstimateAccess(collaboratorRepo);
 
   router.get('/',
     trip.findByOwner,
@@ -96,6 +105,16 @@ export function createTripsRouter(
     trip.update,
     buildTripResponse,
     markEstimateStale,
+    respond(200),
+  );
+
+  router.post('/:id/estimate',
+    rateLimitMiddleware({ keyPrefix: 'rl:trip-estimate', windowSeconds: 3600, maxRequests: TRIP_ESTIMATE_RATE_LIMIT, getKey: byUser }),
+    trip.findById,
+    checkTripEstimateAccess,
+    returnFreshEstimate,
+    makeComputeEstimate(priceRepo!, redis),
+    trip.saveEstimate,
     respond(200),
   );
 
