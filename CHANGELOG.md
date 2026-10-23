@@ -4,7 +4,7 @@ One line per PR merged to `main` (which Vercel deploys to production), newest fi
 **Every PR adds its own line** under the current month's heading (create the heading if it is missing), in the form `- <PR title> (#<number>)`.
 
 ## 2026-10
-- feat(cost): trip cost estimate backend (F74) (#TBD)
+- feat(cost): trip cost estimate backend (F74) (#97)
 - feat(game): Miel Runner server-timed runs, weekly best, runner trophies (#96)
 - feat(analytics): PostHog product analytics for CTAs, active users and AI usage (#95)
 - feat(social): usernames, follows, public profile, following feed (#92)
