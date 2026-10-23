@@ -32,9 +32,9 @@ import { makeCheckTripEstimateAccess } from '../middleware/trips/check-trip-esti
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
-import { redis } from '../lib/redis';
 import { TRIP_ESTIMATE_RATE_LIMIT } from '../lib/ai-limits';
 import { IPriceEstimateRepository } from '../repositories/interfaces/price-estimate.repository';
+import type { PriceRedis } from '../lib/price-fetcher';
 import { Request } from 'express';
 
 // Wraps a middleware so it is skipped when the trip has already been exported.
@@ -44,6 +44,12 @@ function skipIfExported(fn: RequestHandler): RequestHandler {
 
 // Per-user key (limiters run after requireAuth) — same helper as notifications.routes.ts.
 const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown';
+
+// Lazy: loading lib/redis at import time would open a connection in every suite that mounts this router.
+const lazyRedis: PriceRedis = {
+  get: key => (require('../lib/redis') as typeof import('../lib/redis')).redis.get(key),
+  set: (key, value, mode, ttl) => (require('../lib/redis') as typeof import('../lib/redis')).redis.set(key, value, mode, ttl),
+};
 
 export function createTripsRouter(
   trip: TripController,
@@ -113,7 +119,7 @@ export function createTripsRouter(
     trip.findById,
     checkTripEstimateAccess,
     returnFreshEstimate,
-    makeComputeEstimate(priceRepo!, redis),
+    makeComputeEstimate(priceRepo!, lazyRedis),
     trip.saveEstimate,
     respond(200),
   );

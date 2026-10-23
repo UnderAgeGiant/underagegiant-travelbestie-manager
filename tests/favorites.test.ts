@@ -11,8 +11,6 @@ import { createSharedRouter } from '../src/routes/shared.routes';
 import { createFavoritesRouter } from '../src/routes/favorites.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 
-jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
-
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
 }));

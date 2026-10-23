@@ -14,8 +14,6 @@ import { createSharedRouter } from '../src/routes/shared.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 import { TrophyRecorder } from '../src/lib/trophy-recorder';
 
-jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
-
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({ decryptPayloadMiddleware: (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/auth/verify-otp.middleware',      () => ({ verifyOtpMiddleware:      (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/rate-limit.middleware',           () => ({ rateLimitMiddleware: () => (_q: any, _s: any, n: any) => n() }));

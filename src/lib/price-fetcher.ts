@@ -1,4 +1,3 @@
-import { deepseekClient } from './deepseek';
 import { logAiUsage } from './ai-usage';
 import { AI_MAX_TOKENS, TRIP_COST_TIMEOUT_MS } from './ai-limits';
 import { parseCompletionJson } from './ai-output';
@@ -35,6 +34,8 @@ async function isDeepSeekDown(redis: PriceRedis): Promise<boolean> {
 }
 
 async function askDeepSeek(misses: PriceNeed[], userId: string): Promise<Record<string, unknown>> {
+  // Lazy: keeps the OpenAI client (and its env-key check) out of modules that only need the price cache.
+  const { deepseekClient } = require('./deepseek') as typeof import('./deepseek');
   const completion = await deepseekClient.chat.completions.create({
     model: PRICE_MODEL,
     max_tokens: AI_MAX_TOKENS.tripCost,
