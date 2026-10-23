@@ -15,6 +15,13 @@ describe('generated cost tables', () => {
     }
   });
 
+  // Hub rule (lib/build-cost-tables.mjs): large airport within 150 km first, not the nearest small field.
+  it('major cities resolve to their hub airports', () => {
+    expect(['JFK', 'EWR', 'LGA']).toContain(CITY_AIRPORTS.newyork.iata);
+    expect(CITY_AIRPORTS.rome.iata).toBe('FCO');
+    expect(CITY_AIRPORTS.london.iata).toBe('LHR');
+  });
+
   it('at least 95% of cities have hotel prices', () => {
     const covered = cityIds.filter(id => HOTEL_PRICES[id] !== undefined).length;
     expect(covered / cityIds.length).toBeGreaterThanOrEqual(0.95);
