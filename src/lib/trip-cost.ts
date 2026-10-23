@@ -119,6 +119,7 @@ function makeLeg(args: {
   defaultMode: string; origin: Place | null; comfort: ComfortLevel;
 }): LegPlan {
   const { from, to, transit, fallbackDate, defaultMode, origin, comfort } = args;
+  // ponytail: first segment's mode prices the whole leg; price per segment if multi-modal legs matter
   const mode = transit?.segments[0]?.mode ?? defaultMode;
   const month = monthOf(transit?.date) ?? monthOf(transit?.segments[0]?.departureDate) ?? monthOf(fallbackDate);
   const isFlight = mode === 'flight';
@@ -219,7 +220,7 @@ export function estimateInputsHash(trip: Trip, settings: CostSettings): string {
       fromCityId: l.fromCityId,
       toCityId: l.toCityId,
       date: l.date ?? null,
-      modes: l.segments.map(seg => seg.mode),
+      segments: l.segments.map(seg => ({ mode: seg.mode, departureDate: seg.departureDate ?? null })),
     })),
     settings: {
       origin: settings.origin && {

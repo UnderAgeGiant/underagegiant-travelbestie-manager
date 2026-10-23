@@ -162,6 +162,15 @@ describe('estimateInputsHash and staleness', () => {
     expect(estimateInputsHash(base(), settings({ adults: 1 }))).not.toBe(estimateInputsHash(base(), settings({ adults: 2 })));
   });
 
+  it('changing a segment departureDate changes the hash when the leg has no date', () => {
+    const withLeg = (dep: string): Trip => ({
+      ...base(),
+      stops: [stop('paris', '01/03/2027', '04/03/2027'), stop('rome', '04/03/2027', '06/03/2027')],
+      transits: [{ fromCityId: 'paris', toCityId: 'rome', segments: [{ mode: 'train', departureDate: dep, departureTime: '10:00', arrivalDate: dep, arrivalTime: '12:00', notes: '' }] }],
+    });
+    expect(estimateInputsHash(withLeg('04/03/2027'), settings())).not.toBe(estimateInputsHash(withLeg('05/03/2027'), settings()));
+  });
+
   it('reordering object keys does not change the hash', () => {
     const t = base();
     const reordered = deepReverseKeys(t) as Trip;
