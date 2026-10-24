@@ -28,6 +28,7 @@ import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middl
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
 import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
 import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
+import { evictSeoSharedCache } from '../middleware/trips/evict-seo-shared-cache.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -138,6 +139,16 @@ export function createTripsRouter(
     makeRecordTrophy(trophies, 'publish_plan', publishTarget),
     logCtaEvent('cta_trip_share', req => ({ tripId: req.params.id })),
     respond(200),
+  );
+
+  // Unpublish (§2.6b): owner-only (collaborators/strangers 404), idempotent; a later publish issues a new shareId.
+  router.delete('/:id/share',
+    trip.findById,
+    checkTripOwnership,
+    trip.unshare,
+    evictSeoSharedCache,
+    logCtaEvent('cta_trip_unshare', req => ({ tripId: req.params.id })),
+    respond(204),
   );
 
   router.post('/:id/clone',

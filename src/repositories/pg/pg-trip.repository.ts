@@ -142,6 +142,10 @@ export class PgTripRepository implements ITripRepository {
     );
   }
 
+  async clearShare(id: string): Promise<void> {
+    await this.pool.query(`UPDATE trips SET share_id = NULL WHERE trip_id = $1`, [id]);
+  }
+
   async setShareId(id: string, shareId: string): Promise<Trip | null> {
     const { rowCount } = await this.pool.query(
       `UPDATE trips SET share_id = $1, updated_at = now() WHERE trip_id = $2`,

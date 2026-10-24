@@ -95,6 +95,14 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
+  /** DELETE /trips/:id/share. Leaves req.trip as loaded (with the old shareId) for evictSeoSharedCache. */
+  unshare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.trips.clearShare(req.trip!.id);
+      next();
+    } catch (err) { next(err); }
+  };
+
   searchShared = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       let q = typeof req.query.q === 'string' ? req.query.q.trim() : '';

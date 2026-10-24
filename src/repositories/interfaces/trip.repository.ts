@@ -12,6 +12,8 @@ export interface ITripRepository {
   update(id: string, data: Partial<Pick<Trip, 'title' | 'stops' | 'transits' | 'costSettings'>>): Promise<Trip | null>;
   saveEstimate(id: string, estimate: CostEstimate): Promise<void>;
   setShareId(id: string, shareId: string): Promise<Trip | null>;
+  /** Unpublish: share_id = NULL. Idempotent; leaves updated_at alone. */
+  clearShare(id: string): Promise<void>;
   setExportedAt(id: string): Promise<void>;
   findByShareId(shareId: string): Promise<SharedTripPayload | null>;
   findManyByShareIds(shareIds: string[]): Promise<SharedTripPayload[]>;
