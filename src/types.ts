@@ -80,7 +80,7 @@ export interface Trip {
 // Feature 74 — Trip Cost Estimate (contracts §18)
 export type ComfortLevel = 'budget' | 'mid' | 'luxury';
 export interface Place { geonameId: number; name: string; countryCode: string; iata: string }  // iata: /^[A-Z]{3}$/
-export interface CostSettings { origin: Place | null; adults: number; children: number; comfort: ComfortLevel } // adults 1–20, children 0–20
+export interface CostSettings { origin: Place | null; adults: number; children: number; infants: number; comfort: ComfortLevel } // adults 1–20, children 0–20, infants 0–20 (0–2 years: free, no rooms)
 export interface UnestimatedLeg { from: string; to: string; mode: string }   // from/to: catalog cityId or '__home__'
 export interface CostEstimate {
   totalUsd: number;                       // sum of the four lines, rounded to whole USD

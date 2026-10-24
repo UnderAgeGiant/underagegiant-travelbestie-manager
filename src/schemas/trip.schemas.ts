@@ -57,6 +57,7 @@ export const costSettingsSchema = z.object({
   origin:   placeSchema.nullable(),
   adults:   z.number().int().min(1).max(20),
   children: z.number().int().min(0).max(20),
+  infants:  z.number().int().min(0).max(20).default(0),   // 0–2 years; old clients omit it
   comfort:  z.enum(['budget', 'mid', 'luxury']),
 });
 

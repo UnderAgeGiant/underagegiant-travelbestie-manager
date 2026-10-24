@@ -27,7 +27,7 @@ function toHM(pgTime: string): string {
 
 // Feature 74 - trips.* columns for the cost settings and the last snapshot. Selected by the owner and
 // shared reads (COST_COLUMNS); feed/search/SEO reads omit them and get the defaults, which those routes never render.
-const COST_COLUMNS = 'origin_place, travelers_adults, travelers_children, comfort_level, cost_estimate';
+const COST_COLUMNS = 'origin_place, travelers_adults, travelers_children, travelers_infants, comfort_level, cost_estimate';
 
 function costFields(row: Record<string, unknown>): { costSettings: CostSettings; costEstimate: CostEstimate | null } {
   if (!('travelers_adults' in row)) return { costSettings: { ...DEFAULT_COST_SETTINGS }, costEstimate: null };
@@ -36,6 +36,7 @@ function costFields(row: Record<string, unknown>): { costSettings: CostSettings;
       origin:   (row.origin_place as Place | null) ?? null,
       adults:   row.travelers_adults as number,
       children: row.travelers_children as number,
+      infants:  row.travelers_infants as number,
       comfort:  row.comfort_level as ComfortLevel,
     },
     costEstimate: (row.cost_estimate as CostEstimate | null) ?? null,
@@ -83,8 +84,8 @@ export class PgTripRepository implements ITripRepository {
     const vals: unknown[] = [data.ownerId, data.title, data.sourceAiPlanRequestId ?? null, data.sourcePlanSessionId ?? null];
     if (data.costSettings) {
       const c = data.costSettings;
-      cols.push('origin_place', 'travelers_adults', 'travelers_children', 'comfort_level');
-      vals.push(c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.comfort);
+      cols.push('origin_place', 'travelers_adults', 'travelers_children', 'travelers_infants', 'comfort_level');
+      vals.push(c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.infants, c.comfort);
     }
     if (data.costEstimate !== undefined) {
       cols.push('cost_estimate');
@@ -440,8 +441,8 @@ export class PgTripRepository implements ITripRepository {
       if (data.costSettings !== undefined) {
         const c = data.costSettings;
         await client.query(
-          `UPDATE trips SET origin_place = $1, travelers_adults = $2, travelers_children = $3, comfort_level = $4 WHERE trip_id = $5`,
-          [c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.comfort, id],
+          `UPDATE trips SET origin_place = $1, travelers_adults = $2, travelers_children = $3, travelers_infants = $4, comfort_level = $5 WHERE trip_id = $6`,
+          [c.origin ? JSON.stringify(c.origin) : null, c.adults, c.children, c.infants, c.comfort, id],
         );
       }
       if (data.stops !== undefined) {

@@ -271,6 +271,31 @@ describe('pricing arithmetic', () => {
   });
 });
 
+describe('infants (0-2)', () => {
+  const t = () => trip(
+    [stop('paris', '01/03/2027', '04/03/2027', [{ attractionId: 'paris_0', startTime: null, endTime: null }]), stop('rome', '04/03/2027', '06/03/2027')],
+    [leg('paris', 'rome', 'train')],
+  );
+
+  it.each(['mid', 'budget', 'luxury'] as const)('2A+2 infants prices like 2A (%s): same total, rooms/beds and lines', comfort => {
+    const prices = new Map<string, number>();
+    const plain = planPricing(t(), settings({ adults: 2, comfort, origin: ORIGIN_SCL }));
+    plain.needs.forEach(n => prices.set(n.key, 100));
+    const a = plain.build(prices);
+    const b = planPricing(t(), settings({ adults: 2, infants: 2, comfort, origin: ORIGIN_SCL })).build(prices);
+    expect(b).toEqual({ ...a, settings: b.settings });
+  });
+
+  it('changing infants changes the hash', () => {
+    expect(estimateInputsHash(t(), settings({ infants: 0 }))).not.toBe(estimateInputsHash(t(), settings({ infants: 1 })));
+  });
+
+  it('infants 0 hashes like settings saved before infants existed (old snapshots stay fresh)', () => {
+    const { infants: _omit, ...legacy } = settings();
+    expect(estimateInputsHash(t(), settings())).toBe(estimateInputsHash(t(), legacy as CostSettings));
+  });
+});
+
 describe('estimateInputsHash and staleness', () => {
   const base = () => trip([stop('paris', '01/03/2027', '04/03/2027', [{ attractionId: 'paris_0', startTime: null, endTime: null }])]);
 
