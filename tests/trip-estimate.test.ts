@@ -51,7 +51,7 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 
 const resolvePricesMock = resolvePrices as jest.Mock;
 
-const SETTINGS: CostSettings = { origin: null, adults: 2, children: 0, comfort: 'mid' };
+const SETTINGS: CostSettings = { origin: null, adults: 2, children: 0, infants: 0, comfort: 'mid' };
 const STOPS: TripStop[] = [{ cityId: 'paris', checkIn: '01/12/2026', checkOut: '03/12/2026', selectedAttractions: [] }];
 const TRANSITS: TransitLeg[] = [];
 const ROUTE_STOPS: TripStop[] = [

@@ -252,12 +252,15 @@ export function estimateInputsHash(trip: Trip, settings: CostSettings): string {
       },
       adults: settings.adults,
       children: settings.children,
+      // Only when > 0, so snapshots saved before infants existed keep their hash.
+      ...(settings.infants ? { infants: settings.infants } : {}),
       comfort: settings.comfort,
     },
   };
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 
+// Infants (settings.infants) are free on every line and need no room or bed, so pricing never reads them.
 export function planPricing(trip: Trip, settings: CostSettings): PricingPlan {
   const { adults, children, comfort } = settings;
   const units = comfort === 'budget' ? adults + children : roomCount(adults, children);

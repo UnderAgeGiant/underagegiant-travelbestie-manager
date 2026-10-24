@@ -43,7 +43,7 @@ jest.mock('../src/lib/refresh-tokens', () => ({
 
 // ── Fixtures ───────────────────────────────────────────────────────────────
 const SCL: Place = { geonameId: 3871336, name: 'Santiago', countryCode: 'CL', iata: 'SCL' };
-const SETTINGS: CostSettings = { origin: SCL, adults: 2, children: 1, comfort: 'budget' };
+const SETTINGS: CostSettings = { origin: SCL, adults: 2, children: 1, infants: 1, comfort: 'budget' };
 const STOPS: TripStop[] = [{ cityId: 'paris', checkIn: '01/12/2026', checkOut: '03/12/2026', selectedAttractions: [] }];
 const TRANSITS: TransitLeg[] = [];
 
@@ -94,7 +94,7 @@ describe('POST /trips — cost settings', () => {
 
     expect(res.status).toBe(201);
     expect(spy.mock.calls[0][0]).not.toHaveProperty('costSettings');
-    expect(res.body.costSettings).toEqual({ origin: null, adults: 1, children: 0, comfort: 'mid' });
+    expect(res.body.costSettings).toEqual({ origin: null, adults: 1, children: 0, infants: 0, comfort: 'mid' });
     expect(res.body.costEstimate).toBeNull();
   });
 
@@ -158,6 +158,33 @@ describe('PUT /trips/:id — cost settings', () => {
 
     const res = await request(app).put(`/trips/${trip.id}`).set('Authorization', `Bearer ${token}`)
       .send({ costSettings: { ...SETTINGS, adults: 0 } });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('costSettings without infants (old client) → 200 and the repo receives infants: 0', async () => {
+    const { app, users, trips } = buildApp();
+    const token = await register(app);
+    const ownerId = (await users.findByEmail('ana@test.com'))!.id;
+    const trip = await trips.create({ title: 'Plan', stops: STOPS, transits: TRANSITS, ownerId });
+    const spy = jest.spyOn(trips, 'update');
+    const { infants: _omit, ...legacy } = SETTINGS;
+
+    const res = await request(app).put(`/trips/${trip.id}`).set('Authorization', `Bearer ${token}`)
+      .send({ costSettings: legacy });
+
+    expect(res.status).toBe(200);
+    expect(spy.mock.calls[0][1].costSettings).toEqual({ ...SETTINGS, infants: 0 });
+  });
+
+  it.each([21, -1, 1.5])('rejects infants: %p with 400', async infants => {
+    const { app, users, trips } = buildApp();
+    const token = await register(app);
+    const ownerId = (await users.findByEmail('ana@test.com'))!.id;
+    const trip = await trips.create({ title: 'Plan', stops: STOPS, transits: TRANSITS, ownerId });
+
+    const res = await request(app).put(`/trips/${trip.id}`).set('Authorization', `Bearer ${token}`)
+      .send({ costSettings: { ...SETTINGS, infants } });
 
     expect(res.status).toBe(400);
   });

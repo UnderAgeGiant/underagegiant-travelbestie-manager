@@ -120,6 +120,11 @@ export class StubTripRepository implements ITripRepository {
     if (trip) this.trips.set(id, { ...trip, itineraryExportedAt: new Date().toISOString() });
   }
 
+  async clearShare(id: string): Promise<void> {
+    const trip = this.trips.get(id);
+    if (trip) this.trips.set(id, { ...trip, shareId: undefined });
+  }
+
   async setShareId(id: string, shareId: string): Promise<Trip | null> {
     const trip = this.trips.get(id);
     if (!trip) return null;

@@ -673,6 +673,18 @@ Changing the password invalidates all existing refresh tokens via session versio
           '404': { $ref: '#/components/responses/NotFound' },
         },
       },
+      delete: {
+        tags: ['Trips'],
+        summary: 'Unpublish a trip',
+        description: 'Owner-only. Clears the share id so every public read stops returning the plan. Idempotent (204 when not published). Publishing again issues a **new** `shareId`; old links stay dead.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '204': { description: 'Unpublished (or was not published)' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
     },
 
     '/trips/{id}/clone': {
