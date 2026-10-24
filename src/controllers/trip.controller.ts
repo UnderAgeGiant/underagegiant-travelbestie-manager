@@ -11,6 +11,12 @@ import {
   SEO_CITY_PLANS_LIMIT, SEO_CITY_PLANS_CACHE_TTL, seoCityPlansCacheKey, buildSeoCityPlans,
 } from '../lib/seo';
 
+/** GET /feed cache key; the first page is `rawCursor === ''` at the default limit. Also used by evictUnsharedCaches. */
+export function feedCacheKey(limit: number, rawCursor: string): string {
+  return `feed:v2:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
+}
+export const feedFirstPageCacheKey = (): string => feedCacheKey(FEED_DEFAULT_LIMIT, '');
+
 export class TripController {
   constructor(private readonly trips: ITripRepository) {}
 
@@ -95,7 +101,7 @@ export class TripController {
     } catch (err) { next(err); }
   };
 
-  /** DELETE /trips/:id/share. Leaves req.trip as loaded (with the old shareId) for evictSeoSharedCache. */
+  /** DELETE /trips/:id/share. Leaves req.trip as loaded (with the old shareId) for evictUnsharedCaches. */
   unshare = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.trips.clearShare(req.trip!.id);
@@ -171,7 +177,7 @@ export class TripController {
       const { cursor, limit } = req.feedQuery!;
       const rawCursor = typeof req.query.cursor === 'string' ? req.query.cursor : '';
       const isFirstPage = rawCursor === '' && limit === FEED_DEFAULT_LIMIT;
-      const cacheKey = `feed:v2:${limit}:${createHash('sha256').update(rawCursor || 'first').digest('hex')}`;
+      const cacheKey = feedCacheKey(limit, rawCursor);
       const { redis } = await import('../lib/redis');
 
       try {
@@ -220,8 +226,7 @@ export class TripController {
         );
         if (got !== 'OK') return; // another request already refreshed recently
         const page = await this.trips.listFeed(null, FEED_DEFAULT_LIMIT);
-        const cacheKey = `feed:v2:${FEED_DEFAULT_LIMIT}:${createHash('sha256').update('first').digest('hex')}`;
-        await redis.set(cacheKey, JSON.stringify(page), 'EX', TripController.FEED_FIRST_PAGE_TTL);
+        await redis.set(feedFirstPageCacheKey(), JSON.stringify(page), 'EX', TripController.FEED_FIRST_PAGE_TTL);
       } catch { /* best-effort only */ }
     })());
   }

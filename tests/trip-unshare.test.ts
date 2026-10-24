@@ -10,7 +10,8 @@ import { createTripsRouter } from '../src/routes/trips.routes';
 import { createSharedRouter } from '../src/routes/shared.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
 import { redis } from '../src/lib/redis';
-import { seoSharedCacheKey } from '../src/lib/seo';
+import { seoSharedCacheKey, seoCityPlansCacheKey, SEO_SITEMAP_CACHE_KEY } from '../src/lib/seo';
+import { feedFirstPageCacheKey } from '../src/controllers/trip.controller';
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -70,14 +71,15 @@ async function setup() {
   const ctx = buildApp();
   const ownerToken = await register(ctx.app, 'owner@test.com');
   const ownerId = (await ctx.users.findByEmail('owner@test.com'))!.id;
-  const trip = await ctx.trips.create({ title: 'Plan', stops: [], transits: [], ownerId });
+  const stop = (cityId: string) => ({ cityId, checkIn: '01/12/2026', checkOut: '03/12/2026', selectedAttractions: [] });
+  const trip = await ctx.trips.create({ title: 'Plan', stops: [stop('paris'), stop('rome'), stop('paris')], transits: [], ownerId });
   return { ...ctx, ownerToken, trip };
 }
 
 beforeEach(() => jest.clearAllMocks());
 
 describe('DELETE /trips/:id/share', () => {
-  it('owner: 204, clears the share, evicts the SEO cache, and GET /shared/:oldId is 404', async () => {
+  it('owner: 204, clears the share, evicts every public cache listing it, and GET /shared/:oldId is 404', async () => {
     const { app, trips, ownerToken, trip } = await setup();
     await trips.setShareId(trip.id, 'old-share');
     const spy = jest.spyOn(trips, 'clearShare');
@@ -87,14 +89,19 @@ describe('DELETE /trips/:id/share', () => {
     expect(res.status).toBe(204);
     expect(spy).toHaveBeenCalledWith(trip.id);
     expect((await trips.findById(trip.id))!.shareId).toBeFalsy();
-    expect(redis.del).toHaveBeenCalledWith(seoSharedCacheKey('old-share'));
+    expect(redis.del).toHaveBeenCalledTimes(1);
+    expect(redis.del).toHaveBeenCalledWith(
+      seoSharedCacheKey('old-share'), feedFirstPageCacheKey(), SEO_SITEMAP_CACHE_KEY,
+      seoCityPlansCacheKey('paris'), seoCityPlansCacheKey('rome'),
+    );
     expect((await request(app).get('/shared/old-share')).status).toBe(404);
   });
 
-  it('already unpublished: 204 (idempotent)', async () => {
+  it('already unpublished: 204 (idempotent), no cache touched', async () => {
     const { app, ownerToken, trip } = await setup();
     const res = await request(app).delete(`/trips/${trip.id}/share`).set('Authorization', `Bearer ${ownerToken}`);
     expect(res.status).toBe(204);
+    expect(redis.del).not.toHaveBeenCalled();
   });
 
   it('a Redis failure on the cache eviction does not fail the unpublish', async () => {

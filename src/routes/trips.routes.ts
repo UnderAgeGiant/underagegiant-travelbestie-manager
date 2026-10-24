@@ -28,7 +28,7 @@ import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middl
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
 import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
 import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
-import { evictSeoSharedCache } from '../middleware/trips/evict-seo-shared-cache.middleware';
+import { evictUnsharedCaches } from '../middleware/trips/evict-unshared-caches.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
@@ -146,7 +146,7 @@ export function createTripsRouter(
     trip.findById,
     checkTripOwnership,
     trip.unshare,
-    evictSeoSharedCache,
+    evictUnsharedCaches,
     logCtaEvent('cta_trip_unshare', req => ({ tripId: req.params.id })),
     respond(204),
   );
