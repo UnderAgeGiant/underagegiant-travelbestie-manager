@@ -44,6 +44,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     user.findByEmail,
     checkEmailAvailable,
     generateOtpMiddleware,
+    logCtaEvent('cta_otp_requested'),
     respond(200)
   );
 
