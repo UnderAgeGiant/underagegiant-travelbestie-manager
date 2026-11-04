@@ -12,6 +12,9 @@ import { resolvePrices } from '../src/lib/price-fetcher';
 import { redis } from '../src/lib/redis';
 import { IPriceEstimateRepository } from '../src/repositories/interfaces/price-estimate.repository';
 import { CostSettings, TransitLeg, TripStop } from '../src/types';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -170,6 +173,26 @@ describe('POST /trips/:id/estimate', () => {
     expect(second.status).toBe(200);
     expect(second.body.calculatedAt).toBe(first.body.calculatedAt);
     expect(resolvePricesMock).not.toHaveBeenCalled();
+  });
+
+  it('captures cta_trip_estimate on a computed estimate', async () => {
+    (capture as jest.Mock).mockClear();
+    const { app, trips } = buildApp();
+    const token = await registerUser(app, 'owner@test.com');
+    const trip = await ownerTrip(app, trips, token);
+    await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${token}`);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_trip_estimate', { tripId: trip.id });
+  });
+
+  it('does not capture cta_trip_estimate when the stored snapshot is fresh', async () => {
+    (capture as jest.Mock).mockClear();
+    const { app, trips } = buildApp();
+    const token = await registerUser(app, 'owner@test.com');
+    const trip = await ownerTrip(app, trips, token);
+    await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${token}`);
+    await request(app).post(`/trips/${trip.id}/estimate`).set('Authorization', `Bearer ${token}`);
+    const calls = (capture as jest.Mock).mock.calls.filter(c => c[1] === 'cta_trip_estimate');
+    expect(calls).toHaveLength(1);
   });
 
   it('recomputes after adults changes', async () => {
