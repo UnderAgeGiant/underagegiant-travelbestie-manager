@@ -13,6 +13,7 @@ import { makeNotifyNewFollower } from '../middleware/social/notify-new-follower.
 import { makeRecordTrophy } from '../middleware/trophies/record-trophy.middleware';
 import { followerTarget } from '../middleware/trophies/trophy-targets';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 const byUser = (req: Request): string => req.user?.userId ?? req.ip ?? 'unknown';
 
@@ -28,12 +29,14 @@ export function createUsersRouter(
     user.findById,                                       // the follower (name + username for the notification)
     makeNotifyNewFollower(followRepo, notificationRepo),
     makeRecordTrophy(recorder, 'followers', followerTarget),
+    logCtaEvent('cta_follow', req => ({ followeeId: req.targetUser!.id })),
     respond(204),
   );
 
   router.delete('/:username/follow',
     requireAuth, limit, validateUsernameParam, user.findByUsernameParam, requireTargetUser,
     makeUnfollow(followRepo),
+    logCtaEvent('cta_unfollow', req => ({ followeeId: req.targetUser!.id })),
     respond(204),
   );
 

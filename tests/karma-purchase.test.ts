@@ -8,6 +8,9 @@ import { MercadoPagoController }   from '../src/controllers/mercadopago.controll
 import { createAuthRouter }  from '../src/routes/auth.routes';
 import { createKarmaRouter } from '../src/routes/karma.routes';
 import { errorHandler }      from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -127,6 +130,14 @@ describe('POST /karma/purchase/create-order', () => {
     expect(res.status).toBe(201);
     expect(typeof res.body.orderID).toBe('string');
     expect(res.body.orderID).toBe('pp-order-abc123');
+  });
+
+  it('create-order captures cta_purchase_started', async () => {
+    const app = buildApp();
+    const token = await getToken(app);
+    (capture as jest.Mock).mockClear();
+    await request(app).post('/karma/purchase/create-order').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_purchase_started', { provider: 'paypal', packageId: 'karma_10' });
   });
 });
 

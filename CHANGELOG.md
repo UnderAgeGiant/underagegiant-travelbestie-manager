@@ -3,6 +3,9 @@
 One line per PR merged to `main` (which Vercel deploys to production), newest first, grouped by merge month.
 **Every PR adds its own line** under the current month's heading (create the heading if it is missing), in the form `- <PR title> (#<number>)`.
 
+## 2026-11
+- feat(analytics): PostHog CTA expansion (#99)
+
 ## 2026-10
 - feat(cost): babies 0–2 and unpublish (F74 feedback) (#98)
 - feat(cost): trip cost estimate backend (F74) (#97)

@@ -83,6 +83,7 @@ export function createKarmaRouter(
     validateBody(createOrderSchema),
     validateKarmaPackage,
     karmaPurchase.createOrder,
+    logCtaEvent('cta_purchase_started', req => ({ provider: 'paypal', packageId: req.body.packageId })),
     respond(201),
   );
 
@@ -104,6 +105,7 @@ export function createKarmaRouter(
     validateBody(createOrderSchema),
     validateKarmaPackage,
     mercadopago.createPreference,
+    logCtaEvent('cta_purchase_started', req => ({ provider: 'mercadopago', packageId: req.body.packageId })),
     respond(201),
   );
 

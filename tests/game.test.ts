@@ -8,6 +8,9 @@ import { errorHandler } from '../src/middleware/error.middleware';
 import { signToken } from '../src/lib/jwt';
 import { santiagoWeekStart, rankingsKey, myRankingsKey } from '../src/lib/rankings';
 import { redis } from '../src/lib/redis';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 const store = new Map<string, string>();
 jest.mock('../src/lib/redis', () => ({
@@ -158,5 +161,15 @@ describe('POST /game/runs/:runId/finish', () => {
     runId = await start(app); backdate(runId, 10_000);
     await finish(app, runId, { score: 100, durationMs: 10_000, obstacles: 0 });
     expect(trophies.events.filter(e => e.type === 'runner_persistent')).toHaveLength(1);
+  });
+});
+
+describe('game analytics', () => {
+  it('finishing a run does not send game_run_finished', async () => {
+    const { app } = buildApp();
+    const runId = await start(app);
+    backdate(runId, 61_000);
+    expect((await finish(app, runId, { score: 900, durationMs: 61_200, obstacles: 58 })).status).toBe(200);
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'game_run_finished', expect.anything());
   });
 });

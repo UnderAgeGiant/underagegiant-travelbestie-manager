@@ -9,6 +9,9 @@ import { MercadoPagoController }   from '../src/controllers/mercadopago.controll
 import { createAuthRouter }  from '../src/routes/auth.routes';
 import { createKarmaRouter } from '../src/routes/karma.routes';
 import { errorHandler }      from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -92,6 +95,14 @@ describe('POST /karma/purchase/mp/create-preference', () => {
     expect(res.status).toBe(201);
     expect(res.body.preferenceId).toBe('pref-abc');
     expect(res.body.initPoint).toBe('https://mp.example.com/checkout/pref-abc');
+  });
+
+  it('create-preference captures cta_purchase_started', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    (capture as jest.Mock).mockClear();
+    await request(app).post('/karma/purchase/mp/create-preference').set('Authorization', `Bearer ${token}`).send({ packageId: 'karma_10' });
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_purchase_started', { provider: 'mercadopago', packageId: 'karma_10' });
   });
 
   it('stores a pending purchase intent with provider=mercadopago and a generated purchaseRef', async () => {

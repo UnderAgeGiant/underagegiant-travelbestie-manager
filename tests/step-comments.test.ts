@@ -6,6 +6,9 @@ import { UserController } from '../src/controllers/user.controller';
 import { createSharedCommentsRouter } from '../src/routes/shared-comments.routes';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -234,5 +237,30 @@ describe('Step comments', () => {
       .send({ text: LONG_TEXT });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('TOO_SIMILAR');
+  });
+});
+
+describe('step comment analytics events', () => {
+  beforeEach(() => (capture as jest.Mock).mockClear());
+
+  it('posting a step comment captures cta_shared_comment_post', async () => {
+    setPoolFound();
+    const app = buildApp();
+    const token = await getToken(app);
+    const res = await request(app).post(`/shared/${VALID_SHARE_ID}/comments/stop:paris`).set('Authorization', `Bearer ${token}`).send({ text: LONG_TEXT });
+    expect(res.status).toBe(201);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_shared_comment_post', { shareId: VALID_SHARE_ID, stepKey: 'stop:paris' });
+  });
+
+  it('a comment rejected by the cooldown does not capture cta_shared_comment_post', async () => {
+    setPoolFound();
+    const postedAt = Math.floor(Date.now() / 1000) - 10;
+    mockRedisGet.mockImplementation((key: string) =>
+      Promise.resolve(key.startsWith('USER_COMMENT_COOLDOWN:') ? postedAt.toString() : null));
+    const app = buildApp();
+    const token = await getToken(app);
+    const res = await request(app).post(`/shared/${VALID_SHARE_ID}/comments/stop:paris`).set('Authorization', `Bearer ${token}`).send({ text: LONG_TEXT });
+    expect(res.status).toBe(429);
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_shared_comment_post', expect.anything());
   });
 });

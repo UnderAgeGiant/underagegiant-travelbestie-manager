@@ -87,6 +87,7 @@ export function createTripsRouter(
     karma.requireForTrip,
     trip.create,
     karma.spendForTripCreated,
+    logCtaEvent('cta_trip_create', req => ({ tripId: req.trip!.id, fromAi: !!req.body.sourceAiPlanRequestId, stopCount: req.body.stops.length })),
     buildTripResponse,
     markEstimateStale,
     respond(201),
@@ -121,6 +122,7 @@ export function createTripsRouter(
     returnFreshEstimate,
     makeComputeEstimate(priceRepo, lazyRedis),
     trip.saveEstimate,
+    logCtaEvent('cta_trip_estimate', req => ({ tripId: req.params.id })),
     respond(200),
   );
 
@@ -128,6 +130,7 @@ export function createTripsRouter(
     trip.findById,
     checkTripOwnership,
     trip.delete,
+    logCtaEvent('cta_trip_delete', req => ({ tripId: req.params.id })),
     respond(204),
   );
 

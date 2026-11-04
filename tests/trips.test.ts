@@ -8,6 +8,9 @@ import { CollaboratorController } from '../src/controllers/collaborator.controll
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createTripsRouter } from '../src/routes/trips.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -29,11 +32,11 @@ jest.mock('../src/lib/refresh-tokens', () => ({
   invalidateUserSessions: jest.fn().mockResolvedValue(undefined),
 }));
 
-function buildApp() {
+function buildApp(initialKarma?: number) {
   const users = new StubUserRepository();
   const trips = new StubTripRepository();
   const collaborators = new StubCollaboratorRepository(users, trips);
-  const karmaRepo = new StubKarmaRepository();
+  const karmaRepo = new StubKarmaRepository(initialKarma);
 
   const app = express();
   app.use(express.json());
@@ -186,5 +189,39 @@ describe('DELETE /trips/:id', () => {
     const token = await getToken(app);
     const created = await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send({ title: 'Del', stops: [], transits: [] });
     expect((await request(app).delete(`/trips/${created.body.id}`).set('Authorization', `Bearer ${token}`)).status).toBe(204);
+  });
+});
+
+describe('trip analytics events', () => {
+  const stop = { cityId: 'paris', checkIn: '01/06/2026', checkOut: '05/06/2026', selectedAttractions: [] };
+  const body = { title: 'T', stops: [stop, { ...stop, cityId: 'rome' }], transits: [] };
+  beforeEach(() => (capture as jest.Mock).mockClear());
+
+  it('POST /trips captures cta_trip_create', async () => {
+    const { app } = buildApp();
+    const res = await request(app).post('/trips').set('Authorization', `Bearer ${await getToken(app)}`).send(body);
+    expect(res.status).toBe(201);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_trip_create', { tripId: res.body.id, fromAi: false, stopCount: 2 });
+  });
+
+  it('POST /trips with sourceAiPlanRequestId sets fromAi=true', async () => {
+    const { app } = buildApp();
+    await request(app).post('/trips').set('Authorization', `Bearer ${await getToken(app)}`).send({ ...body, sourceAiPlanRequestId: 'req-1' });
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_trip_create', expect.objectContaining({ fromAi: true }));
+  });
+
+  it('POST /trips with 0 karma does not capture cta_trip_create', async () => {
+    const { app } = buildApp(0);
+    const res = await request(app).post('/trips').set('Authorization', `Bearer ${await getToken(app)}`).send(body);
+    expect(res.status).toBe(402);
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_trip_create', expect.anything());
+  });
+
+  it('DELETE /trips/:id captures cta_trip_delete', async () => {
+    const { app } = buildApp();
+    const token = await getToken(app);
+    const created = await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send(body);
+    await request(app).delete(`/trips/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_trip_delete', { tripId: created.body.id });
   });
 });

@@ -4,6 +4,9 @@ import { StubUserRepository, StubHighlightRepository } from './helpers/stubs';
 import { UserController } from '../src/controllers/user.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { errorHandler } from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -97,6 +100,24 @@ describe('POST /auth/request-otp', () => {
       .send({ email: 'ana@test.com' });
 
     expect(res.status).toBe(400);
+  });
+
+  it('request-otp captures cta_otp_requested with no props', async () => {
+    const res = await request(buildApp()).post('/auth/request-otp').send({ email: 'nuevo@test.com' });
+    expect(res.status).toBe(200);
+    // No X-Anonymous-Id header → distinct id is null (expect.anything() does not match null).
+    expect(capture).toHaveBeenCalledWith(null, 'cta_otp_requested', {});
+  });
+
+  it('request-otp for a registered email does not capture cta_otp_requested', async () => {
+    const app = buildApp();
+    mockRedis.get.mockResolvedValue(JSON.stringify({ code: '123456' }));
+    await request(app).post('/auth/register')
+      .send({ name: 'Ana', email: 'ana@test.com', password: 'secret123', otp: '123456' });
+    mockRedis.get.mockResolvedValue(null);
+    const res = await request(app).post('/auth/request-otp').send({ email: 'ana@test.com' });
+    expect(res.status).toBe(400);
+    expect(capture).not.toHaveBeenCalledWith(null, 'cta_otp_requested', expect.anything());
   });
 
   it('returns 400 when email is missing', async () => {
