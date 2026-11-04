@@ -6,6 +6,9 @@ import { createAuthRouter } from '../src/routes/auth.routes';
 import { createUsersRouter } from '../src/routes/users.routes';
 import { TrophyRecorder } from '../src/lib/trophy-recorder';
 import { errorHandler } from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({ decryptPayloadMiddleware: (_q: any, _s: any, n: any) => n() }));
 jest.mock('../src/middleware/auth/verify-otp.middleware',      () => ({ verifyOtpMiddleware:      (_q: any, _s: any, n: any) => n() }));
@@ -117,5 +120,34 @@ describe('/users/:username/follow', () => {
     const ana = await users.findByUsername('ana');
     expect(await trophies.countEvents(ana!.id, 'followers')).toBe(1);
     expect(await trophies.listEarned(ana!.id)).toEqual([expect.objectContaining({ type: 'followers', tier: 'bronze' })]);
+  });
+});
+
+describe('follow analytics events', () => {
+  const idOf = (t: string) => JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString()).userId as string;
+  beforeEach(() => (capture as jest.Mock).mockClear());
+
+  it('follow captures cta_follow', async () => {
+    const { app } = buildApp();
+    const ana = await account(app, 'a@x.com', 'ana');
+    const t = await account(app, 'b@x.com');
+    await follow(app, t, 'ana');
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_follow', { followeeId: idOf(ana) });
+  });
+
+  it('unfollow captures cta_unfollow', async () => {
+    const { app } = buildApp();
+    const ana = await account(app, 'a@x.com', 'ana');
+    const t = await account(app, 'b@x.com');
+    await follow(app, t, 'ana');
+    await unfollow(app, t, 'ana');
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_unfollow', { followeeId: idOf(ana) });
+  });
+
+  it('self-follow does not capture cta_follow', async () => {
+    const { app } = buildApp();
+    const t = await account(app, 'a@x.com', 'ana');
+    expect((await follow(app, t, 'ana')).status).toBe(400);
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_follow', expect.anything());
   });
 });

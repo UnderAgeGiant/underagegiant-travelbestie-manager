@@ -17,6 +17,7 @@ import { checkCommentCooldown } from '../middleware/comments/check-comment-coold
 import { checkCommentSimilarity } from '../middleware/comments/check-comment-similarity.middleware';
 import { storeCommentRedis } from '../middleware/comments/store-comment-redis.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { logCtaEvent } from '../lib/log-event';
 
 export function createSharedCommentsRouter(
   pool: Pool,
@@ -50,6 +51,7 @@ export function createSharedCommentsRouter(
     storeCommentRedis,
     notifyStepComment,
     makeRecordTrophy(trophies, 'comments', commentTarget),
+    logCtaEvent('cta_shared_comment_post', req => ({ shareId: req.params.shareId, stepKey: req.params.stepKey })),
     respond(201),
   );
 
