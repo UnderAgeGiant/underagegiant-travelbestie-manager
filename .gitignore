@@ -26,6 +26,10 @@ Thumbs.db
 
 # Claude Code
 CLAUDE.md
+ARCHITECTURE.md
+
+# Local Postman environment (may hold tokens)
+travelbestie-local.postman_environment.json
 
 # Editor
 .vscode/
