@@ -7,6 +7,7 @@ import { PlanChangeResult } from '../types';
 import { buildPlanChangeInfo, toSessionOptions } from './plan-change-detector';
 import { writePlanSession } from './plan-session-store';
 import { logger } from './logger';
+import { capture } from './analytics';
 import { TrophyRecorder } from './trophy-recorder';
 
 export interface AiPlanJobDeps {
@@ -51,6 +52,7 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
     if (karmaCharged > 0 && deps.trophies) await deps.trophies.record(userId, 'ai_plans', requestId);
 
     logger.info({ event: 'cta_ai_plan', flowId, userId, changeType: planChangeResult.type, requestId });
+    capture(userId, 'cta_ai_plan', { changeType: planChangeResult.type, requestId });
 
     await deps.notifications.add({
       userId,
@@ -76,6 +78,11 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
         logger.error({ msg: 'Failed to refund karma after AI plan failure', requestId, userId, err: refundErr });
       }
     }
+
+    // "was charged", even if the refund call itself failed (that's logged above).
+    const refunded = karmaCharged > 0;
+    logger.info({ event: 'cta_ai_plan_failed', flowId, userId, requestId, refunded });
+    capture(userId, 'cta_ai_plan_failed', { requestId, refunded });
 
     const planTitle = body.selectedOption.title;
     try {

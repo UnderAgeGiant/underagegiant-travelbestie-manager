@@ -4,6 +4,9 @@ import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepos
 import { PlanChangeResult } from '../src/types';
 import { AiPlanBody } from '../src/schemas/ai.schemas';
 import { TrophyRecorder } from '../src/lib/trophy-recorder';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/lib/deepseek', () => ({ deepseekClient: {} }));
 
@@ -152,5 +155,44 @@ describe('runAiPlanJob', () => {
       { requestId: 'fail', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 1 });
 
     expect(trophyRepo.events).toEqual([]);
+  });
+});
+
+describe('runAiPlanJob analytics', () => {
+  const params = { selectedOption: makeBody().selectedOption, preferences: 'p', duration: 1, budget: '', startDate: '' };
+  let aiPlanRequests: StubAiPlanRequestRepository;
+  let ai: AiController;
+  const run = (requestId: string, karmaCharged: number) => runAiPlanJob(
+    { ai, aiPlanRequests, karma: new StubKarmaRepository(), notifications: new StubNotificationRepository() },
+    { requestId, userId: 'u1', flowId: 'f', body: makeBody(), planChangeResult: { type: 'new_session' }, karmaCharged },
+  );
+
+  beforeEach(async () => {
+    (capture as jest.Mock).mockClear();
+    aiPlanRequests = new StubAiPlanRequestRepository();
+    ai = new AiController();
+  });
+
+  it('forwards cta_ai_plan to PostHog on success', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'T', stops: [], transits: [] });
+    await aiPlanRequests.insert({ requestId: 'a1', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
+    await run('a1', 1);
+    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan', { changeType: 'new_session', requestId: 'a1' });
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan_failed', expect.anything());
+  });
+
+  it('captures cta_ai_plan_failed with refunded=true when karma was charged', async () => {
+    jest.spyOn(ai, 'generatePlan').mockRejectedValue(new Error('boom'));
+    await aiPlanRequests.insert({ requestId: 'a2', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
+    await run('a2', 1);
+    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan_failed', { requestId: 'a2', refunded: true });
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan', expect.anything());
+  });
+
+  it('captures cta_ai_plan_failed with refunded=false on a free change', async () => {
+    jest.spyOn(ai, 'generatePlan').mockRejectedValue(new Error('boom'));
+    await aiPlanRequests.insert({ requestId: 'a3', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
+    await run('a3', 0);
+    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan_failed', { requestId: 'a3', refunded: false });
   });
 });
