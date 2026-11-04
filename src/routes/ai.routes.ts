@@ -124,6 +124,8 @@ export function createAiRouter(
     makeFindAiPlanRequest(aiPlanRequests),
     checkAiPlanRequestOwnership,
     makeDeleteAiPlanRequest(aiPlanRequests),
+    // Fires for every delete: status 'failed' = a real "Descartar" click, 'completed' = frontend cleanup after save.
+    logCtaEvent('cta_ai_plan_discarded', req => ({ requestId: req.params.requestId, status: req.aiPlanRequest!.status })),
     respond(204),
   );
 

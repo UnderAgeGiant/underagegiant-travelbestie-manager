@@ -13,6 +13,9 @@ import { AiController }    from '../src/controllers/ai.controller';
 import { createAuthRouter } from '../src/routes/auth.routes';
 import { createAiRouter }   from '../src/routes/ai.routes';
 import { errorHandler }     from '../src/middleware/error.middleware';
+import { capture } from '../src/lib/analytics';
+
+jest.mock('../src/lib/analytics', () => ({ capture: jest.fn(), alias: jest.fn() }));
 
 jest.mock('../src/middleware/auth/decrypt-payload.middleware', () => ({
   decryptPayloadMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -186,5 +189,48 @@ describe('DELETE /ai/plan/:requestId', () => {
   it('401s without a token', async () => {
     const res = await request(app).delete('/ai/plan/00000000-0000-0000-0000-000000000000');
     expect(res.status).toBe(401);
+  });
+});
+
+describe('DELETE /ai/plan/:requestId analytics', () => {
+  let app: express.Express;
+  let token: string;
+  const ok = () => deepseekMock.mockResolvedValue({
+    choices: [{ message: { content: JSON.stringify({ title: 'P', stops: [], transits: [] }) } }],
+  });
+  async function kickoffDone(): Promise<string> {
+    const kickoff = await request(app).post('/ai/plan').set('Authorization', `Bearer ${token}`).send(planBody());
+    await pollUntilDone(app, token, kickoff.body.requestId);
+    (capture as jest.Mock).mockClear();
+    return kickoff.body.requestId;
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    app   = buildApp();
+    token = await getToken(app, 'discard@test.com');
+  });
+
+  it('discarding a failed row captures cta_ai_plan_discarded with status failed', async () => {
+    deepseekMock.mockRejectedValue(new Error('down'));
+    const requestId = await kickoffDone();
+    await request(app).delete(`/ai/plan/${requestId}`).set('Authorization', `Bearer ${token}`);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan_discarded', { requestId, status: 'failed' });
+  });
+
+  it('deleting a completed row captures status completed', async () => {
+    ok();
+    const requestId = await kickoffDone();
+    await request(app).delete(`/ai/plan/${requestId}`).set('Authorization', `Bearer ${token}`);
+    expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan_discarded', { requestId, status: 'completed' });
+  });
+
+  it("deleting another user's row (404) does not capture", async () => {
+    ok();
+    const requestId = await kickoffDone();
+    const other = await getToken(app, 'other@test.com');
+    const res = await request(app).delete(`/ai/plan/${requestId}`).set('Authorization', `Bearer ${other}`);
+    expect(res.status).toBe(404);
+    expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan_discarded', expect.anything());
   });
 });
