@@ -10,7 +10,7 @@ export function errorHandler(err: HttpError, req: Request, res: Response, _next:
   const userId = req.user?.userId ?? null;
   const userKey = resolveUserKey(req);
   if (status >= 500) {
-    logger.error({ flowId: req.flowId, method: req.method, path: req.originalUrl, userId, userKey, msg: err.message, stack: err.stack });
+    logger.error({ flowId: req.flowId, method: req.method, path: req.originalUrl, userId, userKey, status, msg: err.message, stack: err.stack });
   } else if (status >= 400) {
     logger.warn({ flowId: req.flowId, method: req.method, path: req.originalUrl, userId, userKey, status, msg: err.message });
   }
