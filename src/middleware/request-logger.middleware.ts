@@ -20,7 +20,7 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
       userId: req.user?.userId ?? null, userKey: resolveUserKey(req), msg: '← response',
     };
     if (res.statusCode >= 500) {
-      logger.error(entry);
+      logger.error(entry, { onlyIfFirstInFlow: true });
     } else {
       logger.info(entry);
     }

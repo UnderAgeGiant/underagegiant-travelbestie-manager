@@ -25,6 +25,11 @@ describe('logger.error → server_error', () => {
     expect(props).toEqual({ userId: 'anonymous', msg: 'Failed to generate/send OTP', error: 'rejected [email]', method: null, path: null, status: null, flowId: null });
   });
 
+  it('drops the query string from path', () => {
+    logger.error({ msg: 'z', path: '/x?email=a@b.com' });
+    expect((capture as jest.Mock).mock.calls[0][2].path).toBe('/x');
+  });
+
   it('stringifies non-Error err and never throws', () => {
     expect(() => logger.error({ msg: 'x', err: { code: 1 } })).not.toThrow();
     expect(() => logger.error({ msg: 'y' })).not.toThrow();

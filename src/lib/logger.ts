@@ -27,7 +27,7 @@ function alert(data: LogData, onlyIfFirstInFlow: boolean): void {
     msg: redact(data.msg),
     error: redact(err instanceof Error ? err.message : err),
     method: data.method ?? null,
-    path: data.path ?? null,
+    path: redact(typeof data.path === 'string' ? data.path.split('?')[0] : data.path),
     status: data.status ?? null,
     flowId,
   });
