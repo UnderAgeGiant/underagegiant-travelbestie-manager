@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { Trip } from '../../types';
 import { ResolvedOptions } from './types';
 import { modeLabel } from './labels';
-import { applyDataCellStyle, applyLinkCellStyle, googleMapsSearchUrl, writeHeaderRow } from './style';
+import { applyDataCellStyle, applyLinkCellStyle, freezeHeader, googleMapsSearchUrl, writeHeaderRow } from './style';
 import { computeSegmentMinutes, formatDuration, resolveCityName } from './util';
 
 export function buildTransporteSheet(workbook: ExcelJS.Workbook, trip: Trip, opts: ResolvedOptions): void {
@@ -10,10 +10,11 @@ export function buildTransporteSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
   const sheet = workbook.addWorksheet(l.sheetTransporte);
   sheet.columns = [
     { width: 26 }, { width: 14 }, { width: 12 }, { width: 12 },
-    { width: 12 }, { width: 12 }, { width: 18 }, { width: 14 },
+    { width: 12 }, { width: 12 }, { width: 18 }, { width: 14 }, { width: 30 },
   ];
 
-  writeHeaderRow(sheet, 1, [l.hdrRoute, l.hdrDay, l.hdrDeparture, l.hdrArrival, l.hdrDuration, l.hdrMode, l.hdrCarrier, l.hdrLocation]);
+  writeHeaderRow(sheet, 1, [l.hdrRoute, l.hdrDay, l.hdrDeparture, l.hdrArrival, l.hdrDuration, l.hdrMode, l.hdrCarrier, l.hdrLocation, l.hdrNotes]);
+  freezeHeader(sheet, 1);
 
   let rowNum = 2;
   for (const leg of trip.transits) {
@@ -37,6 +38,8 @@ export function buildTransporteSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
       } else {
         applyDataCellStyle(row.getCell(8));
       }
+      row.getCell(9).value = seg.notes ?? '';
+      applyDataCellStyle(row.getCell(9), 'left');
       applyDataCellStyle(row.getCell(1), 'left');
       for (let c = 2; c <= 7; c++) applyDataCellStyle(row.getCell(c));
     }

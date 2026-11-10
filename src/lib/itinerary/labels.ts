@@ -144,6 +144,24 @@ const ES = {
   srcForecast: 'Pronóstico',
   srcHistoric: 'Estimado (mismo día del año pasado)',
   srcUnavailable: 'No disponible',
+
+  // Antes de viajar
+  antesTitle: '🧳 Antes de viajar',
+  antesSubtitle: 'Según tu país de residencia',
+  factVisa: '🛂 Visa',
+  factCurrency: '🪙 Moneda',
+  factPlug: '🔌 Enchufe',
+  factTime: '🕐 Hora',
+  checklistSection: '✅ Checklist',
+  chkBuyTicket: '☐ Comprar entrada: {name} ({date})',
+  chkTicketBought: '☑ Entrada {name} ({date})',
+  chkLodging: '☐ Reservar hospedaje en {city}',
+  chkTransport: '☐ Transporte: {from} → {to} ({when})',
+
+  // Transporte / Hospedaje additions
+  hdrNotes: 'Notas',
+  lodgingMissing: 'Sin hospedaje registrado',
+  lodgingAvgPerNight: 'Promedio estimado/noche',
 };
 
 export type ItineraryLabels = typeof ES;
@@ -280,6 +298,22 @@ const EN: ItineraryLabels = {
   srcForecast: 'Forecast',
   srcHistoric: 'Estimate (same day last year)',
   srcUnavailable: 'Not available',
+
+  antesTitle: '🧳 Before you go',
+  antesSubtitle: 'Based on your country of residence',
+  factVisa: '🛂 Visa',
+  factCurrency: '🪙 Currency',
+  factPlug: '🔌 Plugs',
+  factTime: '🕐 Time',
+  checklistSection: '✅ Checklist',
+  chkBuyTicket: '☐ Buy ticket: {name} ({date})',
+  chkTicketBought: '☑ Ticket {name} ({date})',
+  chkLodging: '☐ Book lodging in {city}',
+  chkTransport: '☐ Transport: {from} → {to} ({when})',
+
+  hdrNotes: 'Notes',
+  lodgingMissing: 'No lodging saved',
+  lodgingAvgPerNight: 'Estimated avg/night',
 };
 
 export const ITINERARY_LABELS: Record<ItineraryLocale, ItineraryLabels> = { 'es-CL': ES, 'en-US': EN };

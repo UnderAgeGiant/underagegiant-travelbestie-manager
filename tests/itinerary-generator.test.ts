@@ -2,6 +2,8 @@ import ExcelJS from 'exceljs';
 import { buildItinerary } from '../src/lib/itinerary-generator';
 import { Trip } from '../src/types';
 
+const dataRowNotes = (sheet: ExcelJS.Worksheet) => sheet.getRow(2).getCell(9).value;
+
 function baseTrip(overrides: Partial<Trip> = {}): Trip {
   return {
     id: 'trip-1',
@@ -55,7 +57,8 @@ describe('buildItinerary — multi-sheet workbook', () => {
     const sheet = workbook.getWorksheet('Transporte')!;
 
     const header = sheet.getRow(1).values as unknown[];
-    expect(header.slice(1)).toEqual(['Ruta', 'Día', 'Hora Salida', 'Hora Llegada', 'Duración', 'Tipo', 'Empresa', 'Ubicación']);
+    expect(header.slice(1)).toEqual(['Ruta', 'Día', 'Hora Salida', 'Hora Llegada', 'Duración', 'Tipo', 'Empresa', 'Ubicación', 'Notas']);
+    expect(dataRowNotes(sheet)).toBe('LA 706');
 
     const dataRow = sheet.getRow(2);
     expect(dataRow.getCell(1).value).toBe('Londres - París');
@@ -130,14 +133,15 @@ describe('buildItinerary — multi-sheet workbook', () => {
     expect(locationCell.hyperlink).toBe('https://www.google.com/maps/search/?api=1&query=Hotel%20Rive%20Gauche');
   });
 
-  it('Hospedaje sheet has no data rows when no stop has lodging', async () => {
+  it('Hospedaje shows a Sin hospedaje registrado row for a stop without lodging', async () => {
     const trip = baseTrip();
     trip.stops[0].lodging = undefined;
     const buffer = await buildItinerary({ trip });
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
     const sheet = workbook.getWorksheet('Hospedaje')!;
-    expect(sheet.getRow(2).getCell(1).value).toBeNull();
+    expect(sheet.getRow(2).getCell(1).value).toBe('Paris');
+    expect(sheet.getRow(2).getCell(4).value).toBe('Sin hospedaje registrado');
   });
 });
 

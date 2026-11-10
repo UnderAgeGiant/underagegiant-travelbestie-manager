@@ -7,6 +7,7 @@ import { buildItinerarioSheet } from './itinerary/itinerario.sheet';
 import { buildAtraccionesSheet } from './itinerary/atracciones.sheet';
 import { buildCostosSheet } from './itinerary/costos.sheet';
 import { buildClimaSheet } from './itinerary/clima.sheet';
+import { buildAntesDeViajarSheet } from './itinerary/antes-de-viajar.sheet';
 import { buildTransporteSheet } from './itinerary/transporte.sheet';
 import { buildHospedajeSheet } from './itinerary/hospedaje.sheet';
 
@@ -43,7 +44,7 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   buildAtraccionesSheet(workbook, trip, opts);
   buildCostosSheet(workbook, trip, opts);
   buildClimaSheet(workbook, trip, opts);
-  workbook.addWorksheet(opts.labels.sheetAntes);
+  buildAntesDeViajarSheet(workbook, trip, opts);
   buildTransporteSheet(workbook, trip, opts);
   buildHospedajeSheet(workbook, trip, opts);
   workbook.views = [{ x: 0, y: 0, width: 12000, height: 24000, firstSheet: 0, activeTab: 0, visibility: 'visible' }];
