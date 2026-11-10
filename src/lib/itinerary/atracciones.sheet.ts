@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { Trip } from '../../types';
 import { ResolvedOptions } from './types';
 import { C, applyDataCellStyle, applyLinkCellStyle, fill, freezeHeader, googleMapsSearchUrl, writeHeaderRow } from './style';
-import { parseDMY, resolveCityName } from './util';
+import { parseDMY, resolveCityName, sortKey } from './util';
 import { addMinutesToTime, resolveAttractionName } from './itinerario.sheet';
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -25,9 +25,6 @@ interface Row {
   maps?: string;
   description: string;
 }
-
-/** dd/mm/yyyy → sortable yyyymmdd. */
-const sortKey = (dmy: string) => dmy.split('/').reverse().join('');
 
 export function buildAtraccionesSheet(workbook: ExcelJS.Workbook, trip: Trip, opts: ResolvedOptions): void {
   const l = opts.labels;

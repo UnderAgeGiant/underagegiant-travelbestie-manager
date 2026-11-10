@@ -24,6 +24,9 @@ export function dateKey(date: Date): string {
   return `${d}/${m}/${date.getUTCFullYear()}`;
 }
 
+/** dd/mm/yyyy → sortable yyyymmdd. */
+export const sortKey = (dmy: string): string => dmy.split('/').reverse().join('');
+
 export function shortDate(dmy: string): string {
   return dmy.slice(0, 5);
 }

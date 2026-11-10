@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { Trip } from '../../types';
 import { ResolvedOptions } from './types';
 import { C, applyDataCellStyle, applyLinkCellStyle, freezeHeader, labelRow, sectionBar, titleStrip } from './style';
-import { fmt, resolveCityName, shortDate } from './util';
+import { fmt, resolveCityName, shortDate, sortKey } from './util';
 import { resolveAttractionName } from './itinerario.sheet';
 
 const LAST_COL = 3;
@@ -50,7 +50,7 @@ export function buildAntesDeViajarSheet(workbook: ExcelJS.Workbook, trip: Trip, 
     const ticketed = stop.selectedAttractions
       .filter(a => a.attractionId && opts.ticketRequired.has(a.attractionId))
       .map(a => ({ a, date: a.date ?? stop.checkIn }))
-      .sort((x, y) => x.date.split('/').reverse().join('').localeCompare(y.date.split('/').reverse().join(''))
+      .sort((x, y) => sortKey(x.date).localeCompare(sortKey(y.date))
         || (x.a.startTime ?? '').localeCompare(y.a.startTime ?? ''));
     for (const { a, date } of ticketed) {
       const name = resolveAttractionName(a.attractionId!, city, opts);
