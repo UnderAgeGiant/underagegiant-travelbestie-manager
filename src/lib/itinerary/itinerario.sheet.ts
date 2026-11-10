@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs';
 import { Trip, TripStop, TransitLeg } from '../../types';
 import { ResolvedOptions } from './types';
-import { ItineraryLabels, modeLabel } from './labels';
-import { C, ActivityStyle, applyActivityStyle, applyCityStyle, applyHeaderStyle, applyTimeSlotStyle, border, fill } from './style';
+import { ItineraryLabels, modeLabel, weatherCodeLabel } from './labels';
+import { C, ActivityStyle, applyActivityStyle, applyCityStyle, applyHeaderStyle, applyTimeSlotStyle, border, fill, freezeHeader, googleMapsSearchUrl } from './style';
 import { addDays, dateKey, fmt, parseDMY, resolveCityName, shortDate } from './util';
 
 // Favicon rendered to PNG via Python/Pillow — gradient circle with TB monogram
@@ -134,6 +134,9 @@ interface RawAttractionSpan {
   endLabel: string;     // HH:mm — explicit endTime, or startTime + the estimated visit duration
   name: string;
   ticketNeeded?: boolean;
+  bought?: boolean;      // ticket-required and already purchased
+  personal?: boolean;    // Feature 71 personal activity
+  link?: string;         // Google Maps link for the cell
 }
 
 interface PlacedBlock {
@@ -143,6 +146,9 @@ interface PlacedBlock {
   kind: 'solo' | 'conflict';
   text: string;
   ticketNeeded?: boolean;
+  bought?: boolean;
+  personal?: boolean;
+  link?: string;
   comment?: string;
 }
 
@@ -165,7 +171,12 @@ function buildRawAttractionSpans(
       const name = att.activityType
         ? (att.title ?? '')                                   // Feature 71 — personal activity, stored title
         : resolveAttractionName(att.attractionId!, cityName, opts);
-      const ticketNeeded = !!att.attractionId && opts.ticketRequired.has(att.attractionId) && !att.ticketPurchased;
+      const ticketRequired = !!att.attractionId && opts.ticketRequired.has(att.attractionId);
+      const ticketNeeded = ticketRequired && !att.ticketPurchased;
+      const bought = ticketRequired && !!att.ticketPurchased;
+      const link = att.activityType
+        ? att.mapsUrl
+        : googleMapsSearchUrl(`${opts.details.attractionDetails?.[att.attractionId!]?.nativeName ?? name}, ${cityName}`);
 
       // The attraction's own start hour already sits inside a merged overnight
       // transit block — there is no independent cell left to place it in, so
@@ -173,7 +184,7 @@ function buildRawAttractionSpans(
       const owner = transitBlockOwner.get(`${dayIdx}:${startHour}`);
       if (owner) {
         owner.extraLines = owner.extraLines ?? [];
-        owner.extraLines.push(`${ticketNeeded ? '🎟️ ' : ''}${att.startTime} ${name}`);
+        owner.extraLines.push(`${ticketNeeded ? '🎟️ ' : ''}${bought ? '✅ ' : ''}${att.startTime} ${name}`);
         continue;
       }
 
@@ -184,7 +195,7 @@ function buildRawAttractionSpans(
       // No explicit endTime — fall back to the curated visit-duration estimate
       // so the collision comment still shows a real end time instead of none.
       const endLabel = att.endTime ?? addMinutesToTime(att.startTime, defaultMinutes);
-      raw.push({ dayIdx, startHour, endHour, startLabel: att.startTime, endLabel, name, ticketNeeded });
+      raw.push({ dayIdx, startHour, endHour, startLabel: att.startTime, endLabel, name, ticketNeeded, bought, personal: !!att.activityType, link });
     }
   }
   return raw;
@@ -245,6 +256,9 @@ function buildAttractionBlocks(
         kind: 'solo',
         text: `${span.startLabel} ${span.name}`,
         ticketNeeded: span.ticketNeeded,
+        bought: span.bought,
+        personal: span.personal,
+        link: span.link,
       });
     } else {
       const minStartHour = Math.min(...cluster.map(s => s.startHour));
@@ -345,7 +359,15 @@ export function buildItinerarioSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
   days.forEach((day, i) => {
     const cell = sheet.getCell(5, i + 2);
     const stopIdx = stopIndexForDay(day, stops);
-    cell.value = stopIdx === -1 ? '' : resolveCityName(stops[stopIdx].cityId, l, opts.cityNames);
+    const city = stopIdx === -1 ? '' : resolveCityName(stops[stopIdx].cityId, l, opts.cityNames);
+    const w = opts.context.weather[String(stopIdx)]?.find(d => d.date === day);
+    if (w && w.type !== 'unavailable' && w.tempMaxC !== undefined && w.tempMinC !== undefined) {
+      const { icon } = weatherCodeLabel(w.weatherCode, opts.locale);
+      cell.value = `${city}\n${icon} ${Math.round(w.tempMaxC)}° / ${Math.round(w.tempMinC)}°`;
+      sheet.getRow(5).height = 32;
+    } else {
+      cell.value = city;
+    }
     applyCityStyle(cell);
   });
 
@@ -375,8 +397,12 @@ export function buildItinerarioSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
         if (block) {
           const prefix = block.kind === 'conflict' ? '' : (block.ticketNeeded ? '🎟️ ' : '');
           lines.push(prefix + block.text);
+          if (block.bought) lines.push(l.ticketBought);
         }
-        cell.value = lines.join('\n');
+        const text = lines.join('\n');
+        // Link only when the cell holds just this one attraction/activity.
+        const link = !transitBlock && pointActivities.length === 0 ? block?.link : undefined;
+        cell.value = link ? { text, hyperlink: link } : text;
         if (block?.comment) cell.note = block.comment;
 
         const mergeEndOffset = Math.max(
@@ -388,6 +414,7 @@ export function buildItinerarioSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
         const style: ActivityStyle =
           pointActivities.length || transitBlock ? 'transit' :
           block?.kind === 'conflict' ? 'conflict' :
+          block?.personal ? 'personal' :
           block?.ticketNeeded ? 'ticket' : 'attraction';
         applyActivityStyle(cell, style);
         return;
@@ -412,6 +439,8 @@ export function buildItinerarioSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
     { color: C.mint,   label: l.legendAttraction },
     { color: C.lav,    label: l.legendTransit },
     { color: C.peachD, label: l.legendOverlap },
+    { color: C.butter, label: l.legendPersonal },
+    { color: C.mint,   label: l.ticketBought },
   ];
   legendRows.forEach((entry, i) => {
     const rowNum = legendStartRow + i;
@@ -423,4 +452,10 @@ export function buildItinerarioSheet(workbook: ExcelJS.Workbook, trip: Trip, opt
     label.font = { size: 10, color: { argb: C.t1 }, name: 'Calibri' };
     label.alignment = { vertical: 'middle', horizontal: 'left' };
   });
+
+  freezeHeader(sheet, 5, 1);
+  sheet.pageSetup.orientation = 'landscape';
+  sheet.pageSetup.fitToPage = true;
+  sheet.pageSetup.fitToWidth = 1;
+  sheet.pageSetup.fitToHeight = 0;
 }

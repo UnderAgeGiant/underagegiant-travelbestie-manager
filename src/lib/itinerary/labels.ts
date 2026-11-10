@@ -29,6 +29,8 @@ const ES = {
   legendAttraction: 'Atracción',
   legendTransit: 'Transporte',
   legendOverlap: 'Atracciones superpuestas (ver comentario en la celda)',
+  legendPersonal: 'Actividad personal',
+  ticketBought: '✅ Entrada comprada',
 
   // Transporte
   hdrRoute: 'Ruta',
@@ -77,6 +79,8 @@ const EN: ItineraryLabels = {
   legendAttraction: 'Attraction',
   legendTransit: 'Transport',
   legendOverlap: 'Overlapping attractions (see the cell comment)',
+  legendPersonal: 'Personal activity',
+  ticketBought: '✅ Ticket bought',
 
   hdrRoute: 'Route',
   hdrDay: 'Day',
