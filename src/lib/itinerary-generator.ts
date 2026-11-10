@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { Trip } from './../types';
 import { ItineraryLocale, labelsFor, resolveLocale } from './itinerary/labels';
 import { ItineraryContext, ItineraryDetails, ResolvedOptions } from './itinerary/types';
+import { buildResumenSheet } from './itinerary/resumen.sheet';
 import { buildItinerarioSheet } from './itinerary/itinerario.sheet';
 import { buildTransporteSheet } from './itinerary/transporte.sheet';
 import { buildHospedajeSheet } from './itinerary/hospedaje.sheet';
@@ -33,9 +34,16 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Tripilove';
+  // Tab order is part of the contract: Resumen → Itinerario → Atracciones → Costos → Clima → Antes de viajar → Transporte → Hospedaje.
+  buildResumenSheet(workbook, trip, opts);
   buildItinerarioSheet(workbook, trip, opts);
+  workbook.addWorksheet(opts.labels.sheetAtracciones);
+  workbook.addWorksheet(opts.labels.sheetCostos);
+  workbook.addWorksheet(opts.labels.sheetClima);
+  workbook.addWorksheet(opts.labels.sheetAntes);
   buildTransporteSheet(workbook, trip, opts);
   buildHospedajeSheet(workbook, trip, opts);
+  workbook.views = [{ x: 0, y: 0, width: 12000, height: 24000, firstSheet: 0, activeTab: 0, visibility: 'visible' }];
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

@@ -38,11 +38,11 @@ function baseTrip(overrides: Partial<Trip> = {}): Trip {
 }
 
 describe('buildItinerary — multi-sheet workbook', () => {
-  it('produces exactly the Itinerario, Transporte, and Hospedaje sheets in order', async () => {
+  it('produces the 8 F78 tabs in order', async () => {
     const buffer = await buildItinerary({ trip: baseTrip() });
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
-    expect(workbook.worksheets.map(w => w.name)).toEqual(['Itinerario', 'Transporte', 'Hospedaje']);
+    expect(workbook.worksheets.map(w => w.name)).toEqual(['Resumen', 'Itinerario', 'Atracciones', 'Costos', 'Clima', 'Antes de viajar', 'Transporte', 'Hospedaje']);
   });
 
   it('Transporte sheet has the expected header and one row per segment', async () => {

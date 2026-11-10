@@ -1,4 +1,5 @@
 import { CITY_NAMES } from '../../data/cities';
+import { CostEstimate } from '../../types';
 import { ItineraryLabels } from './labels';
 
 /** Fills {name} placeholders in a label template. */
@@ -51,4 +52,32 @@ export function formatDuration(mins: number): string {
   const h = Math.floor(mins / 60), m = mins % 60;
   if (h > 0 && m > 0) return `${h}h ${m}m`;
   return h > 0 ? `${h}h` : `${m}m`;
+}
+
+export function plural(n: number, one: string, many: string): string {
+  return fmt(n === 1 ? one : many, { n });
+}
+
+/** ISO timestamp → dd/mm/yyyy (UTC). */
+export function isoToDMYDate(iso: string): string {
+  return dateKey(new Date(iso));
+}
+
+/** Travelers line, e.g. "2 adultos · 1 niño". */
+export function travelersLine(s: { adults: number; children: number; infants: number }, l: ItineraryLabels): string {
+  return [
+    plural(s.adults, l.adultOne, l.adultMany),
+    s.children ? plural(s.children, l.childOne, l.childMany) : '',
+    s.infants ? plural(s.infants, l.infantOne, l.infantMany) : '',
+  ].filter(Boolean).join(' · ');
+}
+
+/** The four stored cost categories in display order. */
+export function costCategories(e: CostEstimate, l: ItineraryLabels): Array<{ key: 'flights' | 'lodging' | 'tickets' | 'ground'; label: string; usd: number }> {
+  return [
+    { key: 'flights', label: l.costFlights, usd: e.flightsUsd },
+    { key: 'lodging', label: l.costLodging, usd: e.lodgingUsd },
+    { key: 'tickets', label: l.costTickets, usd: e.ticketsUsd },
+    { key: 'ground', label: l.costGround, usd: e.groundUsd },
+  ];
 }

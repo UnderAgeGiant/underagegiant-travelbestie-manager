@@ -94,3 +94,66 @@ export function writeHeaderRow(sheet: ExcelJS.Worksheet, rowNum: number, headers
     applyHeaderStyle(cell);
   });
 }
+
+const font = (extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> => ({ size: 10, color: { argb: C.t1 }, name: 'Calibri', ...extra });
+
+/** Rows 1–2 of the non-grid sheets: brand title bar + subtitle strip, merged A..lastCol. */
+export function titleStrip(sheet: ExcelJS.Worksheet, title: string, subtitle: string, lastCol: number): void {
+  sheet.mergeCells(1, 1, 1, lastCol);
+  sheet.getRow(1).height = 32;
+  const t = sheet.getCell(1, 1);
+  t.value = title;
+  t.font = font({ bold: true, size: 16, color: { argb: C.white } });
+  t.fill = fill(C.lavD);
+  t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+
+  sheet.mergeCells(2, 1, 2, lastCol);
+  sheet.getRow(2).height = 22;
+  const s = sheet.getCell(2, 1);
+  s.value = subtitle;
+  s.font = font({ italic: true, color: { argb: C.t2 } });
+  s.fill = fill(C.lav);
+  s.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+}
+
+/** A lavender section heading merged across A..lastCol. */
+export function sectionBar(sheet: ExcelJS.Worksheet, row: number, text: string, lastCol: number): void {
+  sheet.mergeCells(row, 1, row, lastCol);
+  sheet.getRow(row).height = 22;
+  const c = sheet.getCell(row, 1);
+  c.value = text;
+  c.font = font({ bold: true, size: 12, color: { argb: C.lavD } });
+  c.fill = fill(C.lav);
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+}
+
+/** Cream label in column A, value merged across B..lastCol. */
+export function labelRow(sheet: ExcelJS.Worksheet, row: number, label: string, value: ExcelJS.CellValue, lastCol: number): void {
+  const a = sheet.getCell(row, 1);
+  a.value = label;
+  a.font = font({ bold: true });
+  a.fill = fill(C.cream);
+  a.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  a.border = border();
+  if (lastCol > 2) sheet.mergeCells(row, 2, row, lastCol);
+  const b = sheet.getCell(row, 2);
+  b.value = value;
+  const isLink = !!value && typeof value === 'object' && 'hyperlink' in value;
+  b.font = font(isLink ? { color: { argb: C.lavD }, underline: true } : {});
+  b.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  b.border = border();
+}
+
+/** Plain text spanning A..lastCol (notes, messages). */
+export function noteRow(sheet: ExcelJS.Worksheet, row: number, value: ExcelJS.CellValue, lastCol: number, extra: Partial<ExcelJS.Font> = {}): void {
+  if (lastCol > 1) sheet.mergeCells(row, 1, row, lastCol);
+  const c = sheet.getCell(row, 1);
+  c.value = value;
+  const isLink = !!value && typeof value === 'object' && 'hyperlink' in value;
+  c.font = font(isLink ? { color: { argb: C.lavD }, underline: true, ...extra } : extra);
+  c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+}
+
+export const USD_FMT = '"USD "#,##0';
+/** Number format for an amount in the viewer's currency, e.g. "CLP "#,##0. */
+export const currencyFmt = (code: string): string => `"${code} "#,##0`;
