@@ -1,18 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { buildItinerary } from '../../lib/itinerary-generator';
 import { logEvent } from '../../lib/log-event';
+import type { ItineraryExportBody } from '../../schemas/itinerary.schemas';
 
 export async function generateItinerary(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { cityNames, attractionNames, ticketRequiredIds, attractionDurations } = (req.body ?? {}) as {
-      cityNames?: Record<string, string>;
-      attractionNames?: Record<string, string>;
-      ticketRequiredIds?: string[];
-      attractionDurations?: Record<string, number>;
-    };
+    // req.body was validated (and unknown keys stripped) by validateBody(itineraryExportSchema).
+    const { locale, cityNames, attractionNames, ticketRequiredIds, attractionDurations, ...details } = req.body as ItineraryExportBody;
 
     const firstExport = !req.trip!.itineraryExportedAt;
-    const buffer = await buildItinerary({ trip: req.trip!, cityNames, attractionNames, ticketRequiredIds, attractionDurations });
+    const buffer = await buildItinerary({
+      trip: req.trip!, locale, cityNames, attractionNames, ticketRequiredIds, attractionDurations,
+      details, context: req.itineraryContext,
+    });
 
     const safeName = req.trip!.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
     const filename = `itinerario-${safeName}.xlsx`;

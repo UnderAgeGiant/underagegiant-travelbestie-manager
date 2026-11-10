@@ -225,3 +225,17 @@ describe('trip analytics events', () => {
     expect(capture).toHaveBeenCalledWith(expect.anything(), 'cta_trip_delete', { tripId: created.body.id });
   });
 });
+
+describe('POST /trips/:id/itinerary - export body validation', () => {
+  it('rejects a javascript: URL with 400 before any karma is spent', async () => {
+    const { app, karmaRepo } = buildApp();
+    const token = await getToken(app);
+    const created = await request(app).post('/trips').set('Authorization', `Bearer ${token}`)
+      .send({ title: 'T', stops: [{ cityId: 'lima', checkIn: '12/03/2027', checkOut: '13/03/2027', selectedAttractions: [] }], transits: [] });
+    const eventsBefore = karmaRepo.events.length;
+    const res = await request(app).post(`/trips/${created.body.id}/itinerary`).set('Authorization', `Bearer ${token}`)
+      .send({ attractionDetails: { x: { website: 'javascript:alert(1)' } } });
+    expect(res.status).toBe(400);
+    expect(karmaRepo.events.length).toBe(eventsBefore);
+  });
+});
