@@ -15,13 +15,13 @@ function parseHour(hm: string): number {
   return parseInt(hm.split(':')[0], 10);
 }
 
-function addMinutesToTime(hm: string, minutes: number): string {
+export function addMinutesToTime(hm: string, minutes: number): string {
   const [h, m] = hm.split(':').map(Number);
   const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function resolveAttractionName(attractionId: string, city: string, opts: ResolvedOptions): string {
+export function resolveAttractionName(attractionId: string, city: string, opts: ResolvedOptions): string {
   if (opts.attractionNames?.[attractionId]) return opts.attractionNames[attractionId];
   const lastUnderscore = attractionId.lastIndexOf('_');
   if (lastUnderscore !== -1) {

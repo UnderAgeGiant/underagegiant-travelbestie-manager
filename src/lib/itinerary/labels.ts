@@ -94,6 +94,24 @@ const ES = {
   idxAntes: 'Visa, moneda, enchufes y checklist',
   idxTransporte: 'Tramos',
   idxHospedaje: 'Alojamientos',
+
+  // Atracciones
+  hdrStart: 'Inicio',
+  hdrEnd: 'Fin',
+  hdrAttraction: 'Atracción',
+  hdrLocalName: 'Nombre local',
+  hdrRating: '⭐',
+  hdrHoursToday: 'Horario ese día',
+  hdrTicket: 'Entrada',
+  hdrWebsite: 'Sitio web',
+  hdrBuyTicket: 'Comprar entrada',
+  hdrMaps: 'Google Maps',
+  hdrDescription: 'Descripción',
+  ticketNeeded: 'Necesita entrada',
+  ticketNone: 'No necesita',
+  linkWeb: '🌐 Web',
+  linkBuy: '🎟️ Comprar',
+  linkMap: '📍 Mapa',
 };
 
 export type ItineraryLabels = typeof ES;
@@ -183,6 +201,23 @@ const EN: ItineraryLabels = {
   idxAntes: 'Visa, currency, plugs and checklist',
   idxTransporte: 'Legs',
   idxHospedaje: 'Places to stay',
+
+  hdrStart: 'Start',
+  hdrEnd: 'End',
+  hdrAttraction: 'Name',
+  hdrLocalName: 'Local name',
+  hdrRating: '⭐',
+  hdrHoursToday: 'Hours that day',
+  hdrTicket: 'Ticket',
+  hdrWebsite: 'Website',
+  hdrBuyTicket: 'Buy ticket',
+  hdrMaps: 'Google Maps',
+  hdrDescription: 'Description',
+  ticketNeeded: 'Ticket needed',
+  ticketNone: 'Not needed',
+  linkWeb: '🌐 Website',
+  linkBuy: '🎟️ Buy',
+  linkMap: '📍 Map',
 };
 
 export const ITINERARY_LABELS: Record<ItineraryLocale, ItineraryLabels> = { 'es-CL': ES, 'en-US': EN };
