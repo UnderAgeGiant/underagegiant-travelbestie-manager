@@ -454,3 +454,13 @@ describe('buildItinerary — personal activities (Feature 71)', () => {
     sheet.eachRow(row => row.eachCell(cell => expect(cell.text).not.toContain('undefined')));
   });
 });
+
+describe('buildItinerary — locale', () => {
+  it('en-US labels the grid corner "Time / Day"; default stays Spanish', async () => {
+    const load = async (buf: Buffer) => { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf as unknown as ArrayBuffer); return wb; };
+    const en = await load(await buildItinerary({ trip: baseTrip(), locale: 'en-US' }));
+    expect(en.getWorksheet('Itinerary')!.getCell('A4').value).toBe('Time / Day');
+    const es = await load(await buildItinerary({ trip: baseTrip() }));
+    expect(es.getWorksheet('Itinerario')!.getCell('A4').value).toBe('Horario / Día');
+  });
+});
