@@ -5,6 +5,8 @@ import { ItineraryContext, ItineraryDetails, ResolvedOptions } from './itinerary
 import { buildResumenSheet } from './itinerary/resumen.sheet';
 import { buildItinerarioSheet } from './itinerary/itinerario.sheet';
 import { buildAtraccionesSheet } from './itinerary/atracciones.sheet';
+import { buildCostosSheet } from './itinerary/costos.sheet';
+import { buildClimaSheet } from './itinerary/clima.sheet';
 import { buildTransporteSheet } from './itinerary/transporte.sheet';
 import { buildHospedajeSheet } from './itinerary/hospedaje.sheet';
 
@@ -39,8 +41,8 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
   buildResumenSheet(workbook, trip, opts);
   buildItinerarioSheet(workbook, trip, opts);
   buildAtraccionesSheet(workbook, trip, opts);
-  workbook.addWorksheet(opts.labels.sheetCostos);
-  workbook.addWorksheet(opts.labels.sheetClima);
+  buildCostosSheet(workbook, trip, opts);
+  buildClimaSheet(workbook, trip, opts);
   workbook.addWorksheet(opts.labels.sheetAntes);
   buildTransporteSheet(workbook, trip, opts);
   buildHospedajeSheet(workbook, trip, opts);
