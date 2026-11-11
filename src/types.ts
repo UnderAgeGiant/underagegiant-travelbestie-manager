@@ -537,6 +537,7 @@ declare global {
       collaboratorAccepted?: boolean;     // set by CollaboratorController.accept
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
+      itineraryContext?: import('./lib/itinerary/types').ItineraryContext;   // set by load-itinerary-context.middleware.ts (F78)
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
       karmaEventsQuery?: { cursor: import('./lib/karma-events-cursor').KarmaEventsCursor | null; limit: number };
       feedQuery?: { cursor: import('./lib/feed-cursor').FeedCursor | null; limit: number };

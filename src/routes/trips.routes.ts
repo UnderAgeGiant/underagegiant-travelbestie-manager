@@ -23,6 +23,8 @@ import { sendCollaboratorInviteEmailMiddleware } from '../middleware/collaborato
 import { makeNotifyCollaboratorInvite } from '../middleware/notifications/notify-collaborator-invite.middleware';
 import { makeNotifyCollaboratorAccepted } from '../middleware/notifications/notify-collaborator-accepted.middleware';
 import { buildTripResponse } from '../middleware/trips/build-trip-response.middleware';
+import { loadItineraryContext } from '../middleware/trips/load-itinerary-context.middleware';
+import { itineraryExportSchema } from '../schemas/itinerary.schemas';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
@@ -94,6 +96,7 @@ export function createTripsRouter(
   );
 
   router.post('/:id/itinerary',
+    validateBody(itineraryExportSchema),   // before the karma chain: a bad body never costs a Token
     trip.findById,
     checkTripOwnership,
     skipIfExported(karma.requireForTrip),
@@ -102,6 +105,7 @@ export function createTripsRouter(
     // generateItinerary ends the response itself (res.end(buffer)), so the header must be set here.
     // Accepted edge: if generation then fails, the trophy is already recorded.
     makeRecordTrophy(trophies, 'excel_export', exportTarget),
+    loadItineraryContext,
     generateItinerary,
   );
 
