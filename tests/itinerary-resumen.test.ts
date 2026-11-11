@@ -28,10 +28,10 @@ const ctx = (usdRate: number | null) => ({ weather: {}, usdRate, exportedAt: new
 describe('Resumen sheet + workbook shape', () => {
   it('has the 8 tabs in order (es-CL and en-US) and opens on the first', async () => {
     const es = await load({ trip: fixtureTrip() });
-    expect(es.worksheets.map(w => w.name)).toEqual(['Resumen', 'Itinerario', 'Atracciones', 'Costos', 'Clima', 'Antes de viajar', 'Transporte', 'Hospedaje']);
+    expect(es.worksheets.map(w => w.name)).toEqual(['Resumen', 'Itinerario', 'Atracciones', 'Transporte', 'Hospedaje', 'Preparativos', 'Costos', 'Clima']);
     expect(es.views[0].activeTab).toBe(0);
     const en = await load({ trip: fixtureTrip(), locale: 'en-US' });
-    expect(en.worksheets.map(w => w.name)).toEqual(['Summary', 'Itinerary', 'Attractions', 'Costs', 'Weather', 'Before you go', 'Transport', 'Lodging']);
+    expect(en.worksheets.map(w => w.name)).toEqual(['Summary', 'Itinerary', 'Attractions', 'Transport', 'Lodging', 'Preparations', 'Costs', 'Weather']);
   });
 
   it('shows dates, nights per city on the route, and travelers', async () => {
@@ -71,7 +71,7 @@ describe('Resumen sheet + workbook shape', () => {
 
   it('index rows link to every other tab', async () => {
     const l = links((await load({ trip: fixtureTrip() })).getWorksheet('Resumen')!);
-    for (const name of ['Itinerario', 'Atracciones', 'Costos', 'Clima', 'Antes de viajar', 'Transporte', 'Hospedaje']) {
+    for (const name of ['Itinerario', 'Atracciones', 'Transporte', 'Hospedaje', 'Preparativos', 'Costos', 'Clima']) {
       expect(l).toContain(`#'${name}'!A1`);
     }
   });

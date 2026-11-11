@@ -44,7 +44,7 @@ describe('buildItinerary — multi-sheet workbook', () => {
     const buffer = await buildItinerary({ trip: baseTrip() });
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
-    expect(workbook.worksheets.map(w => w.name)).toEqual(['Resumen', 'Itinerario', 'Atracciones', 'Costos', 'Clima', 'Antes de viajar', 'Transporte', 'Hospedaje']);
+    expect(workbook.worksheets.map(w => w.name)).toEqual(['Resumen', 'Itinerario', 'Atracciones', 'Transporte', 'Hospedaje', 'Preparativos', 'Costos', 'Clima']);
   });
 
   it('Transporte sheet has the expected header and one row per segment', async () => {

@@ -35,13 +35,13 @@ const base: Partial<ItineraryOptions> = {
   ticketRequiredIds: ['lima_12', 'lima_3'],
 };
 
-describe('Antes de viajar sheet', () => {
+describe('Preparativos sheet', () => {
   it('one block per destination; missing facts and time rows are omitted', async () => {
     const s = await sheetOf({ ...base, trip: trip(), details: { destinations: [
       { country: 'Perú', flag: '🇵🇪', visa: 'Sin visa · 183 días', currency: 'Sol peruano (S/)', plug: 'Tipo A, C · 220 V',
         cities: [{ name: 'Lima', timeDiff: '2 h menos' }, { name: 'Cusco' }] },
       { country: 'Bolivia', currency: 'Boliviano (Bs)', cities: [{ name: 'La Paz' }] },
-    ] } }, 'Antes de viajar');
+    ] } }, 'Preparativos');
     const t = lines(s).join('\n');
     expect(t).toContain('🇵🇪 Perú — Lima, Cusco');
     expect(t).toContain('🛂 Visa Sin visa · 183 días');
@@ -58,7 +58,7 @@ describe('Antes de viajar sheet', () => {
   it('checklist: unbought tickets (with buy link), bought ones ticked, missing lodging, transport legs', async () => {
     const s = await sheetOf({ ...base, trip: trip(), details: {
       attractionDetails: { lima_12: { ticketUrl: 'https://catedraldelima.org.pe/tickets' } },
-    } }, 'Antes de viajar');
+    } }, 'Preparativos');
     const t = lines(s);
     expect(t).toContain('☐ Comprar entrada: Catedral de Lima (13/03)');
     expect(t).toContain('☑ Entrada Museo Larco (14/03)');
@@ -72,7 +72,7 @@ describe('Antes de viajar sheet', () => {
   });
 
   it('no destinations → no country blocks but the checklist stays', async () => {
-    const t = lines(await sheetOf({ ...base, trip: trip() }, 'Antes de viajar')).join('\n');
+    const t = lines(await sheetOf({ ...base, trip: trip() }, 'Preparativos')).join('\n');
     expect(t).not.toContain('🛂');
     expect(t).toContain('✅ Checklist');
     expect(t).toContain('☐ Reservar hospedaje en Lima');

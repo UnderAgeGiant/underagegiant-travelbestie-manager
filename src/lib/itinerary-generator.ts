@@ -38,15 +38,15 @@ export async function buildItinerary(options: ItineraryOptions): Promise<Buffer>
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Tripilove';
-  // Tab order is part of the contract: Resumen → Itinerario → Atracciones → Costos → Clima → Antes de viajar → Transporte → Hospedaje.
+  // Tab order is part of the contract: Resumen → Itinerario → Atracciones → Transporte → Hospedaje → Preparativos → Costos → Clima.
   buildResumenSheet(workbook, trip, opts);
   buildItinerarioSheet(workbook, trip, opts);
   buildAtraccionesSheet(workbook, trip, opts);
-  buildCostosSheet(workbook, trip, opts);
-  buildClimaSheet(workbook, trip, opts);
-  buildAntesDeViajarSheet(workbook, trip, opts);
   buildTransporteSheet(workbook, trip, opts);
   buildHospedajeSheet(workbook, trip, opts);
+  buildAntesDeViajarSheet(workbook, trip, opts);
+  buildCostosSheet(workbook, trip, opts);
+  buildClimaSheet(workbook, trip, opts);
   workbook.views = [{ x: 0, y: 0, width: 12000, height: 24000, firstSheet: 0, activeTab: 0, visibility: 'visible' }];
 
   const buffer = await workbook.xlsx.writeBuffer();

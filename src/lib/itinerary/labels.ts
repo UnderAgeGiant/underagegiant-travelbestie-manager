@@ -57,7 +57,7 @@ const ES = {
   sheetAtracciones: 'Atracciones',
   sheetCostos: 'Costos',
   sheetClima: 'Clima',
-  sheetAntes: 'Antes de viajar',
+  sheetAntes: 'Preparativos',
   dayOne: '{n} día',
   dayMany: '{n} días',
   nightOne: '{n} noche',
@@ -145,8 +145,8 @@ const ES = {
   srcHistoric: 'Estimado (mismo día del año pasado)',
   srcUnavailable: 'No disponible',
 
-  // Antes de viajar
-  antesTitle: '🧳 Antes de viajar',
+  // Preparativos (was "Antes de viajar")
+  antesTitle: '🧳 Preparativos',
   antesSubtitle: 'Según tu país de residencia',
   factVisa: '🛂 Visa',
   factCurrency: '🪙 Moneda',
@@ -215,7 +215,7 @@ const EN: ItineraryLabels = {
   sheetAtracciones: 'Attractions',
   sheetCostos: 'Costs',
   sheetClima: 'Weather',
-  sheetAntes: 'Before you go',
+  sheetAntes: 'Preparations',
   dayOne: '{n} day',
   dayMany: '{n} days',
   nightOne: '{n} night',
@@ -299,7 +299,7 @@ const EN: ItineraryLabels = {
   srcHistoric: 'Estimate (same day last year)',
   srcUnavailable: 'Not available',
 
-  antesTitle: '🧳 Before you go',
+  antesTitle: '🧳 Preparations',
   antesSubtitle: 'Based on your country of residence',
   factVisa: '🛂 Visa',
   factCurrency: '🪙 Currency',

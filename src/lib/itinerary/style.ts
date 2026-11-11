@@ -1,19 +1,24 @@
 import ExcelJS from 'exceljs';
 
-// Brand palette — derived from frontend styles.css (oklch tokens) and favicon.svg
+// Brand palette. headBg/blush/cream are the site's styles.css tokens converted to hex;
+// the rest are favicon.svg / Tailwind-like hexes chosen near the tokens, not exact conversions.
 export const C = {
-  lavD:   'FF7C3AED',  // --lav-d  oklch(55% .16 290)
-  peachD: 'FFEA580C',  // --peach-d oklch(62% .15 50)
-  lav:    'FFEDE9FE',  // --lav    oklch(88% .06 290)
-  peach:  'FFFDE8D8',  // --peach  oklch(91% .07 50)
-  mint:   'FFD1FAE5',  // --mint   oklch(91% .07 160)
-  butter: 'FFFEF3C7',  // personal activities (F78)
-  cream:  'FFF9F8F4',  // --cream  oklch(98% .01 80)
-  white:  'FFFFFFFF',
-  t1:     'FF1E1B4B',  // --t1     oklch(18% .02 270)
-  t2:     'FF4B5180',  // --t2     oklch(42% .03 270)
-  t3:     'FF9CA3AF',  // --t3     oklch(65% .02 270)
-  border: 'FFE2E3EC',  // --border oklch(88% .015 270)
+  headBg:    'FFD6D2FD',  // site --lav: title bars + table headers
+  headText:  'FF4A348C',  // bold text on headBg
+  blush:     'FFFFD2D8',  // site --blush: overlap-warning cell
+  blushText: 'FF952342',  // bold text on blush
+  lavD:      'FF7C3AED',  // favicon violet: links + accent text
+  peachD:    'FFEA580C',  // favicon orange: warning text
+  lav:       'FFEDE9FE',  // light lavender: transit, subtitles, section bars
+  peach:     'FFFDE8D8',  // ticket needed
+  mint:      'FFD1FAE5',  // attraction / ticket bought
+  butter:    'FFFEF3C7',  // personal activities (F78)
+  cream:     'FFFCF8F1',  // site --cream
+  white:     'FFFFFFFF',  // empty-cell fill only, never text
+  t1:        'FF1E1B4B',
+  t2:        'FF4B5180',
+  t3:        'FF9CA3AF',
+  border:    'FFE2E3EC',
 } as const;
 
 export function border(): Partial<ExcelJS.Borders> {
@@ -26,8 +31,8 @@ export function fill(argb: string): ExcelJS.Fill {
 }
 
 export function applyHeaderStyle(cell: ExcelJS.Cell): void {
-  cell.font = { bold: true, size: 11, color: { argb: C.white }, name: 'Calibri' };
-  cell.fill = fill(C.lavD);
+  cell.font = { bold: true, size: 11, color: { argb: C.headText }, name: 'Calibri' };
+  cell.fill = fill(C.headBg);
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
   cell.border = border();
 }
@@ -52,11 +57,11 @@ export function applyActivityStyle(cell: ExcelJS.Cell, type: ActivityStyle): voi
   const fgColor =
     type === 'transit'    ? C.lav :
     type === 'ticket'     ? C.peach :
-    type === 'conflict'   ? C.peachD :
+    type === 'conflict'   ? C.blush :
     type === 'attraction' ? C.mint :
     type === 'personal'   ? C.butter :
     C.white;
-  const textColor = type === 'conflict' ? C.white : C.t1;
+  const textColor = type === 'conflict' ? C.blushText : C.t1;
   cell.fill = fill(fgColor);
   cell.font = { size: 10, bold: type === 'conflict', color: { argb: textColor }, name: 'Calibri' };
   cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
@@ -103,8 +108,8 @@ export function titleStrip(sheet: ExcelJS.Worksheet, title: string, subtitle: st
   sheet.getRow(1).height = 32;
   const t = sheet.getCell(1, 1);
   t.value = title;
-  t.font = font({ bold: true, size: 16, color: { argb: C.white } });
-  t.fill = fill(C.lavD);
+  t.font = font({ bold: true, size: 16, color: { argb: C.headText } });
+  t.fill = fill(C.headBg);
   t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
 
   sheet.mergeCells(2, 1, 2, lastCol);

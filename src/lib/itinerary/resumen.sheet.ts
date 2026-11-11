@@ -12,11 +12,11 @@ function indexEntries(opts: ResolvedOptions): Array<[string, string]> {
   return [
     [l.sheetItinerario, l.idxItinerario],
     [l.sheetAtracciones, l.idxAtracciones],
-    [l.sheetCostos, l.idxCostos],
-    [l.sheetClima, l.idxClima],
-    [l.sheetAntes, l.idxAntes],
     [l.sheetTransporte, l.idxTransporte],
     [l.sheetHospedaje, l.idxHospedaje],
+    [l.sheetAntes, l.idxAntes],
+    [l.sheetCostos, l.idxCostos],
+    [l.sheetClima, l.idxClima],
   ];
 }
 
