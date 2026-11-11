@@ -3,7 +3,7 @@ import { Trip } from '../../types';
 import { ResolvedOptions } from './types';
 import { weatherCodeLabel } from './labels';
 import { C, applyDataCellStyle, fill, freezeHeader, titleStrip, writeHeaderRow } from './style';
-import { dateKey, fmt, resolveCityName } from './util';
+import { fmt, isoToDMYDate, resolveCityName } from './util';
 import { buildDayRange, stopIndexForDay } from './itinerario.sheet';
 
 const LAST_COL = 6;
@@ -13,7 +13,7 @@ export function buildClimaSheet(workbook: ExcelJS.Workbook, trip: Trip, opts: Re
   const l = opts.labels;
   const sheet = workbook.addWorksheet(l.sheetClima);
   sheet.columns = [{ width: 12 }, { width: 14 }, { width: 26 }, { width: 10 }, { width: 10 }, { width: 34 }];
-  titleStrip(sheet, l.climaTitle, fmt(l.weatherCalculatedOn, { date: dateKey(opts.context.exportedAt) }), LAST_COL);
+  titleStrip(sheet, l.climaTitle, fmt(l.weatherCalculatedOn, { date: isoToDMYDate(opts.context.exportedAt) }), LAST_COL);
 
   const days = buildDayRange(trip.stops).map(day => {
     const stopIdx = stopIndexForDay(day, trip.stops);

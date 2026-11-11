@@ -61,9 +61,12 @@ export function plural(n: number, one: string, many: string): string {
   return fmt(n === 1 ? one : many, { n });
 }
 
-/** ISO timestamp → dd/mm/yyyy (UTC). */
-export function isoToDMYDate(iso: string): string {
-  return dateKey(new Date(iso));
+// ponytail: fixed to Chile time (the main market); take a timeZone from the export body if non-Chile users need it.
+const CL_DATE = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+/** Timestamp → dd/mm/yyyy in Chile time (a "calculated on" date, not a trip day). */
+export function isoToDMYDate(when: string | Date): string {
+  return CL_DATE.format(new Date(when));
 }
 
 /** Travelers line, e.g. "2 adultos · 1 niño". */

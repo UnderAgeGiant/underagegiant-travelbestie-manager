@@ -110,3 +110,18 @@ describe('Clima sheet', () => {
     expect(days).toBe(8);
   });
 });
+
+describe('calculated-on dates use Chile time, not UTC (review F-1)', () => {
+  // 00:15 UTC on 11/11 is 21:15 on 10/11 in Santiago.
+  const lateEvening = '2026-11-11T00:15:00Z';
+  it('Clima title', async () => {
+    const s = await sheetOf({ trip: fixtureTrip(), context: { weather: {}, usdRate: null, exportedAt: new Date(lateEvening) } }, 'Clima');
+    expect(allText(s)).toContain('Clima calculado el 10/11/2026');
+  });
+  it('Resumen and Costos estimate date', async () => {
+    const trip = fixtureTrip({ costEstimate: fixtureEstimate({ calculatedAt: lateEvening }) });
+    expect(allText(await sheetOf({ trip }, 'Resumen'))).toContain('10/11/2026');
+    expect(allText(await sheetOf({ trip }, 'Resumen'))).not.toContain('11/11/2026');
+    expect(allText(await sheetOf({ trip }, 'Costos'))).toContain('10/11/2026');
+  });
+});
