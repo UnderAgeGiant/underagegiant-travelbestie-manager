@@ -4,6 +4,7 @@ One line per PR merged to `main` (which Vercel deploys to production), newest fi
 **Every PR adds its own line** under the current month's heading (create the heading if it is missing), in the form `- <PR title> (#<number>)`.
 
 ## 2026-11
+- fix(security): per-visitor IP rate limits (trust proxy) (#PR)
 - feat(itinerary): 8-tab bilingual itinerary export (#102)
 - feat(observability): server_error PostHog events for every backend error (#101)
 - chore(repo): ignore local-only docs and Postman env (#100)

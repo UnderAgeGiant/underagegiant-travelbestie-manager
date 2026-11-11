@@ -42,6 +42,8 @@ import { validateProductionSecrets } from './lib/validate-env';
 import { stripPollutionKeys } from './lib/sanitize-body';
 
 export const app = express();
+// Vercel is the single proxy hop and overwrites X-Forwarded-For, so req.ip is the real client.
+app.set('trust proxy', 1);
 
 // Fail fast if production is misconfigured (B-5) — never sign tokens with the dev key.
 validateProductionSecrets();
