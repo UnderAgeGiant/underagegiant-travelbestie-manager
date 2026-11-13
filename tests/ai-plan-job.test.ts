@@ -108,7 +108,7 @@ describe('runAiPlanJob', () => {
     });
     const planChangeResult: PlanChangeResult = {
       type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2,
-      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' },
+      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] },
     };
 
     await runAiPlanJob(
@@ -147,7 +147,7 @@ describe('runAiPlanJob', () => {
     jest.spyOn(ai, 'generatePlan').mockResolvedValueOnce({ title: 'P', stops: [], transits: [] });
     await aiPlanRequests.insert({ requestId: 'free', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
     await runAiPlanJob({ ai, aiPlanRequests, karma, notifications, trophies },
-      { requestId: 'free', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2, originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' } } as any, karmaCharged: 0 });
+      { requestId: 'free', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2, originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] } } as any, karmaCharged: 0 });
 
     jest.spyOn(ai, 'generatePlan').mockRejectedValueOnce(new Error('boom'));
     await aiPlanRequests.insert({ requestId: 'fail', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
@@ -159,7 +159,7 @@ describe('runAiPlanJob', () => {
 });
 
 describe('runAiPlanJob analytics', () => {
-  const params = { selectedOption: makeBody().selectedOption, preferences: 'p', duration: 1, budget: '', startDate: '' };
+  const params = { selectedOption: makeBody().selectedOption, preferences: 'p', duration: 1, budget: '', startDate: '', cityIds: [] };
   let aiPlanRequests: StubAiPlanRequestRepository;
   let ai: AiController;
   const run = (requestId: string, karmaCharged: number) => runAiPlanJob(

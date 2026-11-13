@@ -15,6 +15,7 @@ const baseOpts: PlanSessionOptions = {
   duration:                 14,
   budget:                   '1000 USD',
   startDate:                '15/07/2026',
+  cityIds:                  [],
 };
 
 describe('serializeOptions', () => {
@@ -45,6 +46,7 @@ describe('computeChangeRatio', () => {
       duration:                 10,
       budget:                   '500 USD',
       startDate:                '01/03/2027',
+      cityIds:                  [],
     };
     expect(computeChangeRatio(baseOpts, other)).toBeGreaterThan(CHANGE_THRESHOLD);
   });
@@ -118,5 +120,54 @@ describe('toSessionOptions', () => {
     expect(result.duration).toBe(0);
     expect(result.budget).toBe('');
     expect(result.startDate).toBe('');
+  });
+});
+
+describe('cityIds (F79, mirrored with the frontend)', () => {
+  const five = ['paris', 'rome', 'barcelona', 'lisbon', 'madrid'];
+  const cities = (ids: string[]): PlanSessionOptions => ({ ...baseOpts, preferences: 'Tipos de experiencia preferidos: Museos', cityIds: ids });
+
+  it('serializes cityIds sorted, as the last key', () => {
+    expect(serializeOptions({ ...baseOpts, cityIds: ['rome', 'paris'] })).toBe(
+      '{"title":"clásicos de europa","summary":"parís, roma y barcelona en un viaje lleno de arte.",'
+      + '"highlights":["barcelona, españa","parís, francia","roma, italia"],"preferences":"viaje romántico con gastronomía",'
+      + '"duration":14,"budget":"1000 usd","startDate":"15/07/2026","cityIds":["paris","rome"]}',
+    );
+  });
+
+  it('swapping one of five cities is a minor change', () => {
+    expect(isMinorChange(cities(five), cities(['paris', 'rome', 'barcelona', 'lisbon', 'porto']))).toBe(true);
+  });
+
+  it('replacing four of five cities is a major change', () => {
+    expect(isMinorChange(cities(five), cities(['paris', 'tokyo', 'kyoto', 'seoul', 'osaka']))).toBe(false);
+  });
+
+  it('adding a sixth city to five is a minor change', () => {
+    expect(isMinorChange(cities(five), cities([...five, 'porto']))).toBe(true);
+  });
+
+  it('swapping one of two cities is a major change', () => {
+    expect(isMinorChange(cities(['paris', 'rome']), cities(['paris', 'lisbon']))).toBe(false);
+  });
+
+  it('switching from cities mode to free text is always major', () => {
+    const old = { ...baseOpts, cityIds: ['paris'], preferences: '' };
+    const now = { ...baseOpts, cityIds: [],        preferences: 'museos' };
+    expect(computeChangeRatio(old, now)).toBeLessThanOrEqual(CHANGE_THRESHOLD);   // close as strings…
+    expect(isMinorChange(old, now)).toBe(false);                                  // …still major
+  });
+
+  it('treats a missing cityIds as empty', () => {
+    const legacy = { ...baseOpts, cityIds: undefined } as unknown as PlanSessionOptions;
+    expect(() => isMinorChange(legacy, baseOpts)).not.toThrow();
+    expect(isMinorChange(legacy, baseOpts)).toBe(true);
+    expect(serializeOptions(legacy)).toBe(serializeOptions(baseOpts));
+  });
+
+  it('toSessionOptions reads body.cityIds, defaulting to []', () => {
+    const opt = { id: 1, title: 't', summary: 's', highlights: [] } as TripSuggestion;
+    expect(toSessionOptions({ selectedOption: opt, preferences: 'p' }).cityIds).toEqual([]);
+    expect(toSessionOptions({ selectedOption: opt, preferences: 'p', cityIds: ['rome'] }).cityIds).toEqual(['rome']);
   });
 });

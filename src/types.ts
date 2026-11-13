@@ -436,6 +436,7 @@ export interface PlanSessionOptions {
   duration:                 number;  // 0 when not specified
   budget:                   string;  // '' when not specified
   startDate:                string;  // '' when not specified
+  cityIds:                  string[]; // F79 cities mode; [] in free-text mode (and in sessions stored before F79)
 }
 
 export interface PlanChangeInfo {
@@ -471,6 +472,8 @@ export interface AiPlanRequestParams {
   duration?:      number;
   budget?:        string;
   startDate?:     string;
+  cityIds?:       string[];  // F79 cities mode
+  firstRun?:      boolean;   // F79 — set on POST /ai/first-plan rows
 }
 
 export interface AiPlanRequestRecord {

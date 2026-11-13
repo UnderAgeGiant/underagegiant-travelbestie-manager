@@ -207,6 +207,22 @@ describe('POST /ai/plan — async kickoff + change management', () => {
     });
   });
 
+  it('a plan session stored before F79 (no cityIds) compares as [] → free_change', async () => {
+    const sessionId = 'session-legacy';
+    const first = await request(app).post('/ai/plan').set(authHeader(token)).send(planBody(MOCK_OPTION_A, sessionId));
+    await pollUntilDone(app, token, first.body.requestId);
+    // Rewrite the stored session the way a pre-F79 deploy wrote it: no cityIds key.
+    const [key, raw] = [...redisStore.entries()].find(([k]) => k.startsWith('plan:'))!;
+    const session = JSON.parse(raw);
+    delete session.originalOptions.cityIds;
+    redisStore.set(key, JSON.stringify(session));
+
+    const second = await request(app).post('/ai/plan').set(authHeader(token))
+      .send(planBody(MOCK_OPTION_A, sessionId, 'viaje romántico con gastronomía y museos'));
+    const done = await pollUntilDone(app, token, second.body.requestId);
+    expect(done.body.changeInfo).toMatchObject({ type: 'free_change' });
+  });
+
   it('completes with charged_change reason=major_change when options change drastically', async () => {
     const sessionId = 'session-major';
 
