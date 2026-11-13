@@ -36,10 +36,11 @@ export function createKickoffAiPlanMiddleware(
         karmaCharged,
         requestParams: {
           selectedOption: body.selectedOption,
-          preferences:    body.preferences,
+          preferences:    body.preferences ?? '',
           duration:       body.duration,
           budget:         body.budget,
           startDate:      body.startDate,
+          ...(body.cityIds ? { cityIds: body.cityIds } : {}),
         },
       });
 

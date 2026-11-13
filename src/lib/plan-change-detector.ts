@@ -55,7 +55,7 @@ export function isMinorChange(oldOpts: PlanSessionOptions, newOpts: PlanSessionO
 /** Extracts PlanSessionOptions from a raw /ai/plan request body. */
 export function toSessionOptions(body: {
   selectedOption: TripSuggestion;
-  preferences:    string;
+  preferences?:   string;          // optional in cities mode (F79)
   duration?:      number;
   budget?:        string;
   startDate?:     string;
@@ -65,7 +65,7 @@ export function toSessionOptions(body: {
     selectedOptionTitle:      body.selectedOption.title,
     selectedOptionSummary:    body.selectedOption.summary,
     selectedOptionHighlights: body.selectedOption.highlights,
-    preferences:              body.preferences,
+    preferences:              body.preferences ?? '',
     duration:                 body.duration ?? 0,
     budget:                   body.budget ?? '',
     startDate:                body.startDate ?? '',

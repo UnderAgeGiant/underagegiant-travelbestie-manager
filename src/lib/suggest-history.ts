@@ -28,8 +28,8 @@ export function suggestQueueKey(userId: string, planSessionId: string): string {
 }
 
 /** Identity of the inputs that produced a batch; any change invalidates the queue. */
-export function suggestInputsHash(body: Pick<AiSuggestBody, 'preferences' | 'duration' | 'budget' | 'cityIndex'>): string {
-  return sha256(JSON.stringify([body.preferences, body.duration ?? null, body.budget ?? null, (body.cityIndex ?? []).map(c => c.id)]));
+export function suggestInputsHash(body: Pick<AiSuggestBody, 'preferences' | 'duration' | 'budget' | 'cityIndex' | 'cityIds'>): string {
+  return sha256(JSON.stringify([body.preferences, body.duration ?? null, body.budget ?? null, (body.cityIndex ?? []).map(c => c.id), body.cityIds ?? []]));
 }
 
 /**

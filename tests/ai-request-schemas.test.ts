@@ -91,3 +91,39 @@ describe('selectedOption.title bound (plan)', () => {
     expect(aiPlanSchema.safeParse(body(7)).success).toBe(false);
   });
 });
+
+describe('cities mode (F79)', () => {
+  const cityIndex = Array.from({ length: 11 }, (_, i) => ({ id: `c${i}`, name: `City ${i}` }));
+  const ids = (n: number) => cityIndex.slice(0, n).map(c => c.id);
+  const errorOf = (body: object) => {
+    const r = aiSuggestSchema.safeParse(body);
+    return r.success ? null : r.error.issues.map(i => i.message);
+  };
+
+  it('accepts cityIds without preferences', () => {
+    expect(errorOf({ cityIds: ids(2), duration: 3, cityIndex })).toBeNull();
+    expect(aiPlanSchema.safeParse({ selectedOption: planBody.selectedOption, cityIds: ['paris'] }).success).toBe(true);
+  });
+
+  it('still requires preferences without cityIds', () => {
+    expect(errorOf({ duration: 3 })).not.toBeNull();
+    expect(aiPlanSchema.safeParse({ selectedOption: planBody.selectedOption }).success).toBe(false);
+  });
+
+  it('rejects 11 cityIds', () => {
+    expect(errorOf({ cityIds: ids(11), duration: 20, cityIndex })).not.toBeNull();
+  });
+
+  it('cityIds without duration → cities_exceed_days', () => {
+    expect(errorOf({ cityIds: ids(2), cityIndex })).toEqual(['cities_exceed_days']);
+  });
+
+  it('duration 2 with 3 cityIds → cities_exceed_days', () => {
+    expect(errorOf({ cityIds: ids(3), duration: 2, cityIndex })).toEqual(['cities_exceed_days']);
+  });
+
+  it('rejects cityIds that are not in cityIndex', () => {
+    expect(errorOf({ cityIds: ['atlantis'], duration: 2, cityIndex })).not.toBeNull();
+    expect(errorOf({ cityIds: ['c0'], duration: 2 })).not.toBeNull();
+  });
+});

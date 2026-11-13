@@ -272,6 +272,15 @@ describe('POST /ai/plan — async kickoff + change management', () => {
     expect(done.body.changeInfo).toMatchObject({ type: 'charged_change', reason: 'limit_reached' });
   });
 
+  it('accepts cityIds without preferences (F79 cities mode) → 202 and stores cityIds', async () => {
+    const res = await request(app).post('/ai/plan').set(authHeader(token))
+      .send({ selectedOption: MOCK_OPTION_A, duration: 5, cityIds: ['paris', 'rome'] });
+    expect(res.status).toBe(202);
+    const done = await pollUntilDone(app, token, res.body.requestId);
+    expect(done.body.status).toBe('completed');
+    expect((await aiPlanRequestRepo.findById(res.body.requestId))!.requestParams.cityIds).toEqual(['paris', 'rome']);
+  });
+
   it('returns 401 without token', async () => {
     const res = await request(app).post('/ai/plan').send(planBody());
     expect(res.status).toBe(401);

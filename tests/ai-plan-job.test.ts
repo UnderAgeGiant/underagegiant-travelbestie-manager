@@ -46,7 +46,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
 
@@ -75,7 +75,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-2', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
 
@@ -104,7 +104,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-3', userId: 'u1', planSessionId: 'session-1', karmaCharged: 0,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = {
       type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2,
@@ -129,7 +129,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-t1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     await runAiPlanJob(
       { ai, aiPlanRequests, karma, notifications, trophies },
@@ -142,7 +142,7 @@ describe('runAiPlanJob', () => {
     const trophyRepo = new StubTrophyRepository();
     const trophies = new TrophyRecorder(trophyRepo, notifications);
     const body = makeBody();
-    const params = { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate };
+    const params = { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate };
 
     jest.spyOn(ai, 'generatePlan').mockResolvedValueOnce({ title: 'P', stops: [], transits: [] });
     await aiPlanRequests.insert({ requestId: 'free', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
