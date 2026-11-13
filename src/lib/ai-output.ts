@@ -32,6 +32,16 @@ export function sanitizePlanOutput(raw: unknown, cityCatalog?: CityCatalog): Pla
   };
 }
 
+/** F79 first run: drop stops and transits that name a city outside the chosen ones. */
+export function restrictPlanToCities(result: PlanTripResponse, cityIds: string[]): PlanTripResponse {
+  const allowed = new Set(cityIds);
+  return {
+    ...result,
+    stops:    result.stops.filter(s => allowed.has(s.cityId)),
+    transits: result.transits.filter(t => allowed.has(t.fromCityId) && allowed.has(t.toCityId)),
+  };
+}
+
 /** Hard cap on the free-text `reason` of /ai/suggest-attractions and /ai/suggest-companion (frontend chat bubbles; the prompts target ≤110). Longer reasons are cut, not rejected. */
 export const REASON_MAX_CHARS = 160;
 

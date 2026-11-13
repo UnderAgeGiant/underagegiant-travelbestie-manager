@@ -56,6 +56,22 @@ export const aiPlanSchema = z.object({
   cityIds:       citiesModeIdsSchema.optional(),
 }).passthrough().superRefine(requirePreferencesUnlessCities);
 
+// F79 POST /ai/first-plan (contracts §5.5): 1–3 distinct cities, no free text, no karma.
+export const aiFirstPlanSchema = z.object({
+  cities:      z.array(catalogEntrySchema).min(1).max(3)
+    .refine(c => new Set(c.map(x => x.id)).size === c.length, { message: 'cities must be distinct' }),
+  duration:    z.number().int().min(1).max(60),
+  startDate:   z.string().max(10).optional(),
+  preferences: z.string().trim().max(2000).optional(),
+  cityCatalog: z.record(cityIdSchema, z.array(catalogEntrySchema).max(300)).optional(),
+}).superRefine((body, ctx) => {
+  if (body.duration < body.cities.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cities_exceed_days' });
+  const ids = new Set(body.cities.map(c => c.id));
+  if (Object.keys(body.cityCatalog ?? {}).some(id => !ids.has(id))) {   // ADR 0010: only the chosen cities
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cityCatalog'], message: 'cityCatalog keys must be among cities' });
+  }
+});
+
 export const aiSuggestAttractionsSchema = z.object({
   cityId:                cityIdSchema,
   tripId:                z.string().uuid().optional(),
@@ -95,5 +111,6 @@ export const suggestCompanionSchema = z.object({
 
 export type AiSuggestBody             = z.infer<typeof aiSuggestSchema>;
 export type AiPlanBody                = z.infer<typeof aiPlanSchema>;
+export type AiFirstPlanBody           = z.infer<typeof aiFirstPlanSchema>;
 export type AiSuggestAttractionsBody  = z.infer<typeof aiSuggestAttractionsSchema>;
 export type SuggestCompanionBody      = z.infer<typeof suggestCompanionSchema>;
