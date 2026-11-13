@@ -53,6 +53,7 @@ const testUser: User = {
   passwordHash: TEST_PASSWORD_HASH,
   countryOfResidence: null,
   homePlace:    null,
+  firstPlanUsedAt: null,
   username:     null,
   createdAt:    new Date().toISOString(),
 };

@@ -34,7 +34,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, homePlace: null, username: null, createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, homePlace: null, username: null, firstPlanUsedAt: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -69,6 +69,18 @@ export class StubUserRepository implements IUserRepository {
     if (fields.countryOfResidence !== undefined) user.countryOfResidence = fields.countryOfResidence;
     if (fields.homePlace !== undefined) user.homePlace = fields.homePlace;
     return { ...user };
+  }
+
+  async claimFirstPlan(userId: string): Promise<boolean> {
+    const user = this.byId.get(userId);
+    if (!user || user.firstPlanUsedAt) return false;
+    user.firstPlanUsedAt = new Date().toISOString();
+    return true;
+  }
+
+  async releaseFirstPlan(userId: string): Promise<void> {
+    const user = this.byId.get(userId);
+    if (user) user.firstPlanUsedAt = null;
   }
 }
 

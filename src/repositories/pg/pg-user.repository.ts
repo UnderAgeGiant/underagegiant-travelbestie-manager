@@ -11,7 +11,7 @@ export class PgUserRepository implements IUserRepository {
     const { rows: [row] } = await this.pool.query(
       `INSERT INTO users (name, email, password_hash, karma)
        VALUES ($1, LOWER($2), $3, $4)
-       RETURNING user_id, name, email, password_hash, country_of_residence, home_place, username, created_at`,
+       RETURNING user_id, name, email, password_hash, country_of_residence, home_place, username, first_plan_used_at, created_at`,
       [data.name, data.email, data.passwordHash, INITIAL_KARMA],
     );
     return mapUser(row);
@@ -19,7 +19,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, first_plan_used_at, created_at
        FROM users WHERE email = LOWER($1)`,
       [email],
     );
@@ -28,7 +28,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findById(id: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, first_plan_used_at, created_at
        FROM users WHERE user_id = $1`,
       [id],
     );
@@ -37,7 +37,7 @@ export class PgUserRepository implements IUserRepository {
 
   async findByUsername(username: string): Promise<User | null> {
     const { rows: [row] } = await this.pool.query(
-      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, created_at
+      `SELECT user_id, name, email, password_hash, country_of_residence, home_place, username, first_plan_used_at, created_at
        FROM users WHERE username = $1`,
       [username],
     );
@@ -65,12 +65,26 @@ export class PgUserRepository implements IUserRepository {
            username              = COALESCE($7, username),
            home_place            = CASE WHEN $8 THEN NULL ELSE COALESCE($9::jsonb, home_place) END
        WHERE user_id = $1
-       RETURNING user_id, name, email, password_hash, country_of_residence, home_place, username, created_at`,
+       RETURNING user_id, name, email, password_hash, country_of_residence, home_place, username, first_plan_used_at, created_at`,
       [userId, fields.name ?? null, fields.email ?? null, fields.passwordHash ?? null, fields.countryOfResidence ?? null, clearCountry,
        fields.username ?? null, clearHome, fields.homePlace ? JSON.stringify(fields.homePlace) : null],
     );
     if (!row) throw new Error('User not found');
     return mapUser(row);
+  }
+
+  async claimFirstPlan(userId: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE users SET first_plan_used_at = now()
+       WHERE user_id = $1 AND first_plan_used_at IS NULL
+       RETURNING user_id`,
+      [userId],
+    );
+    return rowCount === 1;
+  }
+
+  async releaseFirstPlan(userId: string): Promise<void> {
+    await this.pool.query(`UPDATE users SET first_plan_used_at = NULL WHERE user_id = $1`, [userId]);
   }
 }
 
@@ -83,6 +97,7 @@ function mapUser(row: Record<string, unknown>): User {
     countryOfResidence:  (row.country_of_residence as string | null) ?? null,
     homePlace:           (row.home_place as Place | null) ?? null,
     username:            (row.username as string | null) ?? null,
+    firstPlanUsedAt:     row.first_plan_used_at ? (row.first_plan_used_at as Date).toISOString() : null,
     createdAt:           (row.created_at as Date).toISOString(),
   };
 }

@@ -9,6 +9,7 @@ export interface User {
   countryOfResidence: string | null;
   homePlace: Place | null;              // Feature 74 — home airport/city for trip cost estimates
   username: string | null;              // Feature 22 — opt-in public handle, lowercase
+  firstPlanUsedAt: string | null;       // F79 — NULL = the free first plan is still available
   createdAt: string;
 }
 
