@@ -34,6 +34,9 @@ import { evictUnsharedCaches } from '../middleware/trips/evict-unshared-caches.m
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
+import { makeClaimFirstPlanIfAvailable } from '../middleware/first-plan/claim-first-plan-if-available.middleware';
+import { makeReleaseFirstPlanOnError } from '../middleware/first-plan/release-first-plan-on-error.middleware';
+import { unlessFirstPlan, whenFirstPlan } from '../middleware/first-plan/unless-first-plan';
 import { TRIP_ESTIMATE_RATE_LIMIT } from '../lib/ai-limits';
 import { IPriceEstimateRepository } from '../repositories/interfaces/price-estimate.repository';
 import type { PriceRedis } from '../lib/price-fetcher';
@@ -86,10 +89,13 @@ export function createTripsRouter(
 
   router.post('/',
     validateBody(createTripSchema),
-    karma.requireForTrip,
+    makeClaimFirstPlanIfAvailable(userRepo),          // F79: the first plan is free
+    unlessFirstPlan(karma.requireForTrip),
     trip.create,
-    karma.spendForTripCreated,
+    makeReleaseFirstPlanOnError(userRepo),
+    unlessFirstPlan(karma.spendForTripCreated),
     logCtaEvent('cta_trip_create', req => ({ tripId: req.trip!.id, fromAi: !!req.body.sourceAiPlanRequestId, stopCount: req.body.stops.length })),
+    whenFirstPlan(logCtaEvent('cta_first_plan_saved', req => ({ path: req.body.sourceAiPlanRequestId ? 'ai' : 'manual', tripId: req.trip!.id }))),
     buildTripResponse,
     markEstimateStale,
     respond(201),
