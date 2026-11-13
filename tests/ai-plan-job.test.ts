@@ -283,6 +283,26 @@ describe('runAiPlanJob — first run (F79)', () => {
     expect((await users.findById(userId))!.firstPlanUsedAt).toBeNull();
   });
 
+  it('keeps a saved first plan completed when the ready notification fails', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(notifications, 'add').mockRejectedValueOnce(new Error('notify down'));
+    await run();
+    const [trip] = await trips.findByOwner(userId);
+    expect(await aiPlanRequests.findById('req-fp')).toMatchObject({ status: 'completed', tripId: trip.id });
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_failed')).toBe(false);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
+  it('never marks a saved first plan failed when markCompleted throws after the save', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(aiPlanRequests, 'markCompleted').mockRejectedValueOnce(new Error('db blip'));
+    const markFailed = jest.spyOn(aiPlanRequests, 'markFailed');
+    await run();
+    expect(markFailed).not.toHaveBeenCalled();
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_failed')).toBe(false);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
   it('does not record the ai_plans trophy', async () => {
     jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
     const trophies = { record: jest.fn() } as unknown as TrophyRecorder;

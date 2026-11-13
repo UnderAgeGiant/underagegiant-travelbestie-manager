@@ -117,6 +117,13 @@ describe('POST /ai/first-plan', () => {
     expect(res.body).toEqual({ error: 'first_plan_used' });
   });
 
+  it('400 for a city id longer than 80 chars (cityIdSchema, contracts §5.5)', async () => {
+    const { app, token } = await setup();
+    const res = await request(app).post('/ai/first-plan').set('Authorization', `Bearer ${token}`)
+      .send({ ...body, cities: [{ id: 'a'.repeat(81), name: 'Long' }], duration: 2 });
+    expect(res.status).toBe(400);
+  });
+
   it('400 with 4 cities', async () => {
     const { app, token } = await setup();
     const four = ['a', 'b', 'c', 'd'].map(id => ({ id, name: id.toUpperCase() }));

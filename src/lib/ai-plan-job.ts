@@ -78,8 +78,16 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
     const message = err instanceof Error ? err.message : 'Unknown error generating plan';
     logger.error({ msg: 'AI plan generation failed', requestId, userId, flowId, err: message });
 
-    // F79: a failed first run gives the gift back — unless its trip was already saved.
-    if (firstPlan && !firstPlanSaved.tripId) {
+    // F79: once the first plan's trip exists the run is not a failure — never mark it failed or send
+    // "Puedes intentarlo de nuevo" for a plan the user already has. (ponytail: a markCompleted error
+    // here leaves the row 'pending' without trip_id; the trip is still in Mis viajes.)
+    if (firstPlan && firstPlanSaved.tripId) {
+      logger.error({ msg: 'First-run plan saved but a later step failed', requestId, userId, tripId: firstPlanSaved.tripId, err: message });
+      return;
+    }
+
+    // F79: a failed first run gives the gift back.
+    if (firstPlan) {
       try {
         await deps.users!.releaseFirstPlan(userId);
       } catch (releaseErr) {
@@ -145,11 +153,15 @@ async function completeFirstPlan(
   logger.info({ event: 'cta_first_plan_saved', flowId, userId, path: 'ai', requestId, tripId: trip.id });
   capture(userId, 'cta_first_plan_saved', { path: 'ai', requestId, tripId: trip.id });
 
-  await deps.notifications.add({
-    userId,
-    type:  'ai_plan_ready',
-    title: '🐾 Tu plan está listo',
-    body:  `Tu primer plan "${result.title}" ya está guardado en Mis viajes.`,
-    url:   `/my-trips?tab=trips&focus=${encodeURIComponent(trip.id)}`,
-  });
+  try {
+    await deps.notifications.add({
+      userId,
+      type:  'ai_plan_ready',
+      title: '🐾 Tu plan está listo',
+      body:  `Tu primer plan "${result.title}" ya está guardado en Mis viajes.`,
+      url:   `/my-trips?tab=trips&focus=${encodeURIComponent(trip.id)}`,
+    });
+  } catch (notifyErr) {
+    logger.error({ msg: 'Failed to insert ai_plan_ready notification for a saved first plan', requestId, userId, err: notifyErr });
+  }
 }

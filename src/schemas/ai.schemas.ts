@@ -58,7 +58,7 @@ export const aiPlanSchema = z.object({
 
 // F79 POST /ai/first-plan (contracts §5.5): 1–3 distinct cities, no free text, no karma.
 export const aiFirstPlanSchema = z.object({
-  cities:      z.array(catalogEntrySchema).min(1).max(3)
+  cities:      z.array(z.object({ id: cityIdSchema, name: catalogNameSchema })).min(1).max(3)
     .refine(c => new Set(c.map(x => x.id)).size === c.length, { message: 'cities must be distinct' }),
   duration:    z.number().int().min(1).max(60),
   startDate:   z.string().max(10).optional(),
