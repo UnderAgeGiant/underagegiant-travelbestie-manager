@@ -529,10 +529,10 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
     return { ...record };
   }
 
-  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo): Promise<void> {
+  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo, tripId?: string): Promise<void> {
     const row = this.rows.get(requestId);
     if (!row) return;
-    this.rows.set(requestId, { ...row, status: 'completed', result, changeInfo, completedAt: new Date().toISOString() });
+    this.rows.set(requestId, { ...row, status: 'completed', result, changeInfo, completedAt: new Date().toISOString(), tripId: tripId ?? null });
   }
 
   async markFailed(requestId: string, errorMessage: string): Promise<void> {
@@ -548,7 +548,7 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
 
   async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
     return [...this.rows.values()]
-      .filter(r => r.userId === userId && r.status !== 'pending' && !r.discardedAt)
+      .filter(r => r.userId === userId && r.status !== 'pending' && !r.discardedAt && !r.tripId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map(r => ({ ...r }));
   }

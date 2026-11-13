@@ -6,7 +6,8 @@ const SELECT_COLUMNS = `
   request_id AS "requestId", user_id AS "userId", plan_session_id AS "planSessionId",
   status, karma_charged AS "karmaCharged", request_params AS "requestParams",
   result, change_info AS "changeInfo", error_message AS "errorMessage",
-  created_at AS "createdAt", completed_at AS "completedAt", discarded_at AS "discardedAt"
+  created_at AS "createdAt", completed_at AS "completedAt", discarded_at AS "discardedAt",
+  trip_id AS "tripId"
 `;
 
 interface Row {
@@ -22,6 +23,7 @@ interface Row {
   createdAt: Date | string;
   completedAt: Date | string | null;
   discardedAt: Date | string | null;
+  tripId: string | null;
 }
 
 function mapRow(row: Row): AiPlanRequestRecord {
@@ -38,6 +40,7 @@ function mapRow(row: Row): AiPlanRequestRecord {
     createdAt:     row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     completedAt:   row.completedAt instanceof Date ? row.completedAt.toISOString() : row.completedAt ?? undefined,
     discardedAt:   row.discardedAt instanceof Date ? row.discardedAt.toISOString() : row.discardedAt ?? undefined,
+    tripId:        row.tripId ?? null,
   };
 }
 
@@ -60,12 +63,12 @@ export class PgAiPlanRequestRepository implements IAiPlanRequestRepository {
     return mapRow(row as Row);
   }
 
-  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo): Promise<void> {
+  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo, tripId?: string): Promise<void> {
     await this.pool.query(
       `UPDATE ai_plan_requests
-       SET status = 'completed', result = $2, change_info = $3, completed_at = now()
+       SET status = 'completed', result = $2, change_info = $3, completed_at = now(), trip_id = $4
        WHERE request_id = $1`,
-      [requestId, JSON.stringify(result), JSON.stringify(changeInfo)],
+      [requestId, JSON.stringify(result), JSON.stringify(changeInfo), tripId ?? null],
     );
   }
 
@@ -89,7 +92,7 @@ export class PgAiPlanRequestRepository implements IAiPlanRequestRepository {
   async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
     const { rows } = await this.pool.query(
       `SELECT ${SELECT_COLUMNS} FROM ai_plan_requests
-       WHERE user_id = $1 AND status IN ('completed', 'failed') AND discarded_at IS NULL
+       WHERE user_id = $1 AND status IN ('completed', 'failed') AND discarded_at IS NULL AND trip_id IS NULL
        ORDER BY created_at DESC`,
       [userId],
     );

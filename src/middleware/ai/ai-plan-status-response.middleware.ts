@@ -8,6 +8,7 @@ export function aiPlanStatusResponse(req: Request, _res: Response, next: NextFun
     result:     record.result,
     changeInfo: record.changeInfo,
     error:      record.errorMessage,
+    tripId:     record.tripId ?? null,   // F79 — set only for a completed first-run plan
   };
   next();
 }

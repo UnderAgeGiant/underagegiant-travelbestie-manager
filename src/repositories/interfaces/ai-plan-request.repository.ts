@@ -10,15 +10,15 @@ export interface IAiPlanRequestRepository {
     requestParams: AiPlanRequestParams;
   }): Promise<AiPlanRequestRecord>;
 
-  /** Marks a row 'completed' with the generated plan + change info. */
-  markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo): Promise<void>;
+  /** Marks a row 'completed' with the generated plan + change info; `tripId` only for a first-run job that saved the trip itself (F79). */
+  markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo, tripId?: string): Promise<void>;
 
   /** Marks a row 'failed' with the error message. */
   markFailed(requestId: string, errorMessage: string): Promise<void>;
 
   findById(requestId: string): Promise<AiPlanRequestRecord | null>;
 
-  /** completed + failed rows only (pending rows belong on the live poll, not history), newest first. */
+  /** completed + failed rows only (pending rows belong on the live poll, not history), newest first. Rows with a trip_id (already saved first-run plans, F79) are excluded. */
   listByUser(userId: string): Promise<AiPlanRequestRecord[]>;
 
   /** Permanently removes one request row — called after a successful save (Step 3's "Guardar"), when a fresh generation supersedes a previously-tracked one, or when "↩ Volver a empezar" abandons the current result (Tasks 31–33 above). Scoped to userId as a defense-in-depth check; the route chain's checkAiPlanRequestOwnership already 404s before this runs, so this should never actually reject in practice. Never called on a 'failed' row — see discard() below. */

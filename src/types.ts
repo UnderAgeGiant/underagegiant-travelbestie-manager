@@ -489,6 +489,7 @@ export interface AiPlanRequestRecord {
   createdAt:      string;
   completedAt?:   string;
   discardedAt?:   string;
+  tripId?:        string | null;   // F79 — the trip a first-run job saved; null for normal runs
 }
 
 export interface StepComment {
