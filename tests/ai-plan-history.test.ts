@@ -52,17 +52,19 @@ const MOCK_OPTION = {
 };
 
 let karmaRepo: StubKarmaRepository;
+let aiPlanRequests: StubAiPlanRequestRepository;
 
 function buildApp() {
   const app = express();
   app.use(express.json());
   karmaRepo = new StubKarmaRepository();
+  aiPlanRequests = new StubAiPlanRequestRepository();
   app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
   app.use('/ai',   createAiRouter(
     new AiController(),
     new KarmaController(karmaRepo),
     karmaRepo,
-    new StubAiPlanRequestRepository(),
+    aiPlanRequests,
     new StubNotificationRepository(),
   ));
   app.use(errorHandler);
@@ -142,5 +144,38 @@ describe('GET /ai/plan/history', () => {
     const res = await request(app).get('/ai/plan/history').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
+  });
+});
+
+describe('ai_plan_requests.trip_id (F79)', () => {
+  let app: express.Express;
+  let token: string;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    deepseekMock.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ title: 'Mi Plan', stops: [], transits: [] }) } }],
+    });
+    app   = buildApp();
+    token = await getToken(app);
+  });
+
+  it('status response carries tripId null for a normal run', async () => {
+    const kickoff = await request(app).post('/ai/plan').set('Authorization', `Bearer ${token}`).send(planBody());
+    const done = await pollUntilDone(app, token, kickoff.body.requestId);
+    expect(done.body).toMatchObject({ status: 'completed', tripId: null });
+  });
+
+  it('status carries tripId after markCompleted(..., tripId), and history excludes that row', async () => {
+    const kickoff = await request(app).post('/ai/plan').set('Authorization', `Bearer ${token}`).send(planBody());
+    const done = await pollUntilDone(app, token, kickoff.body.requestId);
+    const tripId = '22222222-2222-4222-8222-222222222222';
+    await aiPlanRequests.markCompleted(kickoff.body.requestId, done.body.result, done.body.changeInfo, tripId);
+
+    const status = await request(app).get(`/ai/plan/${kickoff.body.requestId}/status`).set('Authorization', `Bearer ${token}`);
+    expect(status.body.tripId).toBe(tripId);
+
+    const history = await request(app).get('/ai/plan/history').set('Authorization', `Bearer ${token}`);
+    expect(history.body).toEqual([]);
   });
 });

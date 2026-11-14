@@ -9,6 +9,7 @@ export interface User {
   countryOfResidence: string | null;
   homePlace: Place | null;              // Feature 74 — home airport/city for trip cost estimates
   username: string | null;              // Feature 22 — opt-in public handle, lowercase
+  firstPlanUsedAt: string | null;       // F79 — NULL = the free first plan is still available
   createdAt: string;
 }
 
@@ -435,6 +436,7 @@ export interface PlanSessionOptions {
   duration:                 number;  // 0 when not specified
   budget:                   string;  // '' when not specified
   startDate:                string;  // '' when not specified
+  cityIds:                  string[]; // F79 cities mode; [] in free-text mode (and in sessions stored before F79)
 }
 
 export interface PlanChangeInfo {
@@ -470,6 +472,8 @@ export interface AiPlanRequestParams {
   duration?:      number;
   budget?:        string;
   startDate?:     string;
+  cityIds?:       string[];  // F79 cities mode
+  firstRun?:      boolean;   // F79 — set on POST /ai/first-plan rows
 }
 
 export interface AiPlanRequestRecord {
@@ -485,6 +489,7 @@ export interface AiPlanRequestRecord {
   createdAt:      string;
   completedAt?:   string;
   discardedAt?:   string;
+  tripId?:        string | null;   // F79 — the trip a first-run job saved; null for normal runs
 }
 
 export interface StepComment {
@@ -539,6 +544,8 @@ declare global {
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
       itineraryContext?: import('./lib/itinerary/types').ItineraryContext;   // set by load-itinerary-context.middleware.ts (F78)
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
+      karmaCharged?: number;       // Tokens this request spent (KarmaController.spendFor); refund handlers read it
+      firstPlanClaimed?: boolean;  // F79 — set by claim-first-plan-if-available / require-first-plan-claim
       karmaEventsQuery?: { cursor: import('./lib/karma-events-cursor').KarmaEventsCursor | null; limit: number };
       feedQuery?: { cursor: import('./lib/feed-cursor').FeedCursor | null; limit: number };
     }

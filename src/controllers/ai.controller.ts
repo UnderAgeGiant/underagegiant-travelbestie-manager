@@ -4,6 +4,7 @@ import * as path from 'path';
 import { deepseekClient } from '../lib/deepseek';
 import { logAiUsage } from '../lib/ai-usage';
 import { AI_MAX_TOKENS } from '../lib/ai-limits';
+import { suggestPromptPreferences } from '../lib/suggest-cities';
 import { sanitizeSuggestOutput, sanitizePlanOutput, hasValidReason, clampReason, parseCompletionJson } from '../lib/ai-output';
 import { SuggestTripsResponse, PlanTripResponse, CityCatalog, CatalogEntry, SuggestCityAttractionsResponse, CompanionSuggestion } from '../types';
 import type { AiSuggestBody, AiPlanBody, AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
@@ -93,13 +94,13 @@ function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: strin
 export class AiController {
   suggest = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { preferences, duration, budget, cityIndex } = req.body as AiSuggestBody;
+      const { duration, budget, cityIndex } = req.body as AiSuggestBody;
 
       const prompts = loadPrompts();
       const systemPrompt = prompts.suggest.system;
 
       const userMessage = fillTemplate(prompts.suggest.userTemplate, {
-        preferences,
+        preferences: suggestPromptPreferences(req.body as AiSuggestBody),
         duration: duration != null ? String(duration) : 'not specified',
         budget:   budget ?? 'not specified',
         cityIndexBlock: buildCityIndexBlock(cityIndex),
@@ -108,6 +109,9 @@ export class AiController {
       const completion = await deepseekClient.chat.completions.create({
         model: AI_MODEL,
         max_tokens: AI_MAX_TOKENS.suggest,
+        // Reasoning tokens count against max_tokens and ran away to the 8000 cap on a 5-city request (R3-B1);
+        // the JSON itself is ~1k tokens. DeepSeek-specific param, not in the OpenAI SDK types.
+        ...({ thinking: { type: 'disabled' } } as object),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
@@ -137,7 +141,7 @@ export class AiController {
       selectedOptionTitle:      selectedOption.title,
       selectedOptionSummary:    selectedOption.summary,
       selectedOptionHighlights: selectedOption.highlights.join(', '),
-      preferences,
+      preferences: preferences || 'not specified',   // optional in cities mode (F79)
       duration:  duration != null ? String(duration) : 'not specified',
       budget:    budget ?? 'not specified',
       startDate: startDate ?? 'not specified',

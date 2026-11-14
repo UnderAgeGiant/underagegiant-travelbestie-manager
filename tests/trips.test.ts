@@ -152,6 +152,8 @@ describe('POST /trips', () => {
   it('charges exactly one karma event, reason trip_created, refId = new trip id (regression: previously double-charged with a bogus itinerary_exported event)', async () => {
     const { app, karmaRepo } = buildApp();
     const token = await getToken(app);
+    await request(app).post('/trips').set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Free first plan (F79)', stops: [], transits: [] });
     const res = await request(app).post('/trips')
       .set('Authorization', `Bearer ${token}`)
       .send({ title: 'Single Charge Trip', stops: [], transits: [] });
@@ -212,7 +214,10 @@ describe('trip analytics events', () => {
 
   it('POST /trips with 0 karma does not capture cta_trip_create', async () => {
     const { app } = buildApp(0);
-    const res = await request(app).post('/trips').set('Authorization', `Bearer ${await getToken(app)}`).send(body);
+    const token = await getToken(app);
+    await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send(body);   // free first plan (F79)
+    (capture as jest.Mock).mockClear();
+    const res = await request(app).post('/trips').set('Authorization', `Bearer ${token}`).send(body);
     expect(res.status).toBe(402);
     expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_trip_create', expect.anything());
   });

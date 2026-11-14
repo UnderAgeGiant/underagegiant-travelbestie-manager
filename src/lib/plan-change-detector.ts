@@ -17,6 +17,7 @@ export function serializeOptions(opts: PlanSessionOptions): string {
     duration:   opts.duration,
     budget:     opts.budget.trim().toLowerCase(),
     startDate:  opts.startDate.trim(),
+    cityIds:    [...(opts.cityIds ?? [])].sort(),   // F79 — last key, ids already lowercase
   });
 }
 
@@ -38,25 +39,37 @@ export function computeChangeRatio(
 
 /** Returns true when the change ratio is within the allowed free-change threshold. */
 export function isMinorChange(oldOpts: PlanSessionOptions, newOpts: PlanSessionOptions): boolean {
+  // F79: a session stored before cities mode has no cityIds — compare it as [].
+  const a = new Set(oldOpts.cityIds ?? []);
+  const b = new Set(newOpts.cityIds ?? []);
+  if ((a.size > 0) !== (b.size > 0)) return false;   // switching cities ↔ free text is always major
+  if (a.size > 0) {
+    // City ids are diluted in the serialized string, so judge the city set on its own.
+    const size = Math.max(a.size, b.size);
+    const kept = [...a].filter(id => b.has(id)).length;
+    if ((size - kept) / size > CHANGE_THRESHOLD) return false;
+  }
   return computeChangeRatio(oldOpts, newOpts) <= CHANGE_THRESHOLD;
 }
 
 /** Extracts PlanSessionOptions from a raw /ai/plan request body. */
 export function toSessionOptions(body: {
   selectedOption: TripSuggestion;
-  preferences:    string;
+  preferences?:   string;          // optional in cities mode (F79)
   duration?:      number;
   budget?:        string;
   startDate?:     string;
+  cityIds?:       string[];
 }): PlanSessionOptions {
   return {
     selectedOptionTitle:      body.selectedOption.title,
     selectedOptionSummary:    body.selectedOption.summary,
     selectedOptionHighlights: body.selectedOption.highlights,
-    preferences:              body.preferences,
+    preferences:              body.preferences ?? '',
     duration:                 body.duration ?? 0,
     budget:                   body.budget ?? '',
     startDate:                body.startDate ?? '',
+    cityIds:                  body.cityIds ?? [],
   };
 }
 

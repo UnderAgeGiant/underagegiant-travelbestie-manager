@@ -31,11 +31,11 @@ import { capture, alias } from '../src/lib/analytics';
 
 const mockValidateAndRotate = validateAndRotate as jest.MockedFunction<typeof validateAndRotate>;
 
-function buildApp() {
+function buildApp(users = new StubUserRepository()) {
   const app = express();
   app.use(cookieParser());
   app.use(express.json());
-  app.use('/auth', createAuthRouter(new UserController(new StubUserRepository()), new StubHighlightRepository()));
+  app.use('/auth', createAuthRouter(new UserController(users), new StubHighlightRepository()));
   app.use(errorHandler);
   return app;
 }
@@ -51,6 +51,7 @@ describe('POST /auth/register', () => {
     expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(res.body.user.name).toBe('Ana');
     expect(res.body.user.passwordHash).toBeUndefined();
+    expect(res.body.user.firstPlanAvailable).toBe(true);
   });
 
   it('returns 400 when email already taken', async () => {
@@ -100,6 +101,29 @@ describe('POST /auth/login', () => {
   });
 });
 
+describe('firstPlanAvailable (F79)', () => {
+  it('login returns firstPlanAvailable === false when the user has firstPlanUsedAt set', async () => {
+    const users = new StubUserRepository();
+    const app = buildApp(users);
+    await request(app).post('/auth/register').send({ name: 'Ana', email: 'ana@test.com', password: 'secret123', otp: '123456' });
+    const user = (await users.findByEmail('ana@test.com'))!;
+    expect(await users.claimFirstPlan(user.id)).toBe(true);
+    const res = await request(app).post('/auth/login').send({ email: 'ana@test.com', password: 'secret123' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.firstPlanAvailable).toBe(false);
+  });
+
+  it('claimFirstPlan returns true once, false after; releaseFirstPlan makes it available again', async () => {
+    const users = new StubUserRepository();
+    const user = await users.create({ name: 'A', email: 'a@x.com', passwordHash: 'h' });
+    expect(user.firstPlanUsedAt).toBeNull();
+    expect(await users.claimFirstPlan(user.id)).toBe(true);
+    expect(await users.claimFirstPlan(user.id)).toBe(false);
+    await users.releaseFirstPlan(user.id);
+    expect(await users.claimFirstPlan(user.id)).toBe(true);
+  });
+});
+
 describe('POST /auth/refresh', () => {
   it('returns 401 when no refresh cookie is present', async () => {
     const res = await request(buildApp()).post('/auth/refresh').send({});
@@ -132,6 +156,7 @@ describe('POST /auth/refresh', () => {
     expect(res.body.refreshToken).toBeUndefined();
     expect(res.headers['set-cookie'][0]).toContain('tb_refresh_token=rotated-raw-token');
     expect(res.body.user.name).toBe('Ana');
+    expect(res.body.user.firstPlanAvailable).toBe(true);
     expect(capture).toHaveBeenCalledWith(userId, 'user_active', {});
   });
 });

@@ -1,6 +1,6 @@
 import { runAiPlanJob } from '../src/lib/ai-plan-job';
 import { AiController } from '../src/controllers/ai.controller';
-import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepository, StubTrophyRepository } from './helpers/stubs';
+import { StubAiPlanRequestRepository, StubKarmaRepository, StubNotificationRepository, StubTrophyRepository, StubUserRepository, StubTripRepository } from './helpers/stubs';
 import { PlanChangeResult } from '../src/types';
 import { AiPlanBody } from '../src/schemas/ai.schemas';
 import { TrophyRecorder } from '../src/lib/trophy-recorder';
@@ -46,7 +46,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
 
@@ -75,7 +75,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-2', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = { type: 'new_session' };
 
@@ -104,11 +104,11 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-3', userId: 'u1', planSessionId: 'session-1', karmaCharged: 0,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     const planChangeResult: PlanChangeResult = {
       type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2,
-      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' },
+      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] },
     };
 
     await runAiPlanJob(
@@ -129,7 +129,7 @@ describe('runAiPlanJob', () => {
     const body = makeBody();
     const record = await aiPlanRequests.insert({
       requestId: 'req-t1', userId: 'u1', planSessionId: 'session-1', karmaCharged: 1,
-      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate },
+      requestParams: { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate },
     });
     await runAiPlanJob(
       { ai, aiPlanRequests, karma, notifications, trophies },
@@ -142,12 +142,12 @@ describe('runAiPlanJob', () => {
     const trophyRepo = new StubTrophyRepository();
     const trophies = new TrophyRecorder(trophyRepo, notifications);
     const body = makeBody();
-    const params = { selectedOption: body.selectedOption, preferences: body.preferences, duration: body.duration, budget: body.budget, startDate: body.startDate };
+    const params = { selectedOption: body.selectedOption, preferences: body.preferences ?? '', duration: body.duration, budget: body.budget, startDate: body.startDate };
 
     jest.spyOn(ai, 'generatePlan').mockResolvedValueOnce({ title: 'P', stops: [], transits: [] });
     await aiPlanRequests.insert({ requestId: 'free', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
     await runAiPlanJob({ ai, aiPlanRequests, karma, notifications, trophies },
-      { requestId: 'free', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2, originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' } } as any, karmaCharged: 0 });
+      { requestId: 'free', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'free_change', freeChangesUsed: 0, freeChangesRemaining: 2, originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] } } as any, karmaCharged: 0 });
 
     jest.spyOn(ai, 'generatePlan').mockRejectedValueOnce(new Error('boom'));
     await aiPlanRequests.insert({ requestId: 'fail', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
@@ -159,7 +159,7 @@ describe('runAiPlanJob', () => {
 });
 
 describe('runAiPlanJob analytics', () => {
-  const params = { selectedOption: makeBody().selectedOption, preferences: 'p', duration: 1, budget: '', startDate: '' };
+  const params = { selectedOption: makeBody().selectedOption, preferences: 'p', duration: 1, budget: '', startDate: '', cityIds: [] };
   let aiPlanRequests: StubAiPlanRequestRepository;
   let ai: AiController;
   const run = (requestId: string, karmaCharged: number) => runAiPlanJob(
@@ -194,5 +194,134 @@ describe('runAiPlanJob analytics', () => {
     await aiPlanRequests.insert({ requestId: 'a3', userId: 'u1', planSessionId: 's', karmaCharged: 0, requestParams: params });
     await run('a3', 0);
     expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan_failed', { requestId: 'a3', refunded: false });
+  });
+});
+
+describe('runAiPlanJob — first run (F79)', () => {
+  let aiPlanRequests: StubAiPlanRequestRepository;
+  let karma: StubKarmaRepository;
+  let notifications: StubNotificationRepository;
+  let users: StubUserRepository;
+  let trips: StubTripRepository;
+  let ai: AiController;
+  let userId: string;
+
+  const stop = (cityId: string) => ({ cityId, checkIn: '01/07/2026', checkOut: '03/07/2026', selectedAttractions: [] });
+  const body = makeBody({
+    selectedOption: { id: 0, title: 'Viaje a Paris', summary: 'Itinerario de 3 días por Paris', highlights: ['Paris'], cityIds: ['paris'] },
+    planSessionId: undefined, budget: undefined,
+  });
+
+  async function run() {
+    await aiPlanRequests.insert({ requestId: 'req-fp', userId, planSessionId: '', karmaCharged: 0,
+      requestParams: { selectedOption: body.selectedOption, preferences: '', cityIds: ['paris'], firstRun: true } });
+    await runAiPlanJob(
+      { ai, aiPlanRequests, karma, notifications, users, trips, trophies: { record: jest.fn() } as unknown as TrophyRecorder },
+      { requestId: 'req-fp', userId, flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 0, firstPlan: { cityIds: ['paris'] } },
+    );
+  }
+
+  beforeEach(async () => {
+    (capture as jest.Mock).mockClear();
+    aiPlanRequests = new StubAiPlanRequestRepository();
+    karma = new StubKarmaRepository();
+    notifications = new StubNotificationRepository();
+    users = new StubUserRepository();
+    trips = new StubTripRepository();
+    ai = new AiController();
+    userId = (await users.create({ name: 'A', email: 'a@x.com', passwordHash: 'h' })).id;
+    await users.claimFirstPlan(userId);
+  });
+
+  it('creates the trip and marks the row with its id; notification points at the trip', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'Paris 3 días', stops: [stop('paris')], transits: [] });
+    await run();
+    const saved = await trips.findByOwner(userId);
+    expect(saved).toHaveLength(1);
+    const row = await aiPlanRequests.findById('req-fp');
+    expect(row).toMatchObject({ status: 'completed', tripId: saved[0].id });
+    const [n] = await notifications.listByUser(userId);
+    expect(n).toMatchObject({ type: 'ai_plan_ready', url: `/my-trips?tab=trips&focus=${saved[0].id}` });
+    expect(n.body).toBe('Tu primer plan "Paris 3 días" ya está guardado en Mis viajes.');
+    expect(capture).toHaveBeenCalledWith(userId, 'cta_first_plan_saved', { path: 'ai', requestId: 'req-fp', tripId: saved[0].id });
+    expect(capture).not.toHaveBeenCalledWith(userId, 'cta_ai_plan', expect.anything());
+  });
+
+  it('records the source request on the trip', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    const create = jest.spyOn(trips, 'create');
+    await run();
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ ownerId: userId, sourceAiPlanRequestId: 'req-fp', title: 'P' }));
+  });
+
+  it('drops stops outside cities', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({
+      title: 'P', stops: [stop('paris'), stop('tokyo')],
+      transits: [{ fromCityId: 'paris', toCityId: 'tokyo', segments: [] }],
+    });
+    await run();
+    const [trip] = await trips.findByOwner(userId);
+    expect(trip.stops.map(s => s.cityId)).toEqual(['paris']);
+    expect(trip.transits).toEqual([]);
+  });
+
+  it('returns the gift when no stop survives', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('tokyo')], transits: [] });
+    await run();
+    expect((await aiPlanRequests.findById('req-fp'))!.status).toBe('failed');
+    expect((await users.findById(userId))!.firstPlanUsedAt).toBeNull();
+    expect(await trips.findByOwner(userId)).toEqual([]);
+    expect(karma.awarded).toEqual([]);
+    const [n] = await notifications.listByUser(userId);
+    expect(n.type).toBe('ai_plan_failed');
+    expect(n.body).toContain('Puedes intentarlo de nuevo');
+  });
+
+  it('returns the gift when the model call fails', async () => {
+    jest.spyOn(ai, 'generatePlan').mockRejectedValue(new Error('DeepSeek down'));
+    await run();
+    expect((await users.findById(userId))!.firstPlanUsedAt).toBeNull();
+  });
+
+  it('keeps a saved first plan completed when the ready notification fails', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(notifications, 'add').mockRejectedValueOnce(new Error('notify down'));
+    await run();
+    const [trip] = await trips.findByOwner(userId);
+    expect(await aiPlanRequests.findById('req-fp')).toMatchObject({ status: 'completed', tripId: trip.id });
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_failed')).toBe(false);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
+  it('retries markCompleted once after the save, so the row ends completed with its tripId', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(aiPlanRequests, 'markCompleted').mockRejectedValueOnce(new Error('db blip'));
+    await run();
+    const [trip] = await trips.findByOwner(userId);
+    expect(await aiPlanRequests.findById('req-fp')).toMatchObject({ status: 'completed', tripId: trip.id });
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_ready')).toBe(true);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
+  it('never marks a saved first plan failed when markCompleted throws twice after the save', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(aiPlanRequests, 'markCompleted').mockRejectedValue(new Error('db down'));
+    const markFailed = jest.spyOn(aiPlanRequests, 'markFailed');
+    await run();
+    expect(markFailed).not.toHaveBeenCalled();
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_failed')).toBe(false);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
+  it('does not record the ai_plans trophy', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    const trophies = { record: jest.fn() } as unknown as TrophyRecorder;
+    await aiPlanRequests.insert({ requestId: 'req-fp', userId, planSessionId: '', karmaCharged: 0,
+      requestParams: { selectedOption: body.selectedOption, preferences: '' } });
+    await runAiPlanJob(
+      { ai, aiPlanRequests, karma, notifications, users, trips, trophies },
+      { requestId: 'req-fp', userId, flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 0, firstPlan: { cityIds: ['paris'] } },
+    );
+    expect(trophies.record).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import {
   loadSuggestHistory, loadSuggestQueue, saveSuggestQueue, suggestInputsHash, takeSuggestionPage, restrictToMentionedCities,
 } from '../../lib/suggest-history';
 import { SUGGEST_PAGE_SIZE } from '../../lib/ai-limits';
+import { restrictToCities } from '../../lib/suggest-cities';
 import type { AiSuggestBody } from '../../schemas/ai.schemas';
 import type { SuggestTripsResponse } from '../../types';
 
@@ -38,7 +39,9 @@ export function unlessServedFromQueue(fn: RequestHandler): RequestHandler {
 /** After a fresh ai.suggest: keep only options inside the cities the traveler named, show the first unseen page, queue the unseen rest. */
 export const takeFreshSuggestionPageMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const body = req.body as AiSuggestBody;
-  const inScope = restrictToMentionedCities((req.result as SuggestTripsResponse).options, body.preferences, body.cityIndex);
+  const fresh = (req.result as SuggestTripsResponse).options;
+  const chosen = body.cityIds?.length ? restrictToCities(fresh, body.cityIds) : fresh;   // F79 cities mode
+  const inScope = restrictToMentionedCities(chosen, body.preferences ?? '', body.cityIndex);
   const { page, rest } = takeSuggestionPage(inScope, req.suggestHistory ?? [], SUGGEST_PAGE_SIZE);
   req.result = { options: page };
   if (body.planSessionId) {

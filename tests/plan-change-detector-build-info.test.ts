@@ -12,7 +12,7 @@ describe('buildPlanChangeInfo', () => {
   it('increments freeChangesUsed by one for a free_change', () => {
     const result: PlanChangeResult = {
       type: 'free_change', freeChangesUsed: 1, freeChangesRemaining: 1,
-      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' },
+      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] },
     };
     expect(buildPlanChangeInfo(result)).toEqual({
       type: 'free_change', freeChangesUsed: 2, freeChangesRemaining: 1,
@@ -22,7 +22,7 @@ describe('buildPlanChangeInfo', () => {
   it('zeroes freeChangesRemaining and carries the reason for a charged_change', () => {
     const result: PlanChangeResult = {
       type: 'charged_change', reason: 'major_change', freeChangesUsed: 3,
-      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '' },
+      originalOptions: { selectedOptionTitle: 't', selectedOptionSummary: 's', selectedOptionHighlights: [], preferences: 'p', duration: 0, budget: '', startDate: '', cityIds: [] },
     };
     expect(buildPlanChangeInfo(result)).toEqual({
       type: 'charged_change', freeChangesUsed: 3, freeChangesRemaining: 0, reason: 'major_change',

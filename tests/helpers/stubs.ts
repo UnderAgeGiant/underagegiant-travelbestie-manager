@@ -34,7 +34,7 @@ export class StubUserRepository implements IUserRepository {
   }
 
   async create(data: { name: string; email: string; passwordHash: string }): Promise<User> {
-    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, homePlace: null, username: null, createdAt: new Date().toISOString() };
+    const user: User = { id: randomUUID(), ...data, email: data.email.toLowerCase(), countryOfResidence: null, homePlace: null, username: null, firstPlanUsedAt: null, createdAt: new Date().toISOString() };
     this.byEmail.set(user.email, user);
     this.byId.set(user.id, user);
     return user;
@@ -69,6 +69,18 @@ export class StubUserRepository implements IUserRepository {
     if (fields.countryOfResidence !== undefined) user.countryOfResidence = fields.countryOfResidence;
     if (fields.homePlace !== undefined) user.homePlace = fields.homePlace;
     return { ...user };
+  }
+
+  async claimFirstPlan(userId: string): Promise<boolean> {
+    const user = this.byId.get(userId);
+    if (!user || user.firstPlanUsedAt) return false;
+    user.firstPlanUsedAt = new Date().toISOString();
+    return true;
+  }
+
+  async releaseFirstPlan(userId: string): Promise<void> {
+    const user = this.byId.get(userId);
+    if (user) user.firstPlanUsedAt = null;
   }
 }
 
@@ -517,10 +529,10 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
     return { ...record };
   }
 
-  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo): Promise<void> {
+  async markCompleted(requestId: string, result: PlanTripResponse, changeInfo: PlanChangeInfo, tripId?: string): Promise<void> {
     const row = this.rows.get(requestId);
     if (!row) return;
-    this.rows.set(requestId, { ...row, status: 'completed', result, changeInfo, completedAt: new Date().toISOString() });
+    this.rows.set(requestId, { ...row, status: 'completed', result, changeInfo, completedAt: new Date().toISOString(), tripId: tripId ?? null });
   }
 
   async markFailed(requestId: string, errorMessage: string): Promise<void> {
@@ -536,7 +548,7 @@ export class StubAiPlanRequestRepository implements IAiPlanRequestRepository {
 
   async listByUser(userId: string): Promise<AiPlanRequestRecord[]> {
     return [...this.rows.values()]
-      .filter(r => r.userId === userId && r.status !== 'pending' && !r.discardedAt)
+      .filter(r => r.userId === userId && r.status !== 'pending' && !r.discardedAt && !r.tripId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map(r => ({ ...r }));
   }

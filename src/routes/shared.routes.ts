@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, RequestHandler, ErrorRequestHandler } from 'express';
 import { TripController } from '../controllers/trip.controller';
 import { KarmaController } from '../controllers/karma.controller';
 import { IFavoriteRepository } from '../repositories/interfaces/favorite.repository.interface';
@@ -19,6 +19,10 @@ import { makeNotifyClone } from '../middleware/notifications/notify-clone.middle
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
 import { logCtaEvent } from '../lib/log-event';
+import { IUserRepository } from '../repositories/interfaces/user.repository';
+import { makeClaimFirstPlanIfAvailable } from '../middleware/first-plan/claim-first-plan-if-available.middleware';
+import { makeReleaseFirstPlanOnError } from '../middleware/first-plan/release-first-plan-on-error.middleware';
+import { unlessFirstPlan, whenFirstPlan } from '../middleware/first-plan/unless-first-plan';
 
 export function createSharedRouter(
   trip: TripController,
@@ -26,8 +30,12 @@ export function createSharedRouter(
   favoriteRepo: IFavoriteRepository,
   notificationRepo: INotificationRepository,
   trophies?: TrophyRecorder,
+  // F79. Optional only because it follows `trophies`; without it nobody claims the gift and the clone is paid.
+  userRepo?: IUserRepository,
 ): Router {
   const router = Router();
+  const claimFirstPlan: RequestHandler = userRepo ? makeClaimFirstPlanIfAvailable(userRepo) : (_req, _res, next) => next();
+  const releaseFirstPlanOnError: ErrorRequestHandler = userRepo ? makeReleaseFirstPlanOnError(userRepo) : (err, _req, _res, next) => next(err);
   const favoriteToggle     = makeFavoriteToggle(favoriteRepo);
   const attachFavoriteMeta = makeAttachFavoriteMeta(favoriteRepo);
   const notifyFavorite     = makeNotifyFavorite(notificationRepo);
@@ -55,11 +63,14 @@ export function createSharedRouter(
     trip.findByShareId,
     captureSharedTripMeta,
     prepareSharedClone,
-    karma.requireForTrip,
+    claimFirstPlan,
+    unlessFirstPlan(karma.requireForTrip),
     trip.create,
-    karma.spendForTripCreated,
+    releaseFirstPlanOnError,
+    unlessFirstPlan(karma.spendForTripCreated),
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
+    whenFirstPlan(logCtaEvent('cta_first_plan_saved', req => ({ path: req.query.source === 'featured' ? 'featured_copy' : 'shared_copy', tripId: req.trip!.id }))),
     notifyClone,
     makeRecordTrophy(trophies, 'clones', cloneTarget),
     respond(201),

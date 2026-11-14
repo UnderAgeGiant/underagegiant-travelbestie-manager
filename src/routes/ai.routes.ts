@@ -5,10 +5,13 @@ import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
 import { ITrophyRepository } from '../repositories/interfaces/trophy.repository';
+import { IUserRepository } from '../repositories/interfaces/user.repository';
+import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TrophyRecorder } from '../lib/trophy-recorder';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
-import { aiSuggestSchema, aiPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
+import { aiSuggestSchema, aiPlanSchema, aiFirstPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
+import type { AiFirstPlanBody } from '../schemas/ai.schemas';
 import type { AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 import type { CompanionSuggestion } from '../types';
 import { respond }         from '../middleware/respond.middleware';
@@ -16,6 +19,9 @@ import { checkPlanChange }                  from '../middleware/ai/check-plan-ch
 import { generateAiPlanRequestId }          from '../middleware/ai/generate-ai-plan-request-id.middleware';
 import { createChargeAiPlanMiddleware }     from '../middleware/ai/charge-ai-plan.middleware';
 import { createKickoffAiPlanMiddleware }    from '../middleware/ai/kickoff-ai-plan.middleware';
+import { createKickoffFirstPlanMiddleware } from '../middleware/ai/kickoff-first-plan.middleware';
+import { makeRequireFirstPlanClaim }        from '../middleware/first-plan/require-first-plan-claim.middleware';
+import { makeReleaseFirstPlanOnError }      from '../middleware/first-plan/release-first-plan-on-error.middleware';
 import { makeFindAiPlanRequest }        from '../middleware/ai/find-ai-plan-request.middleware';
 import { checkAiPlanRequestOwnership }  from '../middleware/ai/check-ai-plan-request-ownership.middleware';
 import { aiPlanStatusResponse }         from '../middleware/ai/ai-plan-status-response.middleware';
@@ -30,6 +36,7 @@ import {
 } from '../lib/ai-limits';
 import { logCtaEvent } from '../lib/log-event';
 import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
+import { makeRefundAiSuggestOnError } from '../middleware/ai/refund-ai-suggest-on-error.middleware';
 import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
 import {
   loadSuggestHistoryMiddleware, serveQueuedSuggestionsMiddleware, unlessServedFromQueue, takeFreshSuggestionPageMiddleware,
@@ -43,6 +50,9 @@ export function createAiRouter(
   notifications: INotificationRepository,
   trophies?:     TrophyRecorder,
   trophyRepo?:   ITrophyRepository,
+  // F79 POST /ai/first-plan; optional so older test call sites keep working (the route is then not mounted).
+  userRepo?:     IUserRepository,
+  tripRepo?:     ITripRepository,
 ): Router {
   const router = Router();
 
@@ -57,6 +67,8 @@ export function createAiRouter(
     getKey:        req => req.user!.userId,
   });
 
+  const refundAiSuggestOnError = makeRefundAiSuggestOnError(karmaRepo);
+
   router.post('/suggest',
     validateBody(aiSuggestSchema),
     perUserAiLimit('suggest', AI_SUGGEST_RATE_LIMIT),
@@ -68,6 +80,7 @@ export function createAiRouter(
     unlessServedFromQueue(ai.suggest),
     unlessServedFromQueue(takeFreshSuggestionPageMiddleware),
     storeSuggestedOptionsMiddleware,
+    refundAiSuggestOnError,
     logCtaEvent('cta_ai_suggest', req => ({
       karmaSpent: req.suggestServedFromQueue ? 0 : KARMA_COST_AI_SUGGEST,
       fromQueue:  !!req.suggestServedFromQueue,
@@ -98,6 +111,23 @@ export function createAiRouter(
     kickoffAiPlan,                     // inserts 'pending' row using the same id, schedules the background job
     respond(202),
   );
+
+  // F79: free one-step first plan, saved by the background job (contracts §5.5). No karma anywhere.
+  if (userRepo && tripRepo) {
+    router.post('/first-plan',
+      validateBody(aiFirstPlanSchema),
+      perUserAiLimit('plan', AI_PLAN_RATE_LIMIT),   // shares rl:ai-plan with /ai/plan
+      makeRequireFirstPlanClaim(userRepo),           // 409 first_plan_used
+      generateAiPlanRequestId,
+      createKickoffFirstPlanMiddleware(ai, karmaRepo, userRepo, tripRepo, aiPlanRequests, notifications),
+      makeReleaseFirstPlanOnError(userRepo),         // a failed row INSERT must not keep the gift
+      logCtaEvent('cta_first_plan_ai_started', req => {
+        const body = req.body as AiFirstPlanBody;
+        return { requestId: req.aiPlanRequestId, cityIds: body.cities.map(c => c.id), duration: body.duration };
+      }),
+      respond(202),
+    );
+  }
 
   // Registered before the /:requestId route below — Express matches by full
   // path shape, not registration order, but 'history' as a literal segment

@@ -2,6 +2,8 @@ import { AiController } from '../controllers/ai.controller';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
+import { IUserRepository } from '../repositories/interfaces/user.repository';
+import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { AiPlanBody } from '../schemas/ai.schemas';
 import { PlanChangeResult } from '../types';
 import { buildPlanChangeInfo, toSessionOptions } from './plan-change-detector';
@@ -9,6 +11,7 @@ import { writePlanSession } from './plan-session-store';
 import { logger } from './logger';
 import { capture } from './analytics';
 import { TrophyRecorder } from './trophy-recorder';
+import { restrictPlanToCities } from './ai-output';
 
 export interface AiPlanJobDeps {
   ai:            AiController;
@@ -16,6 +19,8 @@ export interface AiPlanJobDeps {
   karma:         IKarmaRepository;
   notifications: INotificationRepository;
   trophies?:     TrophyRecorder;
+  users?:        IUserRepository;   // F79 first run only (release the gift on failure)
+  trips?:        ITripRepository;   // F79 first run only (the job saves the trip)
 }
 
 export interface AiPlanJobParams {
@@ -25,6 +30,8 @@ export interface AiPlanJobParams {
   body:             AiPlanBody;
   planChangeResult: PlanChangeResult;
   karmaCharged:     number;
+  /** F79 POST /ai/first-plan: save the trip server-side, keep only these cities, return the gift on failure. */
+  firstPlan?:       { cityIds: string[] };
 }
 
 /**
@@ -36,9 +43,15 @@ export interface AiPlanJobParams {
  * turned into a 'failed' row + notification instead of an unhandled rejection.
  */
 export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams): Promise<void> {
-  const { requestId, userId, flowId, body, planChangeResult, karmaCharged } = params;
+  const { requestId, userId, flowId, body, planChangeResult, karmaCharged, firstPlan } = params;
+  const firstPlanSaved: { tripId?: string } = {};
 
   try {
+    if (firstPlan) {
+      await completeFirstPlan(deps, params, firstPlan.cityIds, firstPlanSaved);
+      return;
+    }
+
     const result = await deps.ai.generatePlan(body, userId);
 
     if (body.planSessionId) {
@@ -64,6 +77,24 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error generating plan';
     logger.error({ msg: 'AI plan generation failed', requestId, userId, flowId, err: message });
+
+    // F79: once the first plan's trip exists the run is not a failure — never mark it failed or send
+    // "Puedes intentarlo de nuevo" for a plan the user already has. (ponytail: reaching here after both
+    // markCompleted tries failed leaves the row 'pending'; the trip is in Mis viajes and logger.error
+    // sends server_error. Add a sweeper if that ever shows up.)
+    if (firstPlan && firstPlanSaved.tripId) {
+      logger.error({ msg: 'First-run plan saved but a later step failed', requestId, userId, tripId: firstPlanSaved.tripId, err: message });
+      return;
+    }
+
+    // F79: a failed first run gives the gift back.
+    if (firstPlan) {
+      try {
+        await deps.users!.releaseFirstPlan(userId);
+      } catch (releaseErr) {
+        logger.error({ msg: 'Failed to release the first-plan gift after a failed first run', requestId, userId, err: releaseErr });
+      }
+    }
 
     try {
       await deps.aiPlanRequests.markFailed(requestId, message);
@@ -98,5 +129,47 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
     } catch (notifyErr) {
       logger.error({ msg: 'Failed to insert ai_plan_failed notification', requestId, err: notifyErr });
     }
+  }
+}
+
+/**
+ * F79 first run: generate, keep only the chosen cities, save the trip, mark the row with its id,
+ * then notify. Throws (→ the caller's failure path) when no stop survives. `saved.tripId` is set as soon
+ * as the trip exists, so a later failure never hands the gift back for a plan the user already has.
+ * No cta_ai_plan and no ai_plans trophy: nothing was paid.
+ */
+async function completeFirstPlan(
+  deps: AiPlanJobDeps, params: AiPlanJobParams, cityIds: string[], saved: { tripId?: string },
+): Promise<void> {
+  const { requestId, userId, flowId, body, planChangeResult } = params;
+  const result = restrictPlanToCities(await deps.ai.generatePlan(body, userId), cityIds);
+  if (result.stops.length === 0) throw new Error('The generated plan has no stop in the chosen cities');
+
+  const trip = await deps.trips!.create({
+    title: result.title, stops: result.stops, transits: result.transits, ownerId: userId, sourceAiPlanRequestId: requestId,
+  });
+  saved.tripId = trip.id;
+  // The trip already exists: one retry so a transient DB error doesn't leave the row 'pending' (the poll would never resolve).
+  const changeInfo = buildPlanChangeInfo(planChangeResult);
+  try {
+    await deps.aiPlanRequests.markCompleted(requestId, result, changeInfo, trip.id);
+  } catch (err) {
+    logger.warn({ msg: 'markCompleted failed after saving the first plan; retrying once', requestId, userId, err });
+    await deps.aiPlanRequests.markCompleted(requestId, result, changeInfo, trip.id);
+  }
+
+  logger.info({ event: 'cta_first_plan_saved', flowId, userId, path: 'ai', requestId, tripId: trip.id });
+  capture(userId, 'cta_first_plan_saved', { path: 'ai', requestId, tripId: trip.id });
+
+  try {
+    await deps.notifications.add({
+      userId,
+      type:  'ai_plan_ready',
+      title: '🐾 Tu plan está listo',
+      body:  `Tu primer plan "${result.title}" ya está guardado en Mis viajes.`,
+      url:   `/my-trips?tab=trips&focus=${encodeURIComponent(trip.id)}`,
+    });
+  } catch (notifyErr) {
+    logger.error({ msg: 'Failed to insert ai_plan_ready notification for a saved first plan', requestId, userId, err: notifyErr });
   }
 }

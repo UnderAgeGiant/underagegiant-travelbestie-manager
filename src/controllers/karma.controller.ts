@@ -49,6 +49,7 @@ export class KarmaController {
   ): RequestHandler => async (req, _res, next): Promise<void> => {
     try {
       await this.karma.spendAmount(req.user!.userId, amount, reason, getRefId(req));
+      req.karmaCharged = (req.karmaCharged ?? 0) + amount;
       next();
     } catch (err) { next(err); }
   };

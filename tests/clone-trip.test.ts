@@ -253,8 +253,8 @@ describe('POST /trips/:id/clone', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(201);
-    // One event for the original creation, one for the clone — both trip_created.
-    expect(karmaRepo.events).toHaveLength(2);
+    // The original creation is the user's free first plan (F79): only the clone is charged.
+    expect(karmaRepo.events).toHaveLength(1);
     const cloneEvent = karmaRepo.events.find(e => e.refId === res.body.id);
     expect(cloneEvent).toBeDefined();
     expect(cloneEvent!.reason).toBe('trip_created');
