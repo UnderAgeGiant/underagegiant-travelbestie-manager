@@ -79,8 +79,9 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
     logger.error({ msg: 'AI plan generation failed', requestId, userId, flowId, err: message });
 
     // F79: once the first plan's trip exists the run is not a failure — never mark it failed or send
-    // "Puedes intentarlo de nuevo" for a plan the user already has. (ponytail: a markCompleted error
-    // here leaves the row 'pending' without trip_id; the trip is still in Mis viajes.)
+    // "Puedes intentarlo de nuevo" for a plan the user already has. (ponytail: reaching here after both
+    // markCompleted tries failed leaves the row 'pending'; the trip is in Mis viajes and logger.error
+    // sends server_error. Add a sweeper if that ever shows up.)
     if (firstPlan && firstPlanSaved.tripId) {
       logger.error({ msg: 'First-run plan saved but a later step failed', requestId, userId, tripId: firstPlanSaved.tripId, err: message });
       return;
@@ -148,7 +149,14 @@ async function completeFirstPlan(
     title: result.title, stops: result.stops, transits: result.transits, ownerId: userId, sourceAiPlanRequestId: requestId,
   });
   saved.tripId = trip.id;
-  await deps.aiPlanRequests.markCompleted(requestId, result, buildPlanChangeInfo(planChangeResult), trip.id);
+  // The trip already exists: one retry so a transient DB error doesn't leave the row 'pending' (the poll would never resolve).
+  const changeInfo = buildPlanChangeInfo(planChangeResult);
+  try {
+    await deps.aiPlanRequests.markCompleted(requestId, result, changeInfo, trip.id);
+  } catch (err) {
+    logger.warn({ msg: 'markCompleted failed after saving the first plan; retrying once', requestId, userId, err });
+    await deps.aiPlanRequests.markCompleted(requestId, result, changeInfo, trip.id);
+  }
 
   logger.info({ event: 'cta_first_plan_saved', flowId, userId, path: 'ai', requestId, tripId: trip.id });
   capture(userId, 'cta_first_plan_saved', { path: 'ai', requestId, tripId: trip.id });

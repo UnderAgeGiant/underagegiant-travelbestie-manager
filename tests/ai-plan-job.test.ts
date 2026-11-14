@@ -293,9 +293,19 @@ describe('runAiPlanJob — first run (F79)', () => {
     expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
   });
 
-  it('never marks a saved first plan failed when markCompleted throws after the save', async () => {
+  it('retries markCompleted once after the save, so the row ends completed with its tripId', async () => {
     jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
     jest.spyOn(aiPlanRequests, 'markCompleted').mockRejectedValueOnce(new Error('db blip'));
+    await run();
+    const [trip] = await trips.findByOwner(userId);
+    expect(await aiPlanRequests.findById('req-fp')).toMatchObject({ status: 'completed', tripId: trip.id });
+    expect((await notifications.listByUser(userId)).some(n => n.type === 'ai_plan_ready')).toBe(true);
+    expect((await users.findById(userId))!.firstPlanUsedAt).not.toBeNull();
+  });
+
+  it('never marks a saved first plan failed when markCompleted throws twice after the save', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    jest.spyOn(aiPlanRequests, 'markCompleted').mockRejectedValue(new Error('db down'));
     const markFailed = jest.spyOn(aiPlanRequests, 'markFailed');
     await run();
     expect(markFailed).not.toHaveBeenCalled();
