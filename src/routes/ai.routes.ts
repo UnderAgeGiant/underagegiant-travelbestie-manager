@@ -36,6 +36,7 @@ import {
 } from '../lib/ai-limits';
 import { logCtaEvent } from '../lib/log-event';
 import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
+import { makeRefundAiSuggestOnError } from '../middleware/ai/refund-ai-suggest-on-error.middleware';
 import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
 import {
   loadSuggestHistoryMiddleware, serveQueuedSuggestionsMiddleware, unlessServedFromQueue, takeFreshSuggestionPageMiddleware,
@@ -66,6 +67,8 @@ export function createAiRouter(
     getKey:        req => req.user!.userId,
   });
 
+  const refundAiSuggestOnError = makeRefundAiSuggestOnError(karmaRepo);
+
   router.post('/suggest',
     validateBody(aiSuggestSchema),
     perUserAiLimit('suggest', AI_SUGGEST_RATE_LIMIT),
@@ -77,6 +80,7 @@ export function createAiRouter(
     unlessServedFromQueue(ai.suggest),
     unlessServedFromQueue(takeFreshSuggestionPageMiddleware),
     storeSuggestedOptionsMiddleware,
+    refundAiSuggestOnError,
     logCtaEvent('cta_ai_suggest', req => ({
       karmaSpent: req.suggestServedFromQueue ? 0 : KARMA_COST_AI_SUGGEST,
       fromQueue:  !!req.suggestServedFromQueue,

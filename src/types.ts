@@ -544,6 +544,7 @@ declare global {
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
       itineraryContext?: import('./lib/itinerary/types').ItineraryContext;   // set by load-itinerary-context.middleware.ts (F78)
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
+      karmaCharged?: number;       // Tokens this request spent (KarmaController.spendFor); refund handlers read it
       firstPlanClaimed?: boolean;  // F79 — set by claim-first-plan-if-available / require-first-plan-claim
       karmaEventsQuery?: { cursor: import('./lib/karma-events-cursor').KarmaEventsCursor | null; limit: number };
       feedQuery?: { cursor: import('./lib/feed-cursor').FeedCursor | null; limit: number };

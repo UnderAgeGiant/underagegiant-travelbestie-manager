@@ -76,6 +76,7 @@ async function getToken(app: express.Express): Promise<string> {
 describe('POST /ai/suggest', () => {
   let app: express.Express;
   let token: string;
+  let karmaRepo: StubKarmaRepository;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -91,7 +92,7 @@ describe('POST /ai/suggest', () => {
         },
       }],
     });
-    ({ app } = buildApp());
+    ({ app, karmaRepo } = buildApp());
     token = await getToken(app);
   });
 
@@ -211,13 +212,45 @@ describe('POST /ai/suggest', () => {
     });
   });
 
-  it('returns 500 when the model output breaks the response schema', async () => {
-    create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ options: [] }) } }] });
-    const res = await request(app)
-      .post('/ai/suggest')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ preferences: 'historia y arte' });
-    expect(res.status).toBe(500);
+  describe('refunds the charge when the call fails after it (R3-B1)', () => {
+    const failures: [string, () => void][] = [
+      ['the model output breaks the response schema', () => create.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ options: [] }) } }] })],
+      ['the output is truncated at max_tokens',       () => create.mockResolvedValueOnce({ choices: [{ finish_reason: 'length', message: { content: '{"options":[' } }] })],
+      ['the DeepSeek call throws',                     () => create.mockRejectedValueOnce(new Error('socket hang up'))],
+    ];
+    it.each(failures)('when %s: 500 ai_suggest_failed, one ai_suggest_refund +8, balance back', async (_name, arrange) => {
+      arrange();
+      const res = await request(app)
+        .post('/ai/suggest')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ preferences: 'historia y arte', planSessionId: 'session-r' });
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ error: 'ai_suggest_failed' });
+      expect(karmaRepo.awarded).toEqual([{ userId: expect.any(String), amount: 8, reason: 'ai_suggest_refund', refId: 'test-flow-id' }]);
+      expect(karmaRepo.events.reduce((sum, e) => sum + e.delta, 0)).toBe(0);
+    });
+
+    it('does not refund a successful call', async () => {
+      const res = await request(app)
+        .post('/ai/suggest')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ preferences: 'historia y arte' });
+      expect(res.status).toBe(200);
+      expect(karmaRepo.awarded).toEqual([]);
+      expect(karmaRepo.events.map(e => e.delta)).toEqual([-8]);
+    });
+
+    it('does not refund when the charge itself failed', async () => {
+      jest.spyOn(karmaRepo, 'spendAmount').mockRejectedValueOnce(new Error('db down'));
+      const res = await request(app)
+        .post('/ai/suggest')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ preferences: 'historia y arte' });
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ error: 'Internal server error' });
+      expect(karmaRepo.awarded).toEqual([]);
+      expect(create).not.toHaveBeenCalled();
+    });
   });
 
   it('stores the sanitized options under the caller\'s plan session', async () => {
@@ -237,6 +270,15 @@ describe('POST /ai/suggest', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ preferences: 'historia y arte' });
     expect(create.mock.calls[0][0].max_tokens).toBe(8000);
+  });
+
+  // R3-B1: reasoning tokens count against max_tokens and ran away to 8000 on a 5-city request.
+  it('turns DeepSeek thinking off for suggest', async () => {
+    await request(app)
+      .post('/ai/suggest')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ preferences: 'historia y arte' });
+    expect(create.mock.calls[0][0].thinking).toEqual({ type: 'disabled' });
   });
 });
 

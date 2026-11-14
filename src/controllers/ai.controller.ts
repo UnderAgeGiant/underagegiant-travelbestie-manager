@@ -109,6 +109,9 @@ export class AiController {
       const completion = await deepseekClient.chat.completions.create({
         model: AI_MODEL,
         max_tokens: AI_MAX_TOKENS.suggest,
+        // Reasoning tokens count against max_tokens and ran away to the 8000 cap on a 5-city request (R3-B1);
+        // the JSON itself is ~1k tokens. DeepSeek-specific param, not in the OpenAI SDK types.
+        ...({ thinking: { type: 'disabled' } } as object),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
