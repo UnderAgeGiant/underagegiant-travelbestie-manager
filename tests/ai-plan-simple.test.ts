@@ -146,6 +146,15 @@ describe('POST /ai/plan — simple flow (F84)', () => {
     expect((await aiPlanRequestRepo.findById(second.body.requestId))!.karmaCharged).toBe(0);
   });
 
+  it('swapping 1 of 2 cities in the same session → charged_change, 9 more spent', async () => {
+    const first = await post(simpleBody());
+    await pollUntilDone(app, token, first.body.requestId);
+    const second = await post(simpleBody({ cities: [CITIES[0], { id: 'venice', name: 'Venice' }], cityCatalog: undefined }));
+    const done = await pollUntilDone(app, token, second.body.requestId);
+    expect(done.body.changeInfo).toMatchObject({ type: 'charged_change' });
+    expect(spent().map(e => e.delta)).toEqual([-9, -9]);
+  });
+
   it.each([
     ['with selectedOption',             simpleBody({ selectedOption: ADV_OPTION })],
     ['3 cities in 2 days',              simpleBody({ cities: [...CITIES, { id: 'venice', name: 'Venice' }], duration: 2 })],
