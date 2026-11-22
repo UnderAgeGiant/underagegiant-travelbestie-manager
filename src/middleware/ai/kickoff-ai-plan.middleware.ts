@@ -6,6 +6,7 @@ import { IAiPlanRequestRepository } from '../../repositories/interfaces/ai-plan-
 import { INotificationRepository } from '../../repositories/interfaces/notification.repository';
 import { runAiPlanJob } from '../../lib/ai-plan-job';
 import { AiPlanBody } from '../../schemas/ai.schemas';
+import { KARMA_COST_AI_PLAN_SIMPLE } from '../../controllers/karma.controller';
 import { TrophyRecorder } from '../../lib/trophy-recorder';
 
 /**
@@ -27,7 +28,8 @@ export function createKickoffAiPlanMiddleware(
     try {
       const body = req.body as AiPlanBody;
       const planChangeResult = req.planChangeResult!;
-      const karmaCharged = planChangeResult.type === 'free_change' ? 0 : 1;
+      const flow = body.flow ?? 'advanced';
+      const karmaCharged = planChangeResult.type === 'free_change' ? 0 : flow === 'simple' ? KARMA_COST_AI_PLAN_SIMPLE : 1;
 
       const record = await aiPlanRequests.insert({
         requestId:     req.aiPlanRequestId!,
@@ -41,6 +43,8 @@ export function createKickoffAiPlanMiddleware(
           budget:         body.budget,
           startDate:      body.startDate,
           ...(body.cityIds ? { cityIds: body.cityIds } : {}),
+          flow,
+          ...(body.cities ? { cities: body.cities } : {}),   // F84: a revisited simple plan reopens in Simple
         },
       });
 
@@ -54,6 +58,7 @@ export function createKickoffAiPlanMiddleware(
             body,
             planChangeResult,
             karmaCharged,
+            flow,
           },
         ),
       );

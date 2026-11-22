@@ -4,6 +4,7 @@ One line per PR merged to `main` (which Vercel deploys to production), newest fi
 **Every PR adds its own line** under the current month's heading (create the heading if it is missing), in the form `- <PR title> (#<number>)`.
 
 ## 2026-11
+- feat(ai): simple one-step AI plan flow (#106)
 - feat(first-plan): free first plan, /ai/first-plan, cities mode (#105)
 - docs(readme): refresh README to match the current API (#104)
 - fix(security): per-visitor IP rate limits (trust proxy) (#103)

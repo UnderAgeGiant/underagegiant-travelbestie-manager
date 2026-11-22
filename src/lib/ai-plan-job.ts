@@ -32,6 +32,8 @@ export interface AiPlanJobParams {
   karmaCharged:     number;
   /** F79 POST /ai/first-plan: save the trip server-side, keep only these cities, return the gift on failure. */
   firstPlan?:       { cityIds: string[] };
+  /** F84: 'simple' keeps only body.cityIds' stops. Absent = advanced. */
+  flow?:            'simple' | 'advanced';
 }
 
 /**
@@ -44,6 +46,7 @@ export interface AiPlanJobParams {
  */
 export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams): Promise<void> {
   const { requestId, userId, flowId, body, planChangeResult, karmaCharged, firstPlan } = params;
+  const flow = params.flow ?? 'advanced';
   const firstPlanSaved: { tripId?: string } = {};
 
   try {
@@ -52,7 +55,12 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
       return;
     }
 
-    const result = await deps.ai.generatePlan(body, userId);
+    let result = await deps.ai.generatePlan(body, userId);
+    // F84: like the first run, a simple plan keeps only the chosen cities; none left = failure (refunded below).
+    if (flow === 'simple') {
+      result = restrictPlanToCities(result, body.cityIds!);
+      if (result.stops.length === 0) throw new Error('The generated plan has no stop in the chosen cities');
+    }
 
     if (body.planSessionId) {
       await writePlanSession(userId, body.planSessionId, planChangeResult, toSessionOptions(body));
@@ -64,8 +72,8 @@ export async function runAiPlanJob(deps: AiPlanJobDeps, params: AiPlanJobParams)
     // Only paid plans count toward the AI trophy (free re-plans could be farmed). record() never throws.
     if (karmaCharged > 0 && deps.trophies) await deps.trophies.record(userId, 'ai_plans', requestId);
 
-    logger.info({ event: 'cta_ai_plan', flowId, userId, changeType: planChangeResult.type, requestId });
-    capture(userId, 'cta_ai_plan', { changeType: planChangeResult.type, requestId });
+    logger.info({ event: 'cta_ai_plan', flowId, userId, changeType: planChangeResult.type, requestId, flow });
+    capture(userId, 'cta_ai_plan', { changeType: planChangeResult.type, requestId, flow });
 
     await deps.notifications.add({
       userId,

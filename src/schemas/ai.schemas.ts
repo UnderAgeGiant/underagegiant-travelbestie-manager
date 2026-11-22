@@ -20,6 +20,11 @@ function requirePreferencesUnlessCities(body: { preferences?: string; cityIds?: 
   }
 }
 
+/** 1–max distinct `{ id, name }` cities (F79 first run, F84 simple flow). */
+const distinctCitiesSchema = (max: number) =>
+  z.array(z.object({ id: cityIdSchema, name: catalogNameSchema })).min(1).max(max)
+    .refine(c => new Set(c.map(x => x.id)).size === c.length, { message: 'cities must be distinct' });
+
 export const aiSuggestSchema = z.object({
   preferences: z.string().trim().min(1).max(2000).optional(),
   duration:    z.number().int().min(1).max(60).optional(),
@@ -47,19 +52,38 @@ export const aiPlanSchema = z.object({
     summary:    z.string().max(3000),
     highlights: z.array(z.string().max(300)).max(50),
     cityIds:    z.array(cityIdSchema).max(20).optional(),
-  }).passthrough(),
+  }).passthrough().optional(),   // required unless flow 'simple' (superRefine)
   duration:      z.number().int().min(1).max(60).optional(),
   budget:        z.string().max(100).optional(),
   startDate:     z.string().max(10).optional(),
   planSessionId: z.string().max(200).optional(),
   cityCatalog:   z.record(cityIdSchema, z.array(catalogEntrySchema).max(300)).refine(c => Object.keys(c).length <= 20, { message: 'cityCatalog may cover at most 20 cities' }).optional(),
   cityIds:       citiesModeIdsSchema.optional(),
-}).passthrough().superRefine(requirePreferencesUnlessCities);
+  // F84 simple flow (contracts §5.2 "Simple flow"): the server synthesizes selectedOption from `cities`.
+  flow:          z.enum(['simple', 'advanced']).optional(),
+  cities:        distinctCitiesSchema(10).optional(),
+}).passthrough().superRefine((body, ctx) => {
+  if (body.flow !== 'simple') {
+    if (!body.selectedOption) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['selectedOption'], message: 'Required' });
+    requirePreferencesUnlessCities(body, ctx);
+    return;
+  }
+  if (!body.cities) { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cities'], message: 'Required' }); return; }
+  if (body.duration == null || body.duration < body.cities.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cities_exceed_days' });
+  }
+  for (const key of ['selectedOption', 'preferences', 'budget', 'cityIds'] as const) {
+    if (body[key] !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'not allowed when flow is simple' });
+  }
+  const ids = new Set(body.cities.map(c => c.id));
+  if (Object.keys(body.cityCatalog ?? {}).some(id => !ids.has(id))) {   // ADR 0010: only the chosen cities
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cityCatalog'], message: 'cityCatalog keys must be among cities' });
+  }
+});
 
 // F79 POST /ai/first-plan (contracts §5.5): 1–3 distinct cities, no free text, no karma.
 export const aiFirstPlanSchema = z.object({
-  cities:      z.array(z.object({ id: cityIdSchema, name: catalogNameSchema })).min(1).max(3)
-    .refine(c => new Set(c.map(x => x.id)).size === c.length, { message: 'cities must be distinct' }),
+  cities:      distinctCitiesSchema(3),
   duration:    z.number().int().min(1).max(60),
   startDate:   z.string().max(10).optional(),
   preferences: z.string().trim().max(2000).optional(),
@@ -110,7 +134,9 @@ export const suggestCompanionSchema = z.object({
 }).passthrough();
 
 export type AiSuggestBody             = z.infer<typeof aiSuggestSchema>;
-export type AiPlanBody                = z.infer<typeof aiPlanSchema>;
+/** After resolvePlanOption, selectedOption is always set (the schema only requires it for advanced). */
+type AiPlanInput = z.infer<typeof aiPlanSchema>;
+export type AiPlanBody = AiPlanInput & { selectedOption: NonNullable<AiPlanInput['selectedOption']> };
 export type AiFirstPlanBody           = z.infer<typeof aiFirstPlanSchema>;
 export type AiSuggestAttractionsBody  = z.infer<typeof aiSuggestAttractionsSchema>;
 export type SuggestCompanionBody      = z.infer<typeof suggestCompanionSchema>;
