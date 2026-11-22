@@ -232,7 +232,12 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy' | 'new_follower';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy' | 'new_follower'
+  | 'referral_reward' | 'referral_cap' | 'referral_same_browser';
+
+/** F81: where the referred visitor came from, and how a referral settled (contracts §19). */
+export type ReferralChannel = 'link' | 'shared_plan' | 'card';
+export type ReferralOutcome = 'paid' | 'cap' | 'same_browser';
 
 export interface NotificationRecord {
   notificationId: string;

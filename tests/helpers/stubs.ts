@@ -11,7 +11,7 @@ import { User, Trip, TripStop, TransitLeg, CostSettings, CostEstimate, Place, Co
 import { IFavoriteRepository } from '../../src/repositories/interfaces/favorite.repository.interface';
 import { INotificationRepository, NOTIFICATIONS_LIST_LIMIT } from '../../src/repositories/interfaces/notification.repository';
 import { ICollaboratorRepository } from '../../src/repositories/interfaces/collaborator.repository';
-import { CollaboratorRecord, PendingCollaboratorInvite } from '../../src/types';
+import { CollaboratorRecord, PendingCollaboratorInvite, ReferralChannel, ReferralOutcome } from '../../src/types';
 import { IHighlightRepository } from '../../src/repositories/interfaces/highlight.repository.interface';
 import { IAiPlanRequestRepository } from '../../src/repositories/interfaces/ai-plan-request.repository';
 import { KarmaEventsCursor } from '../../src/lib/karma-events-cursor';
@@ -20,6 +20,8 @@ import { ITrophyRepository } from '../../src/repositories/interfaces/trophy.repo
 import { IFollowRepository } from '../../src/repositories/interfaces/follow.repository';
 import { IRankingRepository } from '../../src/repositories/interfaces/ranking.repository';
 import { IGameRepository } from '../../src/repositories/interfaces/game.repository';
+import { IReferralRepository } from '../../src/repositories/interfaces/referral.repository';
+import { generateReferralCode, REFERRAL_REWARD, REFERRAL_MONTHLY_CAP } from '../../src/lib/referrals';
 
 export class StubUserRepository implements IUserRepository {
   private byEmail = new Map<string, User>();
@@ -716,4 +718,64 @@ export class StubGameRepository implements IGameRepository {
     if (newRecord) this.best.set(key, score);
     return { score, weeklyBest: this.best.get(key)!, newRecord, weekStart };
   }
+}
+
+/** F81: in-memory referrals with the same decisions as PgReferralRepository.settle (cap per Santiago month). */
+export class StubReferralRepository implements IReferralRepository {
+  codes = new Map<string, string>();                 // userId → code
+  anonIds = new Map<string, Set<string>>();           // userId → X-Anonymous-Id values
+  rows = new Map<string, { referrer: string | null; channel: ReferralChannel; sameBrowser: boolean; outcome: ReferralOutcome | null; month: string | null }>();
+  credits: { userId: string; amount: number; refId: string }[] = [];
+  capResetsOn = (() => {
+    const [y, m] = santiagoMonth().split('-').map(Number);
+    return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  })();
+
+  constructor(private readonly users?: StubUserRepository) {}
+
+  async getOrCreateCode(userId: string): Promise<string> {
+    if (!this.codes.has(userId)) this.codes.set(userId, generateReferralCode());
+    return this.codes.get(userId)!;
+  }
+
+  async findInviter(code: string): Promise<{ username: string | null; firstName: string } | null> {
+    const owner = [...this.codes].find(([, c]) => c === code)?.[0];
+    const user = owner ? await this.users?.findById(owner) : null;
+    return user ? { username: user.username, firstName: user.name.trim().split(/\s+/)[0] } : null;
+  }
+
+  async recordAnonymousId(userId: string, anonymousId: string): Promise<void> {
+    if (!this.anonIds.has(userId)) this.anonIds.set(userId, new Set());
+    this.anonIds.get(userId)!.add(anonymousId);
+  }
+
+  async attach(referredUserId: string, code: string, channel: ReferralChannel, anonymousId: string | null): Promise<{ sameBrowser: boolean } | null> {
+    const referrer = [...this.codes].find(([, c]) => c === code)?.[0];
+    if (!referrer || referrer === referredUserId || this.rows.has(referredUserId)) return null;
+    const sameBrowser = !!anonymousId && !!this.anonIds.get(referrer)?.has(anonymousId);
+    this.rows.set(referredUserId, { referrer, channel, sameBrowser, outcome: null, month: null });
+    return { sameBrowser };
+  }
+
+  async settle(referredUserId: string): Promise<{ referrerUserId: string; outcome: ReferralOutcome; capResetsOn: string } | null> {
+    const row = this.rows.get(referredUserId);
+    if (!row || row.outcome || !row.referrer) return null;
+    const month = santiagoMonth();
+    const paid = [...this.rows.values()].filter(r => r.referrer === row.referrer && r.outcome === 'paid' && r.month === month).length;
+    row.outcome = row.sameBrowser ? 'same_browser' : (paid + 1) * REFERRAL_REWARD > REFERRAL_MONTHLY_CAP ? 'cap' : 'paid';
+    row.month = month;
+    if (row.outcome === 'paid') this.credits.push({ userId: row.referrer, amount: REFERRAL_REWARD, refId: referredUserId });
+    return { referrerUserId: row.referrer, outcome: row.outcome, capResetsOn: this.capResetsOn };
+  }
+
+  async summary(userId: string): Promise<{ invitedCount: number; monthTokens: number; capResetsOn: string }> {
+    const mine = [...this.rows.values()].filter(r => r.referrer === userId && r.outcome);
+    const paid = mine.filter(r => r.outcome === 'paid' && r.month === santiagoMonth()).length;
+    return { invitedCount: mine.length, monthTokens: paid * REFERRAL_REWARD, capResetsOn: this.capResetsOn };
+  }
+}
+
+/** 'YYYY-MM' of now in America/Santiago. */
+function santiagoMonth(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }).slice(0, 7);
 }
