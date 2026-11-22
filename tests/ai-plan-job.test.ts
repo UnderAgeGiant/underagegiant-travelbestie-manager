@@ -177,7 +177,7 @@ describe('runAiPlanJob analytics', () => {
     jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'T', stops: [], transits: [] });
     await aiPlanRequests.insert({ requestId: 'a1', userId: 'u1', planSessionId: 's', karmaCharged: 1, requestParams: params });
     await run('a1', 1);
-    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan', { changeType: 'new_session', requestId: 'a1' });
+    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan', { changeType: 'new_session', requestId: 'a1', flow: 'advanced' });
     expect(capture).not.toHaveBeenCalledWith(expect.anything(), 'cta_ai_plan_failed', expect.anything());
   });
 
@@ -323,5 +323,67 @@ describe('runAiPlanJob — first run (F79)', () => {
       { requestId: 'req-fp', userId, flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 0, firstPlan: { cityIds: ['paris'] } },
     );
     expect(trophies.record).not.toHaveBeenCalled();
+  });
+});
+
+describe('runAiPlanJob — simple flow (F84)', () => {
+  let aiPlanRequests: StubAiPlanRequestRepository;
+  let karma: StubKarmaRepository;
+  let notifications: StubNotificationRepository;
+  let trips: StubTripRepository;
+  let ai: AiController;
+
+  const stop = (cityId: string) => ({ cityId, checkIn: '01/07/2026', checkOut: '03/07/2026', selectedAttractions: [] });
+  const body = makeBody({
+    flow: 'simple', cityIds: ['rome', 'florence'], preferences: undefined, budget: undefined,
+    selectedOption: { id: 0, title: 'Viaje a Rome, Florence', summary: 'Itinerario de 5 días por Rome, Florence', highlights: ['Rome', 'Florence'], cityIds: ['rome', 'florence'] },
+  });
+
+  async function run() {
+    await aiPlanRequests.insert({ requestId: 'req-s', userId: 'u1', planSessionId: 'session-1', karmaCharged: 9,
+      requestParams: { selectedOption: body.selectedOption, preferences: '', cityIds: ['rome', 'florence'], flow: 'simple' } });
+    await runAiPlanJob(
+      { ai, aiPlanRequests, karma, notifications, trips },
+      { requestId: 'req-s', userId: 'u1', flowId: 'f', body, planChangeResult: { type: 'new_session' }, karmaCharged: 9, flow: 'simple' },
+    );
+  }
+
+  beforeEach(() => {
+    (capture as jest.Mock).mockClear();
+    aiPlanRequests = new StubAiPlanRequestRepository();
+    karma = new StubKarmaRepository();
+    notifications = new StubNotificationRepository();
+    trips = new StubTripRepository();
+    ai = new AiController();
+  });
+
+  it('drops stops outside body.cityIds before markCompleted', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('rome'), stop('paris'), stop('florence')], transits: [] });
+    await run();
+    const row = await aiPlanRequests.findById('req-s');
+    expect(row!.status).toBe('completed');
+    expect(row!.result!.stops.map(s => s.cityId)).toEqual(['rome', 'florence']);
+  });
+
+  it('0 stops left → failed, 9 refunded, ai_plan_failed notification', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('paris')], transits: [] });
+    await run();
+    expect((await aiPlanRequests.findById('req-s'))!.status).toBe('failed');
+    expect(karma.awarded).toEqual([{ userId: 'u1', amount: 9, reason: 'ai_plan_refund', refId: 'req-s' }]);
+    const [n] = await notifications.listByUser('u1');
+    expect(n.type).toBe('ai_plan_failed');
+  });
+
+  it('cta_ai_plan capture carries flow simple', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('rome')], transits: [] });
+    await run();
+    expect(capture).toHaveBeenCalledWith('u1', 'cta_ai_plan', { changeType: 'new_session', requestId: 'req-s', flow: 'simple' });
+  });
+
+  it('completed simple plan creates no trip', async () => {
+    jest.spyOn(ai, 'generatePlan').mockResolvedValue({ title: 'P', stops: [stop('rome')], transits: [] });
+    const create = jest.spyOn(trips, 'create');
+    await run();
+    expect(create).not.toHaveBeenCalled();
   });
 });
