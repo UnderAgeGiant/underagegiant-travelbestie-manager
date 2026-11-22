@@ -232,7 +232,12 @@ export interface FavoritedTrip extends SharedTripPayload {
  * collaborator invite) extend this union — the bell renders any type, so no
  * frontend change is needed. Also the hook for a future per-type mute.
  */
-export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy' | 'new_follower';
+export type NotificationType = 'comment' | 'favorite' | 'clone' | 'purchase' | 'collaborator_invite' | 'collaborator_accepted' | 'ai_plan_ready' | 'ai_plan_failed' | 'trophy' | 'new_follower'
+  | 'referral_reward' | 'referral_cap' | 'referral_same_browser';
+
+/** F81: where the referred visitor came from, and how a referral settled (contracts §19). */
+export type ReferralChannel = 'link' | 'shared_plan' | 'card';
+export type ReferralOutcome = 'paid' | 'cap' | 'same_browser';
 
 export interface NotificationRecord {
   notificationId: string;
@@ -545,6 +550,8 @@ declare global {
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
       itineraryContext?: import('./lib/itinerary/types').ItineraryContext;   // set by load-itinerary-context.middleware.ts (F78)
+      referralCode?: string;   // F81: set by ReferralController.code for GET /referrals/me
+      referralAttribution?: { channel: ReferralChannel; sameBrowser: boolean };   // F81: set by attach-referral.middleware.ts
       aiPlanFlow?: 'simple' | 'advanced';   // F84: set by attach-ai-plan-flow.middleware.ts for cta_trip_create
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
       karmaCharged?: number;       // Tokens this request spent (KarmaController.spendFor); refund handlers read it

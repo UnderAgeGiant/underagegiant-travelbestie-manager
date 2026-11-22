@@ -8,6 +8,7 @@ import { ITrophyRepository } from '../repositories/interfaces/trophy.repository'
 import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { ITripRepository } from '../repositories/interfaces/trip.repository';
 import { TrophyRecorder } from '../lib/trophy-recorder';
+import { IReferralRepository } from '../repositories/interfaces/referral.repository';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
 import { aiSuggestSchema, aiPlanSchema, aiFirstPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
@@ -53,6 +54,7 @@ export function createAiRouter(
   // F79 POST /ai/first-plan; optional so older test call sites keep working (the route is then not mounted).
   userRepo?:     IUserRepository,
   tripRepo?:     ITripRepository,
+  referralRepo?: IReferralRepository,   // F81: the first-run job settles the referral after saving the trip
 ): Router {
   const router = Router();
 
@@ -124,7 +126,7 @@ export function createAiRouter(
       perUserAiLimit('plan', AI_PLAN_RATE_LIMIT),   // shares rl:ai-plan with /ai/plan
       makeRequireFirstPlanClaim(userRepo),           // 409 first_plan_used
       generateAiPlanRequestId,
-      createKickoffFirstPlanMiddleware(ai, karmaRepo, userRepo, tripRepo, aiPlanRequests, notifications),
+      createKickoffFirstPlanMiddleware(ai, karmaRepo, userRepo, tripRepo, aiPlanRequests, notifications, referralRepo),
       makeReleaseFirstPlanOnError(userRepo),         // a failed row INSERT must not keep the gift
       logCtaEvent('cta_first_plan_ai_started', req => {
         const body = req.body as AiFirstPlanBody;

@@ -16,6 +16,7 @@ import { PgFollowRepository }        from './repositories/pg/pg-follow.repositor
 import { PgRankingRepository }       from './repositories/pg/pg-ranking.repository';
 import { PgGameRepository }          from './repositories/pg/pg-game.repository';
 import { PgPriceEstimateRepository } from './repositories/pg/pg-price-estimate.repository';
+import { PgReferralRepository }      from './repositories/pg/pg-referral.repository';
 import { TrophyRecorder }            from './lib/trophy-recorder';
 import { UserController }            from './controllers/user.controller';
 import { TripController }            from './controllers/trip.controller';
@@ -32,6 +33,7 @@ import { WeatherController }         from './controllers/weather.controller';
 import { FxController }              from './controllers/fx.controller';
 import { RankingController }         from './controllers/ranking.controller';
 import { GameController }            from './controllers/game.controller';
+import { ReferralController }        from './controllers/referral.controller';
 
 export { pool };
 
@@ -48,6 +50,8 @@ export const followRepo              = new PgFollowRepository(pool);
 export const rankingRepository       = new PgRankingRepository(pool);
 export const gameRepository          = new PgGameRepository(pool);
 export const priceEstimateRepo        = new PgPriceEstimateRepository(pool);
+export const referralRepo            = new PgReferralRepository(pool);
+export const referralController      = new ReferralController(referralRepo);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);

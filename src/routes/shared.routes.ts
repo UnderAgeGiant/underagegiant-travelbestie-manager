@@ -18,6 +18,8 @@ import { makeNotifyFavorite } from '../middleware/notifications/notify-favorite.
 import { makeNotifyClone } from '../middleware/notifications/notify-clone.middleware';
 import { rateLimitMiddleware } from '../middleware/rate-limit.middleware';
 import { respond } from '../middleware/respond.middleware';
+import { IReferralRepository } from '../repositories/interfaces/referral.repository';
+import { makeSettleReferral } from '../middleware/referrals/settle-referral.middleware';
 import { logCtaEvent } from '../lib/log-event';
 import { IUserRepository } from '../repositories/interfaces/user.repository';
 import { makeClaimFirstPlanIfAvailable } from '../middleware/first-plan/claim-first-plan-if-available.middleware';
@@ -32,6 +34,7 @@ export function createSharedRouter(
   trophies?: TrophyRecorder,
   // F79. Optional only because it follows `trophies`; without it nobody claims the gift and the clone is paid.
   userRepo?: IUserRepository,
+  referralRepo?: IReferralRepository,   // F81: settles a referral when this clone is the first plan
 ): Router {
   const router = Router();
   const claimFirstPlan: RequestHandler = userRepo ? makeClaimFirstPlanIfAvailable(userRepo) : (_req, _res, next) => next();
@@ -71,6 +74,7 @@ export function createSharedRouter(
     buildTripResponse,
     logCtaEvent('cta_trip_clone', req => ({ sourceShareId: req.params.shareId, newTripId: (req.result as { id?: string } | undefined)?.id })),
     whenFirstPlan(logCtaEvent('cta_first_plan_saved', req => ({ path: req.query.source === 'featured' ? 'featured_copy' : 'shared_copy', tripId: req.trip!.id }))),
+    whenFirstPlan(makeSettleReferral(referralRepo, notificationRepo)),
     notifyClone,
     makeRecordTrophy(trophies, 'clones', cloneTarget),
     respond(201),

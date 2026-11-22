@@ -6,6 +6,7 @@ import { IUserRepository } from '../../repositories/interfaces/user.repository';
 import { ITripRepository } from '../../repositories/interfaces/trip.repository';
 import { IAiPlanRequestRepository } from '../../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../../repositories/interfaces/notification.repository';
+import { IReferralRepository } from '../../repositories/interfaces/referral.repository';
 import { runAiPlanJob } from '../../lib/ai-plan-job';
 import { buildCitiesPlanOption } from '../../lib/cities-plan-option';
 import { AiFirstPlanBody, AiPlanBody } from '../../schemas/ai.schemas';
@@ -22,6 +23,7 @@ export function createKickoffFirstPlanMiddleware(
   trips:          ITripRepository,
   aiPlanRequests: IAiPlanRequestRepository,
   notifications:  INotificationRepository,
+  referrals?:     IReferralRepository,
 ): RequestHandler {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -39,7 +41,7 @@ export function createKickoffFirstPlanMiddleware(
       });
 
       waitUntil(runAiPlanJob(
-        { ai, aiPlanRequests, karma, notifications, users, trips },
+        { ai, aiPlanRequests, karma, notifications, users, trips, referrals },
         {
           requestId: record.requestId, userId: req.user!.userId, flowId: req.flowId, body,
           planChangeResult: { type: 'new_session' }, karmaCharged: 0, firstPlan: { cityIds },

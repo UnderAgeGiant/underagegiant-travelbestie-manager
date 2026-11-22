@@ -33,10 +33,15 @@ import { revokeRefreshTokenMiddleware }    from '../middleware/auth/revoke-refre
 import { invalidateSessionsMiddleware }    from '../middleware/auth/invalidate-sessions.middleware';
 import { validateUsername }                from '../middleware/auth/validate-username.middleware';
 import { rejectTakenUsername }             from '../middleware/auth/reject-taken-username.middleware';
+import { IReferralRepository }             from '../repositories/interfaces/referral.repository';
+import { makeAttachReferral }              from '../middleware/referrals/attach-referral.middleware';
+import { makeRecordAnonymousId }           from '../middleware/referrals/record-anonymous-id.middleware';
 
-export function createAuthRouter(user: UserController, highlightRepo: IHighlightRepository): Router {
+// referralRepo (F81) is optional so older test call sites keep working; without it nothing is attributed or recorded.
+export function createAuthRouter(user: UserController, highlightRepo: IHighlightRepository, referralRepo?: IReferralRepository): Router {
   const router = Router();
   const migrateAnonymousHighlights = makeMigrateAnonymousHighlights(highlightRepo);
+  const recordAnonymousId = makeRecordAnonymousId(referralRepo);
 
   router.post('/request-otp',
     rateLimitMiddleware({ keyPrefix: 'rl:req-otp', windowSeconds: 900, maxRequests: 5 }),
@@ -59,9 +64,14 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     user.create,
     sendWelcomeEmailMiddleware,
     signTokenMiddleware,
+    makeAttachReferral(referralRepo),   // before recordAnonymousId: the new user's own id is not the referrer's
+    recordAnonymousId,
     migrateAnonymousHighlights,
     aliasAnonymousUser,
     logCtaEvent('cta_register', req => ({ email: req.foundUser?.email })),
+    (req, res, next) => req.referralAttribution
+      ? logCtaEvent('cta_referral_attributed', r => ({ ...r.referralAttribution }))(req, res, next)
+      : next(),
     respond(201)
   );
 
@@ -77,6 +87,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     user.findByEmail,
     verifyPasswordMiddleware,
     signTokenMiddleware,
+    recordAnonymousId,
     migrateAnonymousHighlights,
     aliasAnonymousUser,
     logCtaEvent('cta_login', req => ({ email: req.foundUser?.email })),
@@ -87,6 +98,7 @@ export function createAuthRouter(user: UserController, highlightRepo: IHighlight
     validateRefreshTokenMiddleware,
     user.findByRefreshUser,
     signRefreshedTokenMiddleware,
+    recordAnonymousId,
     logCtaEvent('user_active'),   // once per visit / silent refresh → DAU/MAU in PostHog
     respond(200),
   );
