@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { AiController }    from '../controllers/ai.controller';
-import { KarmaController, KARMA_COST_AI_SUGGEST } from '../controllers/karma.controller';
+import { KarmaController, KARMA_COST_AI_SUGGEST, KARMA_COST_AI_PLAN_SIMPLE } from '../controllers/karma.controller';
 import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../repositories/interfaces/notification.repository';
@@ -11,7 +11,7 @@ import { TrophyRecorder } from '../lib/trophy-recorder';
 import { requireAuth }     from '../middleware/auth/require-auth.middleware';
 import { validateBody }    from '../middleware/validate-body.middleware';
 import { aiSuggestSchema, aiPlanSchema, aiFirstPlanSchema, aiSuggestAttractionsSchema, suggestCompanionSchema } from '../schemas/ai.schemas';
-import type { AiFirstPlanBody } from '../schemas/ai.schemas';
+import type { AiFirstPlanBody, AiPlanBody } from '../schemas/ai.schemas';
 import type { AiSuggestAttractionsBody, SuggestCompanionBody } from '../schemas/ai.schemas';
 import type { CompanionSuggestion } from '../types';
 import { respond }         from '../middleware/respond.middleware';
@@ -37,7 +37,7 @@ import {
 import { logCtaEvent } from '../lib/log-event';
 import { storeSuggestedOptionsMiddleware } from '../middleware/ai/store-suggested-options.middleware';
 import { makeRefundAiSuggestOnError } from '../middleware/ai/refund-ai-suggest-on-error.middleware';
-import { resolveSelectedOption }           from '../middleware/ai/resolve-selected-option.middleware';
+import { resolvePlanOption }               from '../middleware/ai/resolve-plan-option.middleware';
 import {
   loadSuggestHistoryMiddleware, serveQueuedSuggestionsMiddleware, unlessServedFromQueue, takeFreshSuggestionPageMiddleware,
 } from '../middleware/ai/suggest-history.middleware';
@@ -92,7 +92,7 @@ export function createAiRouter(
 
   const requireKarmaForAiPlanIfNeeded: RequestHandler = (req, res, next) => {
     if (req.planChangeResult?.type === 'free_change') return next();
-    return karma.requireKarma(1)(req, res, next);
+    return karma.requireKarma(req.body.flow === 'simple' ? KARMA_COST_AI_PLAN_SIMPLE : 1)(req, res, next);
   };
 
   const kickoffAiPlan = createKickoffAiPlanMiddleware(ai, karmaRepo, aiPlanRequests, notifications, trophies);
@@ -103,12 +103,17 @@ export function createAiRouter(
   router.post('/plan',
     validateBody(aiPlanSchema),
     perUserAiLimit('plan', AI_PLAN_RATE_LIMIT),
-    resolveSelectedOption,             // replaces client selectedOption with the stored /ai/suggest copy
+    resolvePlanOption,                 // simple: synthesizes the option from cities; advanced: the stored /ai/suggest copy
     checkPlanChange,                   // reads Redis, sets req.planChangeResult
     generateAiPlanRequestId,           // req.aiPlanRequestId — shared by the charge and the insert below
     requireKarmaForAiPlanIfNeeded,     // 402 if insufficient karma (skipped for free_change)
-    chargeAiPlanIfNeeded,              // deducts 1 karma unless free_change; ref_id = req.aiPlanRequestId
+    chargeAiPlanIfNeeded,              // deducts 9 (simple) / 1 (advanced) unless free_change; ref_id = req.aiPlanRequestId
     kickoffAiPlan,                     // inserts 'pending' row using the same id, schedules the background job
+    logCtaEvent('cta_ai_plan_started', req => ({
+      flow:       (req.body as AiPlanBody).flow ?? 'advanced',
+      changeType: req.planChangeResult!.type,
+      requestId:  req.aiPlanRequestId,
+    })),
     respond(202),
   );
 

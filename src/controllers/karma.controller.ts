@@ -3,6 +3,7 @@ import { IKarmaRepository } from '../repositories/interfaces/karma.repository';
 
 const KARMA_COST_TRIP           = 1;
 const KARMA_COST_AI_PLAN        = 1;
+export const KARMA_COST_AI_PLAN_SIMPLE = 9;   // F84: the simple flow skips the 8-Token /ai/suggest
 export const KARMA_COST_AI_SUGGEST = 8;
 const KARMA_COST_CITY_SUGGEST   = 2;
 const KARMA_COST_COMPANION_BOOST = 2;
@@ -61,6 +62,7 @@ export class KarmaController {
     req => (req.body as { planSessionId?: string }).planSessionId ?? req.flowId,
   );
   spendForAiPlan         = this.spendFor(KARMA_COST_AI_PLAN, 'ai_plan', req => req.aiPlanRequestId!);
+  spendForAiPlanSimple   = this.spendFor(KARMA_COST_AI_PLAN_SIMPLE, 'ai_plan', req => req.aiPlanRequestId!);
   spendForCitySuggest    = this.spendFor(
     KARMA_COST_CITY_SUGGEST, 'ai_city_suggest',
     req => (req.body as { tripId?: string }).tripId ?? req.flowId,

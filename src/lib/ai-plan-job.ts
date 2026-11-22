@@ -32,6 +32,8 @@ export interface AiPlanJobParams {
   karmaCharged:     number;
   /** F79 POST /ai/first-plan: save the trip server-side, keep only these cities, return the gift on failure. */
   firstPlan?:       { cityIds: string[] };
+  /** F84: 'simple' keeps only body.cityIds' stops. Absent = advanced. */
+  flow?:            'simple' | 'advanced';
 }
 
 /**

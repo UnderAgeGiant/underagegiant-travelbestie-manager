@@ -474,6 +474,8 @@ export interface AiPlanRequestParams {
   startDate?:     string;
   cityIds?:       string[];  // F79 cities mode
   firstRun?:      boolean;   // F79 — set on POST /ai/first-plan rows
+  flow?:          'simple' | 'advanced';           // F84 — absent on rows before F84 (= advanced)
+  cities?:        { id: string; name: string }[];  // F84 simple flow
 }
 
 export interface AiPlanRequestRecord {

@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { KarmaController } from '../../controllers/karma.controller';
 
 /**
- * Factory that returns a middleware which charges 1 karma for ai_plan
- * unless planChangeResult.type === 'free_change' (change is minor and within limit).
+ * Charges ai_plan karma unless planChangeResult.type === 'free_change' (change is minor and within limit):
+ * 9 for the F84 simple flow, 1 for advanced (its 8 were paid on /ai/suggest).
  */
 export function createChargeAiPlanMiddleware(karma: KarmaController) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -11,7 +11,7 @@ export function createChargeAiPlanMiddleware(karma: KarmaController) {
       // Free change: skip karma deduction
       return next();
     }
-    // new_session or charged_change: deduct 1 karma as usual
-    return karma.spendForAiPlan(req, res, next);
+    const spend = req.body.flow === 'simple' ? karma.spendForAiPlanSimple : karma.spendForAiPlan;
+    return spend(req, res, next);
   };
 }
