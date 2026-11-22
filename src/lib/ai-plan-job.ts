@@ -12,6 +12,8 @@ import { logger } from './logger';
 import { capture } from './analytics';
 import { TrophyRecorder } from './trophy-recorder';
 import { restrictPlanToCities } from './ai-output';
+import { IReferralRepository } from '../repositories/interfaces/referral.repository';
+import { settleReferral } from './referrals';
 
 export interface AiPlanJobDeps {
   ai:            AiController;
@@ -21,6 +23,7 @@ export interface AiPlanJobDeps {
   trophies?:     TrophyRecorder;
   users?:        IUserRepository;   // F79 first run only (release the gift on failure)
   trips?:        ITripRepository;   // F79 first run only (the job saves the trip)
+  referrals?:    IReferralRepository;   // F81 first run only (settle the referral after the save)
 }
 
 export interface AiPlanJobParams {
@@ -168,6 +171,7 @@ async function completeFirstPlan(
 
   logger.info({ event: 'cta_first_plan_saved', flowId, userId, path: 'ai', requestId, tripId: trip.id });
   capture(userId, 'cta_first_plan_saved', { path: 'ai', requestId, tripId: trip.id });
+  if (deps.referrals) await settleReferral({ referrals: deps.referrals, notifications: deps.notifications }, userId, flowId);   // never throws
 
   try {
     await deps.notifications.add({

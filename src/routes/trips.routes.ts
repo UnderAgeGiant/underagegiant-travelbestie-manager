@@ -29,6 +29,8 @@ import { generateItinerary } from '../middleware/trips/generate-itinerary.middle
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
 import { makeAttachAiPlanFlow } from '../middleware/trips/attach-ai-plan-flow.middleware';
+import { IReferralRepository } from '../repositories/interfaces/referral.repository';
+import { makeSettleReferral } from '../middleware/referrals/settle-referral.middleware';
 import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
 import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
@@ -71,6 +73,8 @@ export function createTripsRouter(
   priceRepo?: IPriceEstimateRepository,
   // F84: tags AI-sourced creations with the plan flow; older test call sites omit it (no flow logged).
   aiPlanRequestRepo?: IAiPlanRequestRepository,
+  // F81: pays the referrer when this is the referred user's first plan; older test call sites omit it.
+  referralRepo?: IReferralRepository,
 ): Router {
   const router = Router();
 
@@ -104,6 +108,7 @@ export function createTripsRouter(
       ...(req.aiPlanFlow ? { flow: req.aiPlanFlow } : {}),
     })),
     whenFirstPlan(logCtaEvent('cta_first_plan_saved', req => ({ path: req.body.sourceAiPlanRequestId ? 'ai' : 'manual', tripId: req.trip!.id }))),
+    whenFirstPlan(makeSettleReferral(referralRepo, notificationRepo)),
     buildTripResponse,
     markEstimateStale,
     respond(201),

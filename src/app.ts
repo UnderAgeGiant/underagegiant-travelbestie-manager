@@ -80,15 +80,15 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use('/auth',       createAuthRouter(userController, highlightRepo, referralRepo));
-app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo, trophyRecorder, userRepo));
+app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo, trophyRecorder, userRepo, referralRepo));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
   createSharedCommentsRouter(pool, stepCommentController, stepCommentRepo, karmaRepo, notificationRepo, trophyRecorder),
 );
-app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder, priceEstimateRepo, aiPlanRequestRepo));
+app.use('/trips',    createTripsRouter(tripController, karmaController, collaboratorController, collaboratorRepo, userRepo, tripRepo, notificationRepo, trophyRecorder, priceEstimateRepo, aiPlanRequestRepo, referralRepo));
 app.use('/comments', createCommentsRouter(commentController, commentRepo, karmaRepo));
 app.use('/karma',    createKarmaRouter(karmaController, karmaPurchaseController, mercadopagoController, karmaPurchaseRepo, userRepo, notificationRepo, karmaRepo, pool));
-app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo, trophyRecorder, trophyRepo, userRepo, tripRepo));
+app.use('/ai',       createAiRouter(aiController, karmaController, karmaRepo, aiPlanRequestRepo, notificationRepo, trophyRecorder, trophyRepo, userRepo, tripRepo, referralRepo));
 app.use('/companion', createCompanionRouter(companionController, karmaController));
 app.use('/featured', createFeaturedRouter(tripController));
 app.use('/stats',    createStatsRouter(statsController));
