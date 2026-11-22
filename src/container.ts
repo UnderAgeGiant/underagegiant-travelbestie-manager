@@ -33,6 +33,7 @@ import { WeatherController }         from './controllers/weather.controller';
 import { FxController }              from './controllers/fx.controller';
 import { RankingController }         from './controllers/ranking.controller';
 import { GameController }            from './controllers/game.controller';
+import { ReferralController }        from './controllers/referral.controller';
 
 export { pool };
 
@@ -50,6 +51,7 @@ export const rankingRepository       = new PgRankingRepository(pool);
 export const gameRepository          = new PgGameRepository(pool);
 export const priceEstimateRepo        = new PgPriceEstimateRepository(pool);
 export const referralRepo            = new PgReferralRepository(pool);
+export const referralController      = new ReferralController(referralRepo);
 
 export const userRepo                = new PgUserRepository(pool);
 export const tripRepo                = new PgTripRepository(pool);

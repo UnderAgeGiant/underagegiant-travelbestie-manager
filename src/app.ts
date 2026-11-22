@@ -13,9 +13,10 @@ import {
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
   highlightRepo, aiPlanRequestRepo, weatherController, fxController, trophyRecorder, trophyRepo, rankingController, gameController,
-  followRepo, priceEstimateRepo, referralRepo,
+  followRepo, priceEstimateRepo, referralRepo, referralController,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
+import { createReferralsRouter }       from './routes/referrals.routes';
 import { createTripsRouter }           from './routes/trips.routes';
 import { createSharedRouter }          from './routes/shared.routes';
 import { createSharedCommentsRouter }  from './routes/shared-comments.routes';
@@ -101,6 +102,7 @@ app.use('/users',    createUsersRouter(userController, followRepo, notificationR
 app.use('/u',        createPublicProfileRouter(userController, tripRepo, followRepo, trophyRepo));
 app.use('/highlights', createHighlightsRouter(highlightRepo));
 app.use('/weather', createWeatherRouter(weatherController));
+app.use('/referrals', createReferralsRouter(referralController));
 app.use('/fx',      createFxRouter(fxController));
 app.use('/seo',     createSeoRouter(tripController));
 
