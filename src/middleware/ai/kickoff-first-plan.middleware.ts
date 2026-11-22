@@ -7,6 +7,7 @@ import { ITripRepository } from '../../repositories/interfaces/trip.repository';
 import { IAiPlanRequestRepository } from '../../repositories/interfaces/ai-plan-request.repository';
 import { INotificationRepository } from '../../repositories/interfaces/notification.repository';
 import { runAiPlanJob } from '../../lib/ai-plan-job';
+import { buildCitiesPlanOption } from '../../lib/cities-plan-option';
 import { AiFirstPlanBody, AiPlanBody } from '../../schemas/ai.schemas';
 
 /**
@@ -26,14 +27,7 @@ export function createKickoffFirstPlanMiddleware(
     try {
       const { cities, duration, startDate, preferences, cityCatalog } = req.body as AiFirstPlanBody;
       const cityIds = cities.map(c => c.id);
-      const names   = cities.map(c => c.name);
-      const selectedOption = {
-        id: 0,
-        title: `Viaje a ${names.join(', ')}`,
-        summary: `Itinerario de ${duration} días por ${names.join(', ')}`,
-        highlights: names,
-        cityIds,
-      };
+      const selectedOption = buildCitiesPlanOption(cities, duration);
       const body: AiPlanBody = { selectedOption, preferences, duration, startDate, cityCatalog, cityIds };
 
       const record = await aiPlanRequests.insert({
