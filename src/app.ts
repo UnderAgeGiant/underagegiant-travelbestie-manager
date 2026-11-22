@@ -13,7 +13,7 @@ import {
   companionController,
   collaboratorController, collaboratorRepo, userRepo, tripRepo,
   highlightRepo, aiPlanRequestRepo, weatherController, fxController, trophyRecorder, trophyRepo, rankingController, gameController,
-  followRepo, priceEstimateRepo,
+  followRepo, priceEstimateRepo, referralRepo,
 } from './container';
 import { createAuthRouter }            from './routes/auth.routes';
 import { createTripsRouter }           from './routes/trips.routes';
@@ -79,7 +79,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 }
 
-app.use('/auth',       createAuthRouter(userController, highlightRepo));
+app.use('/auth',       createAuthRouter(userController, highlightRepo, referralRepo));
 app.use('/shared',     createSharedRouter(tripController, karmaController, favoriteRepository, notificationRepo, trophyRecorder, userRepo));
 app.use('/favorites',  createFavoritesRouter(favoriteRepository));
 app.use('/shared/:shareId/comments',
