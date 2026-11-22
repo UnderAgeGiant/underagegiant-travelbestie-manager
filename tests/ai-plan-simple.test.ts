@@ -55,7 +55,7 @@ jest.mock('../src/lib/redis', () => ({
 
 jest.mock('../src/lib/deepseek', () => ({
   deepseekClient: { chat: { completions: { create: jest.fn().mockResolvedValue({
-    choices: [{ message: { content: JSON.stringify({ title: 'Mock Plan', stops: [], transits: [] }) } }],
+    choices: [{ message: { content: JSON.stringify({ title: 'Mock Plan', stops: [{ cityId: 'rome', checkIn: '01/07/2026', checkOut: '03/07/2026', selectedAttractions: [] }], transits: [] }) } }],
   }) } } },
 }));
 
