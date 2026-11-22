@@ -545,6 +545,7 @@ declare global {
       aiPlanRequest?: AiPlanRequestRecord;  // set by find-ai-plan-request.middleware.ts
       weatherQuery?: { cityId: string; checkIn: string; checkOut: string; isoDates: string[] };
       itineraryContext?: import('./lib/itinerary/types').ItineraryContext;   // set by load-itinerary-context.middleware.ts (F78)
+      aiPlanFlow?: 'simple' | 'advanced';   // F84: set by attach-ai-plan-flow.middleware.ts for cta_trip_create
       aiPlanRequestId?: string;    // set by generate-ai-plan-request-id.middleware.ts (Task 4)
       karmaCharged?: number;       // Tokens this request spent (KarmaController.spendFor); refund handlers read it
       firstPlanClaimed?: boolean;  // F79 — set by claim-first-plan-if-available / require-first-plan-claim

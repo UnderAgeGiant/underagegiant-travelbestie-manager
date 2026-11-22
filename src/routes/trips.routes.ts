@@ -28,6 +28,8 @@ import { itineraryExportSchema } from '../schemas/itinerary.schemas';
 import { generateItinerary } from '../middleware/trips/generate-itinerary.middleware';
 import { prepareOwnedClone } from '../middleware/trips/prepare-owned-clone.middleware';
 import { markEstimateStale } from '../middleware/trips/mark-estimate-stale.middleware';
+import { makeAttachAiPlanFlow } from '../middleware/trips/attach-ai-plan-flow.middleware';
+import { IAiPlanRequestRepository } from '../repositories/interfaces/ai-plan-request.repository';
 import { returnFreshEstimate } from '../middleware/trips/return-fresh-estimate.middleware';
 import { makeComputeEstimate } from '../middleware/trips/compute-estimate.middleware';
 import { evictUnsharedCaches } from '../middleware/trips/evict-unshared-caches.middleware';
@@ -67,6 +69,8 @@ export function createTripsRouter(
   trophies?: TrophyRecorder,
   // Only the estimate route reads this; older test call sites omit it, and the estimate route then answers 500.
   priceRepo?: IPriceEstimateRepository,
+  // F84: tags AI-sourced creations with the plan flow; older test call sites omit it (no flow logged).
+  aiPlanRequestRepo?: IAiPlanRequestRepository,
 ): Router {
   const router = Router();
 
@@ -94,7 +98,11 @@ export function createTripsRouter(
     trip.create,
     makeReleaseFirstPlanOnError(userRepo),
     unlessFirstPlan(karma.spendForTripCreated),
-    logCtaEvent('cta_trip_create', req => ({ tripId: req.trip!.id, fromAi: !!req.body.sourceAiPlanRequestId, stopCount: req.body.stops.length })),
+    makeAttachAiPlanFlow(aiPlanRequestRepo),
+    logCtaEvent('cta_trip_create', req => ({
+      tripId: req.trip!.id, fromAi: !!req.body.sourceAiPlanRequestId, stopCount: req.body.stops.length,
+      ...(req.aiPlanFlow ? { flow: req.aiPlanFlow } : {}),
+    })),
     whenFirstPlan(logCtaEvent('cta_first_plan_saved', req => ({ path: req.body.sourceAiPlanRequestId ? 'ai' : 'manual', tripId: req.trip!.id }))),
     buildTripResponse,
     markEstimateStale,
